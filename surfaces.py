@@ -1,8 +1,10 @@
-"""Mesh generators for K3 and Enriques surfaces.
+"""Mesh generators for K3, Enriques, and Calabi–Yau (3-fold) surfaces.
 
 Each surface is a `Surface` carrying a generator function and a list of
 `ParamSpec` describing its tunable parameters. Implicit surfaces are
-extracted via marching cubes on a sampled scalar field.
+extracted via marching cubes on a sampled scalar field. Parametric
+surfaces (used for the Hanson-style Calabi–Yau cross-sections) are
+built directly from a 2D parameter grid via `_grid_to_polydata`.
 """
 
 from __future__ import annotations
@@ -97,6 +99,57 @@ def _marching_cubes_to_polydata(
             split_vertices=False,
         )
     return mesh
+
+
+def _grid_to_polydata(X: np.ndarray, Y: np.ndarray, Z: np.ndarray) -> pv.PolyData:
+    """Build a triangulated PolyData from a 2D grid of (X, Y, Z) values.
+
+    Each adjacent (i,j)-(i+1,j+1) cell becomes two triangles. Used by the
+    parametric CY3 cross-section generators.
+    """
+    if X.shape != Y.shape or X.shape != Z.shape or X.ndim != 2:
+        raise ValueError("X, Y, Z must be 2D arrays of the same shape")
+    M, N = X.shape
+    vertices = np.column_stack([X.ravel(), Y.ravel(), Z.ravel()])
+
+    i, j = np.mgrid[0:M - 1, 0:N - 1]
+    v00 = (i * N + j).ravel()
+    v01 = (i * N + j + 1).ravel()
+    v11 = ((i + 1) * N + j + 1).ravel()
+    v10 = ((i + 1) * N + j).ravel()
+
+    n_quads = v00.size
+    faces = np.empty((n_quads * 2, 4), dtype=np.int64)
+    faces[::2, 0] = 3
+    faces[::2, 1] = v00
+    faces[::2, 2] = v01
+    faces[::2, 3] = v11
+    faces[1::2, 0] = 3
+    faces[1::2, 1] = v00
+    faces[1::2, 2] = v11
+    faces[1::2, 3] = v10
+
+    return pv.PolyData(vertices, faces.ravel())
+
+
+def _concat_polydata(meshes: list[pv.PolyData]) -> pv.PolyData:
+    """Concatenate a list of PolyData into one, remapping face indices."""
+    if not meshes:
+        return pv.PolyData()
+    all_verts = []
+    all_faces = []
+    offset = 0
+    for m in meshes:
+        if m.n_points == 0:
+            continue
+        all_verts.append(m.points)
+        faces_arr = m.faces.reshape(-1, 4).copy()
+        faces_arr[:, 1:] += offset
+        all_faces.append(faces_arr.ravel())
+        offset += m.n_points
+    if not all_verts:
+        return pv.PolyData()
+    return pv.PolyData(np.vstack(all_verts), np.concatenate(all_faces))
 
 
 # ---------------------------------------------------------------------------
@@ -422,6 +475,207 @@ ENRIQUES_FIGURE_4_PARAMS = [
 
 
 # ---------------------------------------------------------------------------
+# Calabi–Yau 3-fold cross-sections
+#
+# A Calabi–Yau 3-fold is 6-real-dimensional and cannot be embedded in R^3.
+# The visualization tradition collapses to a single canonical convention:
+# Hanson's parametric cross-section (Notices of the AMS 41(9), 1994) of the
+# Fermat quintic, plus parametric variants. We implement three Hanson-style
+# parametric figures plus one implicit Dwork-pencil real slice.
+# ---------------------------------------------------------------------------
+
+
+def _hanson_cross_section(
+    n: int,
+    n2: int,
+    alpha: float,
+    grid: float,
+    xi_max: float,
+) -> pv.PolyData:
+    """Hanson's parametric cross-section of  z₁ⁿ + z₂ⁿ² = 1  in C².
+
+    Parameterization (Hanson 1994, Eqs. 5–7):
+
+        z₁(θ, ξ, k₁) = exp(2πi·k₁/n ) · cosh(ξ + iθ)^(2/n)
+        z₂(θ, ξ, k₂) = exp(2πi·k₂/n²) · (-i·sinh(ξ + iθ))^(2/n²)
+
+    with θ ∈ [0, π/2], ξ ∈ [-ξ_max, ξ_max], and (k₁, k₂) ∈ {0..n−1}×{0..n²−1}
+    indexing the n·n² patches that tile the surface.
+
+    Projection to R³:
+
+        (X, Y, Z) = (Re z₁, Re z₂, cos α · Im z₁ + sin α · Im z₂)
+
+    The α slider rotates between the two suppressed imaginary axes (α = π/4
+    is the canonical Hanson choice).
+
+    What the user sees: a real 2-surface in R⁴, projected to R³ — a
+    2-slice of the complex curve z₁ⁿ + z₂ⁿ² = 1, which is itself a
+    2-slice of the projective Fermat hypersurface in CP^N. For (n, n²) =
+    (5, 5) this is the iconic image associated with Calabi–Yau 3-folds.
+    """
+    # Hanson's tip (paper p. 6): xiSteps must be odd for the surface to pass
+    # through the fixed points along ξ = 0. Coerce slider float → int.
+    grid = int(round(grid))
+    if grid % 2 == 0:
+        grid += 1
+
+    xi = np.linspace(-xi_max, xi_max, grid)
+    theta = np.linspace(0.0, np.pi / 2, grid)
+    XI, TH = np.meshgrid(xi, theta, indexing="ij")
+    z = XI + 1j * TH
+
+    # u₁ = cosh(z), u₂ = -i·sinh(z) — satisfy u₁² + u₂² = 1.
+    # Both lie in the closed right half-plane for (ξ, θ) ∈ [-ξ_max, ξ_max] × [0, π/2],
+    # so np.power's principal-branch fractional exponent is continuous on each patch;
+    # the Z_n × Z_n² phase factors then cover the remaining branches.
+    u1 = np.cosh(z)
+    u2 = -1j * np.sinh(z)
+    u1_pow = u1 ** (2.0 / n)
+    u2_pow = u2 ** (2.0 / n2)
+
+    cos_a = float(np.cos(alpha))
+    sin_a = float(np.sin(alpha))
+
+    patches: list[pv.PolyData] = []
+    for k1 in range(n):
+        phase1 = np.exp(2j * np.pi * k1 / n)
+        z1 = phase1 * u1_pow
+        for k2 in range(n2):
+            phase2 = np.exp(2j * np.pi * k2 / n2)
+            z2 = phase2 * u2_pow
+
+            X = z1.real
+            Y = z2.real
+            Z = cos_a * z1.imag + sin_a * z2.imag
+
+            patches.append(_grid_to_polydata(X, Y, Z))
+
+    merged = _concat_polydata(patches)
+    if merged.n_points > 0:
+        merged = merged.compute_normals(
+            cell_normals=False, point_normals=True,
+            consistent_normals=True, auto_orient_normals=False,
+            split_vertices=False,
+        )
+    return merged
+
+
+def calabi_yau_quintic(
+    alpha: float = np.pi / 4,
+    grid: float =41,
+    xi_max: float = 1.0,
+) -> pv.PolyData:
+    """**Figure 1** — Hanson's quintic cross-section (the canonical CY3 image).
+
+    n₁ = n₂ = 5. The exponent that makes this *the* Calabi–Yau cross-section:
+    a 2-slice of the Fermat quintic z₁⁵+z₂⁵+z₃⁵+z₄⁵+z₅⁵ = 0 in CP⁴, which
+    is the simplest projective Calabi–Yau 3-fold.
+
+    Reference: Hanson, A. J. "A Construction for Computer Visualization of
+    Certain Complex Curves," Notices of the AMS 41(9):1156–1163 (1994).
+    """
+    return _hanson_cross_section(n=5, n2=5, alpha=alpha, grid=grid, xi_max=xi_max)
+
+
+CALABI_YAU_QUINTIC_PARAMS = [
+    ParamSpec("alpha", "α (projection)", 0.0, np.pi / 2, np.pi / 4, 0.02,
+              description="rotation between suppressed imaginary axes; α=π/4 is canonical"),
+    ParamSpec("grid", "grid (per patch)", 21.0, 81.0, 41.0, 2.0,
+              description="(odd) sample points per patch axis; higher = smoother"),
+    ParamSpec("xi_max", "ξ range", 0.5, 2.0, 1.0, 0.05,
+              description="ξ-extent of each patch; larger = more of the surface visible"),
+]
+
+
+def calabi_yau_cubic(
+    alpha: float = np.pi / 4,
+    grid: float =33,
+    xi_max: float = 1.0,
+) -> pv.PolyData:
+    """**Figure 2** — Hanson cross-section with n = 3 (torus).
+
+    Same construction with the lower exponent n₁ = n₂ = 3 — the resulting
+    surface has genus 1 (a torus) rather than the higher-genus quintic.
+    Pedagogically useful: same code path, dramatically different topology.
+    """
+    return _hanson_cross_section(n=3, n2=3, alpha=alpha, grid=grid, xi_max=xi_max)
+
+
+CALABI_YAU_CUBIC_PARAMS = [
+    ParamSpec("alpha", "α (projection)", 0.0, np.pi / 2, np.pi / 4, 0.02,
+              description="rotation between suppressed imaginary axes"),
+    ParamSpec("grid", "grid (per patch)", 21.0, 81.0, 33.0, 2.0,
+              description="(odd) sample points per patch axis"),
+    ParamSpec("xi_max", "ξ range", 0.5, 2.0, 1.0, 0.05,
+              description="ξ-extent of each patch"),
+]
+
+
+def calabi_yau_asymmetric(
+    alpha: float = np.pi / 4,
+    grid: float =35,
+    xi_max: float = 1.0,
+) -> pv.PolyData:
+    """**Figure 3** — Hanson's asymmetric construction with (n₁, n₂) = (5, 3).
+
+    Hanson's own extension (1994 paper, Eqs. 10–12): allow distinct
+    exponents on z₁ and z₂. Breaks the visual five-fold symmetry of the
+    quintic into a 5×3 patch lattice. Demonstrates that the construction
+    is more general than the n₁ = n₂ = 5 advertisement.
+    """
+    return _hanson_cross_section(n=5, n2=3, alpha=alpha, grid=grid, xi_max=xi_max)
+
+
+CALABI_YAU_ASYMMETRIC_PARAMS = [
+    ParamSpec("alpha", "α (projection)", 0.0, np.pi / 2, np.pi / 4, 0.02,
+              description="rotation between suppressed imaginary axes"),
+    ParamSpec("grid", "grid (per patch)", 21.0, 81.0, 35.0, 2.0,
+              description="(odd) sample points per patch axis"),
+    ParamSpec("xi_max", "ξ range", 0.5, 2.0, 1.0, 0.05,
+              description="ξ-extent of each patch"),
+]
+
+
+def calabi_yau_dwork(
+    psi: float = 0.5,
+    n: int = 220,
+    bounds: float = 1.8,
+) -> pv.PolyData:
+    """**Figure 4** — Real affine slice of the Dwork-pencil quintic.
+
+    Dehomogenizing the projective Dwork pencil
+        z₁⁵ + z₂⁵ + z₃⁵ + z₄⁵ + z₅⁵ - 5ψ·z₁z₂z₃z₄z₅ = 0
+    by setting z₄ = z₅ = 1 yields the implicit real surface
+
+        f(x, y, z) = x⁵ + y⁵ + z⁵ + 2 - 5·ψ·x·y·z = 0.
+
+    ψ is the canonical Dwork-pencil modulus: ψ = 0 reduces to the Fermat
+    quintic shadow (no cross-coupling); |ψ| = 1 is the famous **conifold**
+    point where the projective fibre acquires 125 nodal singularities.
+    Dragging ψ across the slider moves the user through a one-parameter
+    family of Calabi–Yau 3-folds — the family parameter has direct
+    geometric meaning even though we only see a 2D real shadow.
+
+    References:
+    - P. Candelas et al., "A pair of Calabi–Yau manifolds as an exactly
+      soluble superconformal theory," Nucl. Phys. B 359 (1991), 21–74.
+    - Wikipedia, "Dwork family."
+    """
+    g = np.linspace(-bounds, bounds, n)
+    X, Y, Z = np.meshgrid(g, g, g, indexing="ij")
+    F = X**5 + Y**5 + Z**5 + 2.0 - 5.0 * psi * X * Y * Z
+    F = np.clip(F, -100.0, 100.0)
+    return _marching_cubes_to_polydata(F, bounds)
+
+
+CALABI_YAU_DWORK_PARAMS = [
+    ParamSpec("psi", "ψ (Dwork modulus)", -2.5, 2.5, 0.5, 0.02,
+              description="One-parameter CY₃ family; |ψ|=1 is the conifold (125 nodes)"),
+]
+
+
+# ---------------------------------------------------------------------------
 # Registry — keys appear in the GUI dropdowns
 # ---------------------------------------------------------------------------
 
@@ -449,6 +703,24 @@ VARIETIES: dict[str, dict[str, Surface]] = {
             enriques_figure_4, ENRIQUES_FIGURE_4_PARAMS,
         ),
     },
+    "Calabi–Yau 3-fold": {
+        "Hanson quintic  [Fig. 1]": Surface(
+            "Hanson quintic CY cross-section (n=5)",
+            calabi_yau_quintic, CALABI_YAU_QUINTIC_PARAMS,
+        ),
+        "Hanson cubic torus  [Fig. 2]": Surface(
+            "Hanson cross-section (n=3, torus)",
+            calabi_yau_cubic, CALABI_YAU_CUBIC_PARAMS,
+        ),
+        "Hanson asymmetric (5,3)  [Fig. 3]": Surface(
+            "Hanson cross-section (n₁=5, n₂=3)",
+            calabi_yau_asymmetric, CALABI_YAU_ASYMMETRIC_PARAMS,
+        ),
+        "Dwork pencil  [Fig. 4]": Surface(
+            "Dwork pencil real slice (ψ-family)",
+            calabi_yau_dwork, CALABI_YAU_DWORK_PARAMS,
+        ),
+    },
 }
 
 # ---------------------------------------------------------------------------
@@ -465,6 +737,12 @@ VARIETY_TOOLTIPS: dict[str, str] = {
         "An Enriques surface is the quotient of a K3 surface by a fixed-point-free "
         "involution. It has Euler number 12 and 2K=0. Four representative real "
         "affine models are provided here."
+    ),
+    "Calabi–Yau 3-fold": (
+        "A Calabi–Yau 3-fold is a 6-real-dimensional space — it cannot be embedded "
+        "in ℝ³. Each entry below is a 2D shadow, slice, or projection (in the "
+        "Hanson-1994 tradition that produced the iconic 'Elegant Universe' image), "
+        "not the 3-fold itself."
     ),
 }
 
@@ -500,5 +778,26 @@ SUBTYPE_TOOLTIPS: dict[str, str] = {
         "Figure 4 · A₅ icosahedral symmetry | "
         "Endrass-normalized variant of Barth's 65-nodal sextic; "
         "τ≈0.18 gives Enriques-compatible node count."
+    ),
+    # Calabi–Yau 3-fold
+    "Hanson quintic  [Fig. 1]": (
+        "Figure 1 · Hanson 1994, Z₅×Z₅ symmetry | "
+        "The iconic CY₃ cross-section: z₁⁵ + z₂⁵ = 1 in C², projected to ℝ³. "
+        "This is the image on the cover of 'The Elegant Universe.'"
+    ),
+    "Hanson cubic torus  [Fig. 2]": (
+        "Figure 2 · Hanson n=3 (torus) | "
+        "z₁³ + z₂³ = 1, same construction with lower exponent. "
+        "Genus 1 — visually a 9-patch torus."
+    ),
+    "Hanson asymmetric (5,3)  [Fig. 3]": (
+        "Figure 3 · Hanson asymmetric construction | "
+        "z₁⁵ + z₂³ = 1 — Hanson's own (n₁ ≠ n₂) extension. "
+        "Breaks the visual symmetry of the quintic."
+    ),
+    "Dwork pencil  [Fig. 4]": (
+        "Figure 4 · Implicit Dwork-pencil real slice | "
+        "x⁵+y⁵+z⁵+2 = 5ψ·xyz. The ψ slider sweeps the canonical "
+        "one-parameter CY₃ family; |ψ|=1 is the conifold (125 nodes)."
     ),
 }
