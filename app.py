@@ -13,6 +13,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QApplication,
     QComboBox,
+    QDockWidget,
     QHBoxLayout,
     QLabel,
     QMainWindow,
@@ -22,7 +23,9 @@ from PySide6.QtWidgets import (
 )
 from pyvistaqt import QtInteractor
 
+from appearance_panel import AppearancePanel
 from surfaces import VARIETIES
+from view_panel import ViewPanel
 
 _PLACEHOLDER = "— Select —"
 
@@ -67,6 +70,40 @@ class MainWindow(QMainWindow):
         self._actor = None
         self._set_subtype_enabled(False)
 
+        # --- View dock (left) ------------------------------------------------
+        self.view_panel = ViewPanel(self.plotter)
+        view_dock = QDockWidget("View", self)
+        view_dock.setObjectName("ViewDock")
+        view_dock.setWidget(self.view_panel)
+        view_dock.setAllowedAreas(
+            Qt.DockWidgetArea.LeftDockWidgetArea | Qt.DockWidgetArea.RightDockWidgetArea
+        )
+        view_dock.setFeatures(
+            QDockWidget.DockWidgetFeature.DockWidgetMovable
+            | QDockWidget.DockWidgetFeature.DockWidgetFloatable
+        )
+        self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, view_dock)
+
+        # --- Appearance dock (right) -----------------------------------------
+        self.appearance_panel = AppearancePanel(
+            get_actor=lambda: self._actor,
+            get_plotter=lambda: self.plotter,
+        )
+        appearance_dock = QDockWidget("Appearance", self)
+        appearance_dock.setObjectName("AppearanceDock")
+        appearance_dock.setAllowedAreas(
+            Qt.DockWidgetArea.RightDockWidgetArea | Qt.DockWidgetArea.LeftDockWidgetArea
+        )
+        appearance_dock.setFeatures(
+            QDockWidget.DockWidgetFeature.DockWidgetMovable
+            | QDockWidget.DockWidgetFeature.DockWidgetFloatable
+        )
+        appearance_dock.setWidget(self.appearance_panel)
+        self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, appearance_dock)
+
+        # Apply default background color from the appearance panel
+        self.appearance_panel.apply_to_actor(None)
+
     # --- dropdown handlers -------------------------------------------------
 
     def _set_subtype_enabled(self, enabled: bool) -> None:
@@ -108,12 +145,15 @@ class MainWindow(QMainWindow):
         self._clear_actor()
         self._actor = self.plotter.add_mesh(
             mesh,
-            color="lightsteelblue",
             smooth_shading=True,
             specular=0.3,
             specular_power=15,
         )
+        # Re-apply user-chosen appearance (color/wireframe/opacity/shading/bg).
+        self.appearance_panel.apply_to_actor(self._actor)
         self.plotter.reset_camera()
+        # Re-attach view overlays (bounding box / grid) to the new mesh's bounds.
+        self.view_panel.re_apply_overlays()
         self.plotter.render()
         self.statusBar().showMessage(
             f"{variety} → {subtype}  ·  {mesh.n_points:,} verts, {mesh.n_cells:,} faces"
