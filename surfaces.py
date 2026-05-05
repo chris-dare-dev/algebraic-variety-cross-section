@@ -64,31 +64,38 @@ def _marching_cubes_to_polydata(
 def fermat_quartic(
     alpha: float = 0.0,
     beta: float = 0.0,
+    gamma: float = 0.0,
     c: float = 1.0,
-    n: int = 150,
+    n: int = 160,
 ) -> pv.PolyData:
-    """Real affine slice of a 2-parameter family of pure quartic surfaces:
+    """Real affine slice of a 3-parameter family of quartic-level-set surfaces:
 
         x^4 + y^4 + z^4
           + alpha · (x^2 y^2 + y^2 z^2 + z^2 x^2)
           + beta  · x y z (x + y + z)
+          + gamma · (x^2 + y^2 + z^2)
           = c
 
-    At (alpha, beta, c) = (0, 0, 1) this is the classical Fermat-style real
-    quartic x^4 + y^4 + z^4 = 1. Every term on the LHS is a degree-4 invariant
-    under coordinate permutations, so the equation is a genuine homogeneous
-    quartic level set — its projective completion is a quartic surface in P^3
-    (a K3 in the smooth case).
+    At (alpha, beta, gamma, c) = (0, 0, 0, 1) this is the classical
+    Fermat-style real quartic x^4 + y^4 + z^4 = 1. The two degree-4
+    perturbation terms (alpha, beta) are independent symmetric quartic
+    invariants; together with the Fermat power-sum they span the natural
+    degree-4 deformation directions, giving a family of (generically smooth)
+    quartic surfaces in P^3 — a family of K3 surfaces in the projective
+    completion. The gamma term adds a quadratic "deflation" knob that carves
+    the central body out, lengthening the six axial arms toward an
+    octahedral-arm K3 shape.
 
-    The slider for alpha is restricted to (-1.5, 0]: positive alpha pushes the
-    shape toward (x^2+y^2+z^2)^2 = c (a sphere, reached at alpha=2), which is
-    explicitly out of scope. Negative alpha sharpens the cube into a star,
-    moving _away_ from a sphere. beta breaks the octahedral symmetry down to
-    tetrahedral, producing two dual tetrahedral-star orientations as it
-    crosses zero.
+    All three perturbation sliders are restricted to non-positive values
+    (alpha, gamma) or symmetric (beta) ranges so that no slider direction
+    drives the surface toward a sphere:
+      - alpha > 0 pushes toward (x^2+y^2+z^2)^2 = c (sphere at alpha=2)
+      - gamma > 0 inflates the central body toward sphericity
+    Both are bounded at zero from above for that reason.
     """
-    # Captures all interesting topology in the slider range.
-    bounds = 1.8
+    # Generous box: with strong negative alpha/gamma the six axial arms can
+    # reach close to ±2. 2.5 captures that comfortably.
+    bounds = 2.5
 
     g = np.linspace(-bounds, bounds, n)
     X, Y, Z = np.meshgrid(g, g, g, indexing="ij")
@@ -98,19 +105,23 @@ def fermat_quartic(
         X2 * X2 + Y2 * Y2 + Z2 * Z2
         + alpha * (X2 * Y2 + Y2 * Z2 + Z2 * X2)
         + beta * (X * Y * Z) * (X + Y + Z)
+        + gamma * (X2 + Y2 + Z2)
         - c
     )
-    F = np.clip(F, -10.0, 10.0)
+    # Clip range scaled to the wider box; x^4 alone reaches ~39 at the corners.
+    F = np.clip(F, -50.0, 50.0)
     return _marching_cubes_to_polydata(F, bounds)
 
 
 FERMAT_PARAMS = [
-    ParamSpec("c", "Level c", 0.25, 3.0, 1.0, 0.05,
-              description="x⁴+y⁴+z⁴ + … = c"),
-    ParamSpec("alpha", "α  (mixed-square)", -1.5, 0.0, 0.0, 0.05,
-              description="coeff of (x²y² + y²z² + z²x²) — sharpens toward octahedral star"),
-    ParamSpec("beta", "β  (tetrahedral)", -2.0, 2.0, 0.0, 0.05,
+    ParamSpec("c", "Level c", 0.1, 5.0, 1.0, 0.05,
+              description="RHS of  x⁴+y⁴+z⁴ + … = c"),
+    ParamSpec("alpha", "α  (mixed-square)", -3.0, 0.0, 0.0, 0.05,
+              description="coeff of (x²y² + y²z² + z²x²) — sharpens cube into octahedral star"),
+    ParamSpec("beta", "β  (tetrahedral)", -3.0, 3.0, 0.0, 0.05,
               description="coeff of xyz(x+y+z) — breaks octahedral to tetrahedral symmetry"),
+    ParamSpec("gamma", "γ  (quadratic carve)", -5.0, 0.0, 0.0, 0.05,
+              description="coeff of (x²+y²+z²) — carves central body, extends six axial arms"),
 ]
 
 
