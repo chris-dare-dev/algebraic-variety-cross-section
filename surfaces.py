@@ -43,8 +43,27 @@ class Surface:
 
 
 def _marching_cubes_to_polydata(
-    field: np.ndarray, bounds: float, level: float = 0.0
+    field: np.ndarray,
+    bounds: float,
+    level: float = 0.0,
+    smooth_iter: int = 20,
 ) -> pv.PolyData:
+    """Extract the level set of *field* as a smooth PolyData.
+
+    Pipeline:
+      1. ``skimage.measure.marching_cubes`` on the sampled scalar field. We
+         keep the analytic gradient-based normals it returns — these are
+         derived from the implicit-function gradient and are much smoother
+         than face-averaged mesh normals, especially near regions of high
+         curvature.
+      2. ``clean()`` to merge duplicate vertices that marching cubes
+         occasionally produces at cell boundaries.
+      3. ``smooth_taubin()`` for *volume-preserving* smoothing. Plain
+         Laplacian smoothing shrinks the surface; Taubin's twin-coefficient
+         scheme lets us iterate ~20× without losing scale or features.
+      4. ``compute_normals()`` re-derives normals after smoothing so
+         shading stays consistent with the new vertex positions.
+    """
     n = field.shape[0]
     spacing = (2 * bounds / (n - 1),) * 3
     # Detect the case where the field has no zero-crossing before calling
@@ -55,13 +74,29 @@ def _marching_cubes_to_polydata(
             f"Field range: [{field.min():.4g}, {field.max():.4g}], "
             f"level={level:.4g}, bounds={bounds:.4g}."
         )
-    verts, faces, _normals, _ = measure.marching_cubes(field, level=level, spacing=spacing)
+    verts, faces, normals, _ = measure.marching_cubes(field, level=level, spacing=spacing)
     verts -= bounds
     n_faces = faces.shape[0]
     pv_faces = np.empty((n_faces, 4), dtype=np.int64)
     pv_faces[:, 0] = 3
     pv_faces[:, 1:] = faces
-    return pv.PolyData(verts, pv_faces.ravel())
+    mesh = pv.PolyData(verts, pv_faces.ravel())
+    # Attach the gradient-based normals before smoothing so smooth_taubin's
+    # output has them as the seed for compute_normals later.
+    mesh.point_data["Normals"] = normals.astype(np.float32)
+
+    mesh = mesh.clean()
+    if smooth_iter > 0 and mesh.n_points > 0:
+        # Taubin (lambda > 0, mu < 0) is volume-preserving — unlike vanilla
+        # Laplacian which shrinks the surface every iteration.
+        mesh = mesh.smooth_taubin(n_iter=smooth_iter, pass_band=0.1)
+    if mesh.n_points > 0:
+        mesh = mesh.compute_normals(
+            cell_normals=False, point_normals=True,
+            consistent_normals=True, auto_orient_normals=False,
+            split_vertices=False,
+        )
+    return mesh
 
 
 # ---------------------------------------------------------------------------
@@ -122,10 +157,11 @@ def fermat_quartic(
     bounds = max(2.5, 1.15 * float(np.sqrt(axial_x2)) + 0.3)
 
     # Adaptive resolution: hold per-unit sample density roughly constant so
-    # mesh quality doesn't degrade as the box grows. Cap at 200 to keep
-    # marching cubes responsive on slider drag (single ~0.5 s budget).
+    # mesh quality doesn't degrade as the box grows. Cap at 260 to keep
+    # marching cubes responsive on slider drag while producing a smooth
+    # triangulation (~17M voxels worst-case, ~1 s).
     if n is None:
-        n = int(np.clip(round(160 * bounds / 2.5), 150, 200))
+        n = int(np.clip(round(220 * bounds / 2.5), 200, 260))
 
     g = np.linspace(-bounds, bounds, n)
     X, Y, Z = np.meshgrid(g, g, g, indexing="ij")
@@ -160,7 +196,7 @@ FERMAT_PARAMS = [
 # ---------------------------------------------------------------------------
 
 
-def kummer_surface(mu_squared: float = 1.3, n: int = 170) -> pv.PolyData:
+def kummer_surface(mu_squared: float = 1.3, n: int = 240) -> pv.PolyData:
     """Kummer quartic in standard tetrahedral form (Hudson; MathWorld).
 
         (x^2 + y^2 + z^2 - mu^2)^2  -  lambda * p*q*r*s  =  0
@@ -219,7 +255,7 @@ KUMMER_PARAMS = [
 
 def enriques_figure_1(
     c: float = 1.0,
-    n: int = 180,
+    n: int = 240,
     bounds: float = 1.8,
 ) -> pv.PolyData:
     """**Figure 1** — Canonical Enriques sextic (Wikipedia / MathWorld form).
@@ -257,7 +293,7 @@ def enriques_figure_2(
     lam0: float = 1.0,
     lam3: float = 2.0,
     c: float = 1.0,
-    n: int = 180,
+    n: int = 240,
     bounds: float = 1.8,
 ) -> pv.PolyData:
     """**Figure 2** — Diagonal Enriques sextic (Dolgachev λ-family).
@@ -302,7 +338,7 @@ ENRIQUES_FIGURE_2_PARAMS = [
 
 def enriques_figure_3(
     k: float = 16.0,
-    n: int = 180,
+    n: int = 240,
     bounds: float = 2.5,
 ) -> pv.PolyData:
     """**Figure 3** — Cayley quartic symmetroid (Reye-cover model).
@@ -339,7 +375,7 @@ ENRIQUES_FIGURE_3_PARAMS = [
 
 def enriques_figure_4(
     tau: float = 0.18,
-    n: int = 200,
+    n: int = 260,
     bounds: float = 1.5,
 ) -> pv.PolyData:
     """**Figure 4** — Endrass-normalized icosahedral sextic (Barth-dial variant).
