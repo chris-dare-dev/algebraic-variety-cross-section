@@ -23,6 +23,10 @@ from surfaces import (
     calabi_yau_cubic,
     calabi_yau_asymmetric,
     calabi_yau_dwork,
+    fano_klein_cubic,
+    fano_segre_cubic,
+    fano_two_quadrics,
+    fano_sextic_double_solid,
 )
 
 
@@ -153,3 +157,57 @@ def test_calabi_yau_dwork_conifold_warns():
     """ψ≈1 (real conifold point) should emit a RuntimeWarning."""
     with pytest.warns(RuntimeWarning, match="conifold"):
         calabi_yau_dwork(psi=1.0)
+
+
+# ---------------------------------------------------------------------------
+# Fano 3-fold smoke tests
+# ---------------------------------------------------------------------------
+
+def test_fano_klein_cubic_default():
+    """Default parameters should produce a non-empty mesh."""
+    mesh = fano_klein_cubic()
+    assert mesh.n_points > 0, "fano_klein_cubic: no vertices"
+    assert mesh.n_cells > 0, "fano_klein_cubic: no faces"
+
+
+def test_fano_segre_cubic_default():
+    """Default parameters should produce a non-empty mesh."""
+    mesh = fano_segre_cubic()
+    assert mesh.n_points > 0, "fano_segre_cubic: no vertices"
+    assert mesh.n_cells > 0, "fano_segre_cubic: no faces"
+
+
+def test_fano_two_quadrics_default():
+    """Default parameters should produce a non-empty mesh."""
+    mesh = fano_two_quadrics()
+    assert mesh.n_points > 0, "fano_two_quadrics: no vertices"
+    assert mesh.n_cells > 0, "fano_two_quadrics: no faces"
+
+
+def test_fano_sextic_double_solid_default():
+    """Default parameters should produce a non-empty mesh."""
+    mesh = fano_sextic_double_solid()
+    assert mesh.n_points > 0, "fano_sextic_double_solid: no vertices"
+    assert mesh.n_cells > 0, "fano_sextic_double_solid: no faces"
+
+
+def test_fano_klein_cubic_z0_zero():
+    """z₀=0.0 gives a special cubic-surface slice — should not crash."""
+    mesh = fano_klein_cubic(z0=0.0)
+    assert mesh.n_points > 0, "fano_klein_cubic(z0=0): no vertices"
+    assert mesh.n_cells > 0, "fano_klein_cubic(z0=0): no faces"
+
+
+def test_fano_two_quadrics_real_empty():
+    """p=1.0, q=0.5, mu=0.5 forces Q₁ ≥ 0.25 everywhere; no real tube exists."""
+    with pytest.raises(ValueError):
+        fano_two_quadrics(p=1.0, q=0.5, mu=0.5)
+
+
+def test_fano_sextic_double_solid_two_sheets():
+    """The sextic double solid has two sheets: verify both positive and negative z
+    are spanned by the mesh, confirming both sheets z = ±√(x⁶+y⁶+t⁶+1) are present."""
+    mesh = fano_sextic_double_solid()
+    z_coords = mesh.points[:, 2]
+    assert z_coords.min() < 0, "Missing negative-z sheet"
+    assert z_coords.max() > 0, "Missing positive-z sheet"

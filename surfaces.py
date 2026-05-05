@@ -741,7 +741,9 @@ def fano_klein_cubic(
 
         f(x, y, z) = x + x²·y + y²·z + z₀·z² + z₀²
 
-    z₀ controls the slice; |z₀| → 0 collapses to the cone z² + x²y + y²z = 0.
+    z₀ controls the slice.  At z₀=0 the slice degenerates to the cubic
+    surface V²W + W²X + X²Y = 0 in the hyperplane Z=0 of P⁴ — still a
+    valid 2D surface, but lower-dimensional than the threefold slice.
 
     References:
     - Wikipedia, "Klein cubic threefold."
@@ -758,7 +760,7 @@ def fano_klein_cubic(
 
 FANO_KLEIN_CUBIC_PARAMS = [
     ParamSpec("z0", "z₀ (slice)", -1.0, 1.0, 0.4, 0.02,
-              description="fixed value of the suppressed projective coordinate; |z₀|→0 is degenerate"),
+              description="fixed value of the suppressed projective coordinate; z₀=0 gives a special cubic-surface slice"),
 ]
 
 
@@ -789,12 +791,15 @@ def fano_segre_cubic(
     - Wikipedia, "Segre cubic."
     - Hunt, "The Geometry of Some Special Arithmetic Quotients," LNM 1637.
     """
+    # bounds=2.5 (vs 2.0 elsewhere): the Segre cubic real zero set reaches r ≈ 2.1 from
+    # the origin at default (a, b); a 2.0 box clips the outer lobes.
     bounds = 2.5
     g = np.linspace(-bounds, bounds, n)
     X, Y, Z = np.meshgrid(g, g, g, indexing="ij")
     s = X + Y + Z + a + b
     F = X**3 + Y**3 + Z**3 + a**3 + b**3 - s**3
-    F = np.clip(F, -100.0, 100.0)
+    # cubic field grows as ~(2a+2b+5)³ ≈ 800 at slider extremes; ±1000 covers all reachable corners.
+    F = np.clip(F, -1000.0, 1000.0)
     return _marching_cubes_to_polydata(F, bounds)
 
 
@@ -838,6 +843,8 @@ def fano_two_quadrics(
     """
     bounds = 2.0
     # Smoothness: λ values pairwise distinct.
+    # lam[1]=0: Q₂ has no Y² term, so Q₂=0 is a cylinder in (X,Z) extended in Y;
+    # the tube wraps a Y-symmetric band rather than an isolated curve.
     lam = (-0.5, 0.0, 0.5, 1.0, 1.5)
     g = np.linspace(-bounds, bounds, n)
     X, Y, Z = np.meshgrid(g, g, g, indexing="ij")
@@ -856,8 +863,8 @@ FANO_TWO_QUADRICS_PARAMS = [
               description="fixed value of the suppressed coordinate x₄"),
     ParamSpec("mu", "μ (RHS of Q₂)", -1.5, 1.5, 0.5, 0.02,
               description="constant on the right of the second quadric"),
-    ParamSpec("eps", "ε (tube width)", 0.05, 0.40, 0.18, 0.01,
-              description="thickness of the sum-of-squares tube around Q₁=Q₂=0"),
+    ParamSpec("eps", "ε (tube width)", 0.06, 0.40, 0.18, 0.01,
+              description="thickness of the sum-of-squares tube around Q₁=Q₂=0; smaller ε gives a thinner tube; values below ~3× voxel spacing produce a holey mesh"),
 ]
 
 
@@ -877,7 +884,10 @@ def fano_sextic_double_solid(
 
         f(x, y, z) = z² - x⁶ - y⁶ - t⁶ - 1
 
-    Two real sheets (z > 0 and z < 0) over the region where x⁶+y⁶ ≤ z²-1-t⁶.
+    Both sheets z = ±√(x⁶+y⁶+t⁶+1) are real for all (x, y, t) since the
+    radicand is always ≥ 1 — the surface is a global graph over (x, y) split
+    into two sheets.  The slider is restricted to t ≥ 0 because t⁶ is an even
+    function of t, so negative t values produce identical meshes (t²ⁿ = (-t)²ⁿ).
 
     References:
     - Iskovskikh & Prokhorov, *Fano Varieties*, Encyclopaedia of Math. Sci. 47.
@@ -892,8 +902,8 @@ def fano_sextic_double_solid(
 
 
 FANO_SEXTIC_DOUBLE_SOLID_PARAMS = [
-    ParamSpec("t", "t (slice x₂)", -1.2, 1.2, 0.5, 0.02,
-              description="fixed value of the suppressed coordinate x₂"),
+    ParamSpec("t", "t (slice x₂)", 0.0, 1.2, 0.5, 0.02,
+              description="fixed value of the suppressed coordinate x₂; t⁶ is an even function of t, so the slider is restricted to non-negative values to avoid useless redundancy"),
 ]
 
 
@@ -1055,9 +1065,10 @@ SUBTYPE_TOOLTIPS: dict[str, str] = {
         "The unique smooth cubic 3-fold with order-660 symmetry."
     ),
     "Segre cubic  [Fig. 2]": (
-        "Figure 2 · S₆ symmetry, 10 nodes | "
+        "Figure 2 · S₆ symmetry of the parent (broken in the slice) | "
         "Σxᵢ=0 ∧ Σxᵢ³=0 in P⁵, eliminating x₅ and slicing by (x₃,x₄)=(a,b). "
-        "Maximally nodal cubic 3-fold."
+        "Maximally nodal cubic 3-fold (10 nodes in the parent variety; "
+        "visible singular points in the slice depend on (a,b))."
     ),
     "Two-quadrics CI tube  [Fig. 3]": (
         "Figure 3 · Sum-of-squares tube of V₄, index 2 | "
