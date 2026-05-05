@@ -66,7 +66,7 @@ def fermat_quartic(
     beta: float = 0.0,
     gamma: float = 0.0,
     c: float = 1.0,
-    n: int = 160,
+    n: int | None = None,
 ) -> pv.PolyData:
     """Real affine slice of a 3-parameter family of quartic-level-set surfaces:
 
@@ -77,25 +77,35 @@ def fermat_quartic(
           = c
 
     At (alpha, beta, gamma, c) = (0, 0, 0, 1) this is the classical
-    Fermat-style real quartic x^4 + y^4 + z^4 = 1. The two degree-4
-    perturbation terms (alpha, beta) are independent symmetric quartic
-    invariants; together with the Fermat power-sum they span the natural
-    degree-4 deformation directions, giving a family of (generically smooth)
-    quartic surfaces in P^3 — a family of K3 surfaces in the projective
-    completion. The gamma term adds a quadratic "deflation" knob that carves
-    the central body out, lengthening the six axial arms toward an
+    Fermat-style real quartic x^4 + y^4 + z^4 = 1. alpha and beta are
+    independent symmetric degree-4 invariants; together with the Fermat
+    power-sum they span the natural degree-4 deformation directions,
+    giving a family of (generically smooth) quartic surfaces in P^3 — a
+    family of K3 surfaces in the projective completion. The gamma term
+    is a quadratic "carve" that lengthens the six axial arms toward the
     octahedral-arm K3 shape.
 
-    All three perturbation sliders are restricted to non-positive values
-    (alpha, gamma) or symmetric (beta) ranges so that no slider direction
-    drives the surface toward a sphere:
-      - alpha > 0 pushes toward (x^2+y^2+z^2)^2 = c (sphere at alpha=2)
-      - gamma > 0 inflates the central body toward sphericity
-    Both are bounded at zero from above for that reason.
+    alpha and gamma are bounded from above at zero so no slider direction
+    drives the surface toward a sphere (alpha=2 collapses the equation to
+    (x²+y²+z²)²=c; positive gamma inflates the central body).
+
+    Sampling bounds are chosen adaptively from c and gamma so the six
+    axial arms always fit inside the marching-cubes box even at extreme
+    parameter values.
     """
-    # Generous box: with strong negative alpha/gamma the six axial arms can
-    # reach close to ±2. 2.5 captures that comfortably.
-    bounds = 2.5
+    # Adaptive sampling box: along an axis (y=z=0) the surface root is at
+    # x² = (-gamma + sqrt(gamma² + 4c))/2 (taking the outer root). Add a
+    # 15% buffer and a floor of 2.5 for the default-parameters case.
+    g_neg = max(-gamma, 0.0)
+    c_pos = max(c, 0.05)
+    axial_x2 = 0.5 * (g_neg + np.sqrt(g_neg * g_neg + 4.0 * c_pos))
+    bounds = max(2.5, 1.15 * float(np.sqrt(axial_x2)) + 0.3)
+
+    # Adaptive resolution: hold per-unit sample density roughly constant so
+    # mesh quality doesn't degrade as the box grows. Cap at 200 to keep
+    # marching cubes responsive on slider drag (single ~0.5 s budget).
+    if n is None:
+        n = int(np.clip(round(160 * bounds / 2.5), 150, 200))
 
     g = np.linspace(-bounds, bounds, n)
     X, Y, Z = np.meshgrid(g, g, g, indexing="ij")
@@ -108,20 +118,20 @@ def fermat_quartic(
         + gamma * (X2 + Y2 + Z2)
         - c
     )
-    # Clip range scaled to the wider box; x^4 alone reaches ~39 at the corners.
-    F = np.clip(F, -50.0, 50.0)
+    # Clip wide enough to cover the corner values at the larger bounds.
+    F = np.clip(F, -200.0, 200.0)
     return _marching_cubes_to_polydata(F, bounds)
 
 
 FERMAT_PARAMS = [
-    ParamSpec("c", "Level c", 0.1, 5.0, 1.0, 0.05,
+    ParamSpec("c", "Level c", 0.1, 30.0, 1.0, 0.1,
               description="RHS of  x⁴+y⁴+z⁴ + … = c"),
-    ParamSpec("alpha", "α  (mixed-square)", -3.0, 0.0, 0.0, 0.05,
+    ParamSpec("alpha", "α  (mixed-square)", -10.0, 0.0, 0.0, 0.1,
               description="coeff of (x²y² + y²z² + z²x²) — sharpens cube into octahedral star"),
-    ParamSpec("beta", "β  (tetrahedral)", -3.0, 3.0, 0.0, 0.05,
+    ParamSpec("beta", "β  (tetrahedral)", -10.0, 10.0, 0.0, 0.1,
               description="coeff of xyz(x+y+z) — breaks octahedral to tetrahedral symmetry"),
-    ParamSpec("gamma", "γ  (quadratic carve)", -5.0, 0.0, 0.0, 0.05,
-              description="coeff of (x²+y²+z²) — carves central body, extends six axial arms"),
+    ParamSpec("gamma", "γ  (quadratic carve)", -15.0, 0.0, 0.0, 0.1,
+              description="coeff of (x²+y²+z²) — carves central body, extends axial arms"),
 ]
 
 
