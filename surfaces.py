@@ -713,6 +713,191 @@ CALABI_YAU_DWORK_PARAMS = [
 
 
 # ---------------------------------------------------------------------------
+# Fano 3-folds of Picard rank 1
+#
+# Smooth Fano 3-folds with ρ(X) = 1 form a finite list (Iskovskikh 1977,
+# Mori–Mukai 1982), indexed by the index r and degree.  They are
+# 6-real-dimensional, so each figure below is a *real-2D slice* of an
+# explicit projective model — fix one or two ambient coordinates, then
+# render the resulting implicit surface.
+# ---------------------------------------------------------------------------
+
+
+def fano_klein_cubic(
+    z0: float = 0.4,
+    n: int = 240,
+) -> pv.PolyData:
+    """**Figure 1** — Real slice of the **Klein cubic threefold** V_3.
+
+    The Klein cubic in P^4 with [V:W:X:Y:Z]:
+
+        V²W + W²X + X²Y + Y²Z + Z²V = 0
+
+    is a smooth Fano 3-fold of index 2 with automorphism group PSL₂(11)
+    of order 660 — the unique cubic 3-fold with this symmetry.
+
+    To land in R³ we dehomogenize V = 1 and slice by fixing Z = z₀.
+    Renaming (W, X, Y) → (x, y, z) for plotting:
+
+        f(x, y, z) = x + x²·y + y²·z + z₀·z² + z₀²
+
+    z₀ controls the slice; |z₀| → 0 collapses to the cone z² + x²y + y²z = 0.
+
+    References:
+    - Wikipedia, "Klein cubic threefold."
+    - Adler, "On the automorphism group of a certain cubic threefold,"
+      arXiv:math/0102079.
+    """
+    bounds = 2.0
+    g = np.linspace(-bounds, bounds, n)
+    X, Y, Z = np.meshgrid(g, g, g, indexing="ij")
+    F = X + X * X * Y + Y * Y * Z + z0 * Z * Z + z0 * z0
+    F = np.clip(F, -50.0, 50.0)
+    return _marching_cubes_to_polydata(F, bounds)
+
+
+FANO_KLEIN_CUBIC_PARAMS = [
+    ParamSpec("z0", "z₀ (slice)", -1.0, 1.0, 0.4, 0.02,
+              description="fixed value of the suppressed projective coordinate; |z₀|→0 is degenerate"),
+]
+
+
+def fano_segre_cubic(
+    a: float = 0.3,
+    b: float = -0.4,
+    n: int = 240,
+) -> pv.PolyData:
+    """**Figure 2** — Real slice of the **Segre cubic** in P^5.
+
+    The Segre cubic threefold is the locus in P^5 cut out by
+
+        Σ x_i = 0   and   Σ x_i³ = 0     (i = 0, …, 5)
+
+    It is the unique cubic 3-fold with the maximum number (10) of nodes
+    over ℂ; carries the full S_6 symmetric-group action.
+
+    Eliminating x_5 = -(x_0+…+x_4) reduces to a single cubic in five
+    variables.  Slicing by fixing (x_3, x_4) = (a, b) and renaming
+    (x_0, x_1, x_2) → (x, y, z):
+
+        f(x, y, z) = x³ + y³ + z³ + a³ + b³ - (x + y + z + a + b)³
+
+    The 10 nodes of the parent surface project down to a smaller number
+    of visible singular points in the slice.
+
+    References:
+    - Wikipedia, "Segre cubic."
+    - Hunt, "The Geometry of Some Special Arithmetic Quotients," LNM 1637.
+    """
+    bounds = 2.5
+    g = np.linspace(-bounds, bounds, n)
+    X, Y, Z = np.meshgrid(g, g, g, indexing="ij")
+    s = X + Y + Z + a + b
+    F = X**3 + Y**3 + Z**3 + a**3 + b**3 - s**3
+    F = np.clip(F, -100.0, 100.0)
+    return _marching_cubes_to_polydata(F, bounds)
+
+
+FANO_SEGRE_CUBIC_PARAMS = [
+    ParamSpec("a", "a (slice x₃)", -1.0, 1.0, 0.3, 0.02,
+              description="value of the fixed coordinate x₃ in the (x₃, x₄) slice"),
+    ParamSpec("b", "b (slice x₄)", -1.0, 1.0, -0.4, 0.02,
+              description="value of the fixed coordinate x₄"),
+]
+
+
+def fano_two_quadrics(
+    p: float = 0.3,
+    q: float = -0.2,
+    mu: float = 0.5,
+    eps: float = 0.18,
+    n: int = 220,
+) -> pv.PolyData:
+    """**Figure 3** — Sum-of-squares "tube" around the intersection of two
+    quadrics in P^5 — the smooth Fano 3-fold V_4 of index 2.
+
+    Diagonal pencil model (Hassett–Tschinkel):
+
+        Q_1(x) = Σ x_i² - 1
+        Q_2(x) = Σ λ_i · x_i² - μ
+
+    with λ = (-0.5, 0.0, 0.5, 1.0, 1.5) chosen pairwise distinct so the
+    pencil is smooth.  Slicing by fixing (x_3, x_4) = (p, q) and rendering
+    the **eps-tube**
+
+        f(x, y, z) = Q_1² + Q_2² - eps²
+
+    gives a thickened approximation to the codimension-2 real slice; the
+    user-controlled eps is the tube width.  ``eps`` smaller than ~3× the
+    voxel spacing produces a swiss-cheese mesh.
+
+    References:
+    - Reid, "Young Person's Guide to Canonical Singularities."
+    - Hassett & Tschinkel, "Rationality of complete intersections of two
+      quadrics over nonclosed fields."
+    """
+    bounds = 2.0
+    # Smoothness: λ values pairwise distinct.
+    lam = (-0.5, 0.0, 0.5, 1.0, 1.5)
+    g = np.linspace(-bounds, bounds, n)
+    X, Y, Z = np.meshgrid(g, g, g, indexing="ij")
+    Q1 = X * X + Y * Y + Z * Z + p * p + q * q - 1.0
+    Q2 = (lam[0] * X * X + lam[1] * Y * Y + lam[2] * Z * Z
+          + lam[3] * p * p + lam[4] * q * q - mu)
+    F = Q1 * Q1 + Q2 * Q2 - eps * eps
+    F = np.clip(F, -200.0, 200.0)
+    return _marching_cubes_to_polydata(F, bounds)
+
+
+FANO_TWO_QUADRICS_PARAMS = [
+    ParamSpec("p", "p (slice x₃)", -1.0, 1.0, 0.3, 0.02,
+              description="fixed value of the suppressed coordinate x₃"),
+    ParamSpec("q", "q (slice x₄)", -1.0, 1.0, -0.2, 0.02,
+              description="fixed value of the suppressed coordinate x₄"),
+    ParamSpec("mu", "μ (RHS of Q₂)", -1.5, 1.5, 0.5, 0.02,
+              description="constant on the right of the second quadric"),
+    ParamSpec("eps", "ε (tube width)", 0.05, 0.40, 0.18, 0.01,
+              description="thickness of the sum-of-squares tube around Q₁=Q₂=0"),
+]
+
+
+def fano_sextic_double_solid(
+    t: float = 0.5,
+    n: int = 240,
+) -> pv.PolyData:
+    """**Figure 4** — Real slice of a **sextic double solid** V_1.
+
+    Standard model in weighted P(1,1,1,1,3) with [x_0:x_1:x_2:x_3:w]:
+
+        w² = x_0⁶ + x_1⁶ + x_2⁶ + x_3⁶            (Fermat-symmetric branch).
+
+    This is the simplest Fano 3-fold of index 1, genus 2 (Iskovskikh
+    family 1-1).  Dehomogenizing x_3 = 1 and slicing by fixing x_2 = t,
+    then renaming (x_0, x_1, w) → (x, y, z):
+
+        f(x, y, z) = z² - x⁶ - y⁶ - t⁶ - 1
+
+    Two real sheets (z > 0 and z < 0) over the region where x⁶+y⁶ ≤ z²-1-t⁶.
+
+    References:
+    - Iskovskikh & Prokhorov, *Fano Varieties*, Encyclopaedia of Math. Sci. 47.
+    - Fanography, family 1-1 (sextic double solid).
+    """
+    bounds = 2.0
+    g = np.linspace(-bounds, bounds, n)
+    X, Y, Z = np.meshgrid(g, g, g, indexing="ij")
+    F = Z * Z - X**6 - Y**6 - (t**6) - 1.0
+    F = np.clip(F, -200.0, 200.0)
+    return _marching_cubes_to_polydata(F, bounds)
+
+
+FANO_SEXTIC_DOUBLE_SOLID_PARAMS = [
+    ParamSpec("t", "t (slice x₂)", -1.2, 1.2, 0.5, 0.02,
+              description="fixed value of the suppressed coordinate x₂"),
+]
+
+
+# ---------------------------------------------------------------------------
 # Registry — keys appear in the GUI dropdowns
 # ---------------------------------------------------------------------------
 
@@ -758,6 +943,24 @@ VARIETIES: dict[str, dict[str, Surface]] = {
             calabi_yau_dwork, CALABI_YAU_DWORK_PARAMS,
         ),
     },
+    "Fano 3-fold (ρ=1)": {
+        "Klein cubic  [Fig. 1]": Surface(
+            "Klein cubic threefold V₃ (PSL₂(11) symmetry)",
+            fano_klein_cubic, FANO_KLEIN_CUBIC_PARAMS,
+        ),
+        "Segre cubic  [Fig. 2]": Surface(
+            "Segre cubic (S₆ symmetry, max-nodal)",
+            fano_segre_cubic, FANO_SEGRE_CUBIC_PARAMS,
+        ),
+        "Two-quadrics CI tube  [Fig. 3]": Surface(
+            "Intersection of two quadrics V₄ (sum-of-squares tube)",
+            fano_two_quadrics, FANO_TWO_QUADRICS_PARAMS,
+        ),
+        "Sextic double solid  [Fig. 4]": Surface(
+            "Sextic double solid V₁ (Fermat-symmetric branch)",
+            fano_sextic_double_solid, FANO_SEXTIC_DOUBLE_SOLID_PARAMS,
+        ),
+    },
 }
 
 # ---------------------------------------------------------------------------
@@ -780,6 +983,13 @@ VARIETY_TOOLTIPS: dict[str, str] = {
         "in ℝ³. Each entry below is a 2D shadow, slice, or projection (in the "
         "Hanson-1994 tradition that produced the iconic 'Elegant Universe' image), "
         "not the 3-fold itself."
+    ),
+    "Fano 3-fold (ρ=1)": (
+        "A smooth Fano 3-fold of Picard rank 1 (Iskovskikh's 'prime Fano "
+        "threefold') is 6-real-dimensional. Each entry below is a 2D real "
+        "slice obtained by fixing one or two ambient projective coordinates. "
+        "The visualization tradition is essentially nonexistent — these are "
+        "novel renderings."
     ),
 }
 
@@ -837,5 +1047,26 @@ SUBTYPE_TOOLTIPS: dict[str, str] = {
         "x⁵+y⁵+z⁵+2 = 5ψ·xyz. The ψ slider sweeps the canonical "
         "one-parameter CY₃ family; ψ=1 is the (real) conifold point; "
         "the five conifold points in ℂ are the fifth roots of unity."
+    ),
+    # Fano 3-folds (Picard rank 1)
+    "Klein cubic  [Fig. 1]": (
+        "Figure 1 · PSL₂(11) symmetry, index 2 | "
+        "Klein cubic V₃: V²W+W²X+X²Y+Y²Z+Z²V=0. Slice by Z=z₀. "
+        "The unique smooth cubic 3-fold with order-660 symmetry."
+    ),
+    "Segre cubic  [Fig. 2]": (
+        "Figure 2 · S₆ symmetry, 10 nodes | "
+        "Σxᵢ=0 ∧ Σxᵢ³=0 in P⁵, eliminating x₅ and slicing by (x₃,x₄)=(a,b). "
+        "Maximally nodal cubic 3-fold."
+    ),
+    "Two-quadrics CI tube  [Fig. 3]": (
+        "Figure 3 · Sum-of-squares tube of V₄, index 2 | "
+        "f = Q₁²+Q₂²−ε² approximates the codim-2 intersection. "
+        "Diagonal pencil with 5 distinct λ values."
+    ),
+    "Sextic double solid  [Fig. 4]": (
+        "Figure 4 · Index 1, genus 2 (Iskovskikh family 1-1) | "
+        "z² = x⁶+y⁶+t⁶+1. Two-sheeted double cover branched along a "
+        "Fermat-symmetric sextic."
     ),
 }
