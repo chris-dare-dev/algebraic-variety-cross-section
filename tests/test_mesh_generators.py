@@ -204,6 +204,12 @@ def test_fano_two_quadrics_real_empty():
         fano_two_quadrics(p=1.0, q=0.5, mu=0.5)
 
 
+def test_fano_two_quadrics_low_eps_warns():
+    """eps < 0.08 is near the voxel-resolution limit; must emit a RuntimeWarning."""
+    with pytest.warns(RuntimeWarning, match="voxel resolution limit"):
+        fano_two_quadrics(eps=0.07)
+
+
 def test_fano_sextic_double_solid_two_sheets():
     """The sextic double solid has two sheets: verify both positive and negative z
     are spanned by the mesh, confirming both sheets z = ±√(x⁶+y⁶+t⁶+1) are present."""

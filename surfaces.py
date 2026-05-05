@@ -73,9 +73,9 @@ def _marching_cubes_to_polydata(
     # marching_cubes, which would otherwise raise a cryptic internal error.
     if field.min() > level or field.max() < level:
         raise ValueError(
-            "No real zero set in the sampling box for these parameters. "
-            f"Field range: [{field.min():.4g}, {field.max():.4g}], "
-            f"level={level:.4g}, bounds={bounds:.4g}."
+            "No real zero set in the sampling box for these parameters "
+            f"(field range [{field.min():.3g}, {field.max():.3g}]). "
+            "Try adjusting the sliders to a different parameter combination."
         )
     verts, faces, normals, _ = measure.marching_cubes(field, level=level, spacing=spacing)
     verts -= bounds
@@ -842,6 +842,15 @@ def fano_two_quadrics(
       quadrics over nonclosed fields."
     """
     bounds = 2.0
+    # Warn when eps is near the voxel-spacing limit so the status bar gives the
+    # user a hint before they see a swiss-cheese mesh. Voxel spacing is
+    # 2*bounds/(n-1) ≈ 0.018; three voxels ≈ 0.055.
+    if eps < 0.08:
+        warnings.warn(
+            f"ε={eps:.3f} is close to the voxel resolution limit (~0.055). "
+            "The tube mesh may have holes; increase ε or reduce n for a cleaner surface.",
+            category=RuntimeWarning,
+        )
     # Smoothness: λ values pairwise distinct.
     # lam[1]=0: Q₂ has no Y² term, so Q₂=0 is a cylinder in (X,Z) extended in Y;
     # the tube wraps a Y-symmetric band rather than an isolated curve.
@@ -858,13 +867,13 @@ def fano_two_quadrics(
 
 FANO_TWO_QUADRICS_PARAMS = [
     ParamSpec("p", "p (slice x₃)", -1.0, 1.0, 0.3, 0.02,
-              description="fixed value of the suppressed coordinate x₃"),
+              description="fixed projective coordinate x₃; large |p| shrinks the tube"),
     ParamSpec("q", "q (slice x₄)", -1.0, 1.0, -0.2, 0.02,
-              description="fixed value of the suppressed coordinate x₄"),
+              description="fixed projective coordinate x₄; large |q| shrinks the tube"),
     ParamSpec("mu", "μ (RHS of Q₂)", -1.5, 1.5, 0.5, 0.02,
-              description="constant on the right of the second quadric"),
+              description="constant term of the second quadric Q₂"),
     ParamSpec("eps", "ε (tube width)", 0.06, 0.40, 0.18, 0.01,
-              description="thickness of the sum-of-squares tube around Q₁=Q₂=0; smaller ε gives a thinner tube; values below ~3× voxel spacing produce a holey mesh"),
+              description="tube half-thickness; small ε → thin shell, large ε → fat blob; below ~0.06 the mesh develops holes"),
 ]
 
 
@@ -903,7 +912,7 @@ def fano_sextic_double_solid(
 
 FANO_SEXTIC_DOUBLE_SOLID_PARAMS = [
     ParamSpec("t", "t (slice x₂)", 0.0, 1.2, 0.5, 0.02,
-              description="fixed value of the suppressed coordinate x₂; t⁶ is an even function of t, so the slider is restricted to non-negative values to avoid useless redundancy"),
+              description="fixed projective coordinate x₂; negative t gives the same surface (t⁶=(−t)⁶), so only t ≥ 0 is shown"),
 ]
 
 
@@ -963,7 +972,7 @@ VARIETIES: dict[str, dict[str, Surface]] = {
             fano_segre_cubic, FANO_SEGRE_CUBIC_PARAMS,
         ),
         "Two-quadrics CI tube  [Fig. 3]": Surface(
-            "Intersection of two quadrics V₄ (sum-of-squares tube)",
+            "Two-quadrics CI tube V₄ (ε-tube around Q₁∩Q₂, not the actual CI)",
             fano_two_quadrics, FANO_TWO_QUADRICS_PARAMS,
         ),
         "Sextic double solid  [Fig. 4]": Surface(

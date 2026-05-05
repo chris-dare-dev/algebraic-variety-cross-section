@@ -181,9 +181,10 @@ class MainWindow(QMainWindow):
                 if tip:
                     self.subtype_combo.setItemData(i, tip, Qt.ItemDataRole.ToolTipRole)
             self._set_subtype_enabled(True)
-            # For CY3, include a brief contextual note in the status bar AND
-            # in the Parameters dock banner so first-time users understand they
-            # are viewing 2D shadows, not the full 6-dimensional manifold.
+            # For CY3 and Fano, include a brief contextual note in the status
+            # bar AND in the Parameters dock banner so first-time users
+            # understand they are viewing 2D shadows/slices, not the full
+            # 6-dimensional manifold.
             if name == "Calabi–Yau 3-fold":
                 self.statusBar().showMessage(
                     "Calabi–Yau 3-fold — each figure is a 2D real shadow of a "
@@ -193,6 +194,17 @@ class MainWindow(QMainWindow):
                     "A Calabi–Yau 3-fold is 6-real-dimensional and cannot live in ℝ³. "
                     "The figures here are 2D shadows in the Hanson-1994 tradition "
                     "(parametric cross-sections) and one implicit Dwork-pencil slice."
+                )
+            elif name == "Fano 3-fold (ρ=1)":
+                self.statusBar().showMessage(
+                    "Fano 3-fold (ρ=1) — each figure is a 2D real slice of a "
+                    "6-dimensional variety.  Now choose a model."
+                )
+                self.parameters_panel.set_context_hint(
+                    "Smooth Fano 3-folds of Picard rank 1 are 6-real-dimensional. "
+                    "Each figure is a real 2D slice obtained by fixing one or two "
+                    "projective coordinates. There is no established visualization "
+                    "tradition — these are novel renderings."
                 )
             else:
                 self.statusBar().showMessage(f"Variety: {name}. Now choose a model.")
@@ -281,10 +293,16 @@ class MainWindow(QMainWindow):
                         break
             except ValueError as exc:
                 self._raw_mesh = None  # don't let a stale mesh be domain-clipped
-                # Surface the error with a user-friendly hint in addition to
-                # the raw exception message from surfaces.py.
                 msg = str(exc)
-                self.statusBar().showMessage(f"Parameter out of range — {msg}")
+                # "No real zero set" means the parameter *combination* produces
+                # an empty field — not that any single slider is out of range.
+                # Give a more actionable prefix so the user knows what to do.
+                if "No real zero set" in msg:
+                    self.statusBar().showMessage(
+                        f"No surface to render — {msg}"
+                    )
+                else:
+                    self.statusBar().showMessage(f"Parameter out of range — {msg}")
                 return
             except Exception as exc:
                 self._raw_mesh = None
