@@ -590,7 +590,7 @@ def _hanson_cross_section(
 
 def calabi_yau_quintic(
     alpha: float = np.pi / 4,
-    grid: float = 41,
+    grid: float = 61,
     xi_max: float = 1.0,
 ) -> pv.PolyData:
     """**Figure 1** — Hanson's quintic cross-section (the canonical CY3 image).
@@ -617,7 +617,7 @@ CALABI_YAU_QUINTIC_PARAMS = [
 
 def calabi_yau_cubic(
     alpha: float = np.pi / 4,
-    grid: float = 33,
+    grid: float = 51,
     xi_max: float = 1.0,
 ) -> pv.PolyData:
     """**Figure 2** — Hanson cross-section with n = 3 (torus).
@@ -641,7 +641,7 @@ CALABI_YAU_CUBIC_PARAMS = [
 
 def calabi_yau_asymmetric(
     alpha: float = np.pi / 4,
-    grid: float = 35,
+    grid: float = 53,
     xi_max: float = 1.0,
 ) -> pv.PolyData:
     """**Figure 3** — Hanson's asymmetric construction with (n₁, n₂) = (5, 3).
@@ -666,7 +666,7 @@ CALABI_YAU_ASYMMETRIC_PARAMS = [
 
 def calabi_yau_dwork(
     psi: float = 0.5,
-    n: int = 220,
+    n: int = 260,
     bounds: float = 1.8,
 ) -> pv.PolyData:
     """**Figure 4** — Real affine slice of the Dwork-pencil quintic.
