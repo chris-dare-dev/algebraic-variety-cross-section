@@ -35,6 +35,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from styles import MUTED_TEXT_STYLE, RANGE_LABEL_STYLE, VALUE_MONO_STYLE
+
 
 class ViewPanel(QWidget):
     """Left-side panel providing view presets and scene-aid toggles."""
@@ -73,15 +75,24 @@ class ViewPanel(QWidget):
         root.addWidget(self._make_scene_aids_group())
         root.addWidget(self._make_screenshot_group())
 
-        # Help line at the bottom
+        # Mouse-controls help — as a compact tooltip-style label at the bottom
         help_label = QLabel(
-            "Left-drag to rotate\n"
-            "Scroll or Right-drag to zoom\n"
-            "Shift-drag to pan"
+            "Left-drag: rotate  |  Scroll/Right-drag: zoom  |  Shift-drag: pan"
         )
         help_label.setWordWrap(True)
         help_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
-        help_label.setStyleSheet("color: #888888; font-size: 10px;")
+        help_label.setStyleSheet(MUTED_TEXT_STYLE)
+        help_label.setToolTip(
+            "Mouse controls for the 3D viewport:\n"
+            "  Left-drag      — rotate\n"
+            "  Scroll         — zoom in/out\n"
+            "  Right-drag     — zoom (alternative)\n"
+            "  Shift + drag   — pan\n\n"
+            "Keyboard shortcuts:\n"
+            "  Ctrl+R         — Reset Camera\n"
+            "  Ctrl+Shift+S   — Screenshot\n"
+            "  Ctrl+D         — Reset parameters to defaults"
+        )
         root.addWidget(help_label)
 
         root.addSpacerItem(
@@ -90,27 +101,30 @@ class ViewPanel(QWidget):
 
     def _make_view_presets_group(self) -> QGroupBox:
         group = QGroupBox("View Presets")
+        group.setToolTip("Snap the camera to a standard orthographic viewpoint")
         grid = QGridLayout(group)
         grid.setSpacing(4)
 
-        # (label, row, col, plotter method name)
+        # (label, row, col, plotter method name, tooltip)
         presets = [
-            ("+X", 0, 0, "view_yz"),   # looking down +X axis shows YZ plane
-            ("-X", 0, 1, "view_zy"),   # opposite
-            ("+Y", 1, 0, "view_xz"),   # looking down +Y axis shows XZ plane
-            ("-Y", 1, 1, "view_zx"),   # opposite
-            ("+Z", 2, 0, "view_xy"),   # looking down +Z axis shows XY plane
-            ("-Z", 2, 1, "view_yx"),   # opposite
+            ("+X", 0, 0, "view_yz",   "Look along the +X axis (shows YZ plane)"),
+            ("-X", 0, 1, "view_zy",   "Look along the -X axis (shows ZY plane)"),
+            ("+Y", 1, 0, "view_xz",   "Look along the +Y axis (shows XZ plane)"),
+            ("-Y", 1, 1, "view_zx",   "Look along the -Y axis (shows ZX plane)"),
+            ("+Z", 2, 0, "view_xy",   "Look along the +Z axis (shows XY plane)"),
+            ("-Z", 2, 1, "view_yx",   "Look along the -Z axis (shows YX plane)"),
         ]
 
-        for label, row, col, method in presets:
+        for label, row, col, method, tip in presets:
             btn = QPushButton(label)
             btn.setFixedHeight(26)
+            btn.setToolTip(tip)
             btn.clicked.connect(self._make_view_callback(method))
             grid.addWidget(btn, row, col)
 
         iso_btn = QPushButton("Isometric")
         iso_btn.setFixedHeight(26)
+        iso_btn.setToolTip("Switch to a standard isometric (perspective) view")
         iso_btn.clicked.connect(self._make_view_callback("view_isometric"))
         grid.addWidget(iso_btn, 3, 0, 1, 2)
 
@@ -122,13 +136,20 @@ class ViewPanel(QWidget):
         layout.setContentsMargins(6, 6, 6, 6)
 
         reset_btn = QPushButton("Reset Camera")
+        # Object name lets the app stylesheet give this button a distinct style
+        reset_btn.setObjectName("resetCameraBtn")
+        reset_btn.setToolTip("Fit the camera to the current surface (Ctrl+R)")
         reset_btn.clicked.connect(self._on_reset_camera)
         layout.addWidget(reset_btn)
 
         return group
 
     def _make_domain_group(self) -> QGroupBox:
-        group = QGroupBox("Domain")
+        group = QGroupBox("Clip Region")
+        group.setToolTip(
+            "Clip the visible surface to a sphere or cube centered on the origin.\n"
+            "'Off' shows the full surface without clipping."
+        )
         layout = QVBoxLayout(group)
         layout.setContentsMargins(6, 6, 6, 6)
         layout.setSpacing(4)
@@ -139,6 +160,11 @@ class ViewPanel(QWidget):
         self._domain_mode = QComboBox()
         self._domain_mode.addItems([self.DOMAIN_NONE, self.DOMAIN_SPHERE, self.DOMAIN_CUBE])
         self._domain_mode.setCurrentText(self.DOMAIN_NONE)
+        self._domain_mode.setToolTip(
+            "Off — no clipping\n"
+            "Sphere — clip to a sphere of the given radius\n"
+            "Cube   — clip to a cube of the given half-side length"
+        )
         self._domain_mode.currentTextChanged.connect(self._on_domain_mode_changed)
         mode_row.addWidget(self._domain_mode, stretch=1)
         layout.addLayout(mode_row)
@@ -150,7 +176,8 @@ class ViewPanel(QWidget):
         radius_header.addWidget(self._radius_label)
         radius_header.addStretch(1)
         self._radius_value = QLabel("2.50")
-        self._radius_value.setStyleSheet("font-family: monospace; font-size: 11px; color: #444;")
+        self._radius_value.setStyleSheet(VALUE_MONO_STYLE)
+        self._radius_value.setToolTip("Current clip radius / half-side length")
         radius_header.addWidget(self._radius_value)
         layout.addLayout(radius_header)
 
@@ -160,12 +187,29 @@ class ViewPanel(QWidget):
         self._radius_slider.setSingleStep(5)
         self._radius_slider.setPageStep(50)
         self._radius_slider.setValue(250)
+        self._radius_slider.setToolTip("Adjust the clip radius (0.10 – 10.00)")
         self._radius_slider.valueChanged.connect(self._on_radius_value_changed)
         self._radius_slider.sliderReleased.connect(self._emit_domain_changed)
         layout.addWidget(self._radius_slider)
 
+        # Range labels
+        range_row = QHBoxLayout()
+        range_row.setContentsMargins(0, 0, 0, 0)
+        _min_lbl = QLabel("0.10")
+        _min_lbl.setStyleSheet(RANGE_LABEL_STYLE)
+        _max_lbl = QLabel("10.00")
+        _max_lbl.setStyleSheet(RANGE_LABEL_STYLE)
+        _max_lbl.setAlignment(Qt.AlignmentFlag.AlignRight)
+        range_row.addWidget(_min_lbl)
+        range_row.addStretch(1)
+        range_row.addWidget(_max_lbl)
+        layout.addLayout(range_row)
+
         # Show overlay
-        self._domain_overlay_cb = QCheckBox("Show domain outline")
+        self._domain_overlay_cb = QCheckBox("Show clip outline")
+        self._domain_overlay_cb.setToolTip(
+            "Overlay a wireframe sphere or cube to show the clip boundary"
+        )
         self._domain_overlay_cb.setChecked(True)
         self._domain_overlay_cb.toggled.connect(lambda _: self._emit_domain_changed())
         layout.addWidget(self._domain_overlay_cb)
@@ -180,16 +224,19 @@ class ViewPanel(QWidget):
         layout.setSpacing(4)
 
         self._axes_cb = QCheckBox("Show axes")
+        self._axes_cb.setToolTip("Toggle the XYZ orientation widget in the corner of the viewport")
         self._axes_cb.setChecked(False)
         self._axes_cb.toggled.connect(self._on_axes_toggled)
         layout.addWidget(self._axes_cb)
 
         self._bbox_cb = QCheckBox("Show bounding box")
+        self._bbox_cb.setToolTip("Overlay a wireframe bounding box around the current surface")
         self._bbox_cb.setChecked(False)
         self._bbox_cb.toggled.connect(self._on_bbox_toggled)
         layout.addWidget(self._bbox_cb)
 
         self._grid_cb = QCheckBox("Show grid")
+        self._grid_cb.setToolTip("Show annotated axis grid lines around the surface")
         self._grid_cb.setChecked(False)
         self._grid_cb.toggled.connect(self._on_grid_toggled)
         layout.addWidget(self._grid_cb)
@@ -202,6 +249,7 @@ class ViewPanel(QWidget):
         layout.setContentsMargins(6, 6, 6, 6)
 
         shot_btn = QPushButton("Screenshot…")
+        shot_btn.setToolTip("Save a PNG screenshot of the 3D viewport (Ctrl+Shift+S)")
         shot_btn.clicked.connect(self._on_screenshot)
         layout.addWidget(shot_btn)
 

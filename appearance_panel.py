@@ -29,6 +29,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from styles import VALUE_MONO_STYLE
+
 
 def _make_swatch(color: QColor, size: int = 20) -> QLabel:
     """Return a QLabel styled as a solid color swatch."""
@@ -83,22 +85,14 @@ class AppearancePanel(QWidget):
     # -----------------------------------------------------------------------
 
     def _build_ui(self) -> None:
-        self.setFixedWidth(210)
+        # Use minimum width instead of fixed width so the dock is resizable
+        # on HiDPI displays and when the user manually widens it.
+        self.setMinimumWidth(200)
         self.setMinimumHeight(200)
 
         outer = QVBoxLayout(self)
         outer.setContentsMargins(4, 4, 4, 4)
         outer.setSpacing(4)
-
-        title = QLabel("Appearance")
-        title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        title.setStyleSheet("font-weight: bold; font-size: 13px; padding: 4px;")
-        outer.addWidget(title)
-
-        sep = QFrame()
-        sep.setFrameShape(QFrame.Shape.HLine)
-        sep.setFrameShadow(QFrame.Shadow.Sunken)
-        outer.addWidget(sep)
 
         # Scroll area so the panel still works on small screens
         scroll = QScrollArea()
@@ -128,7 +122,7 @@ class AppearancePanel(QWidget):
         surf_row.setSpacing(6)
         self._surf_swatch = _make_swatch(self._surface_color)
         surf_btn = QPushButton("Surface…")
-        surf_btn.setToolTip("Choose surface color")
+        surf_btn.setToolTip("Choose the surface fill color")
         surf_btn.clicked.connect(self._pick_surface_color)
         surf_row.addWidget(self._surf_swatch)
         surf_row.addWidget(surf_btn, stretch=1)
@@ -139,7 +133,7 @@ class AppearancePanel(QWidget):
         bg_row.setSpacing(6)
         self._bg_swatch = _make_swatch(self._bg_color)
         bg_btn = QPushButton("Background…")
-        bg_btn.setToolTip("Choose background color")
+        bg_btn.setToolTip("Choose the viewport background color")
         bg_btn.clicked.connect(self._pick_bg_color)
         bg_row.addWidget(self._bg_swatch)
         bg_row.addWidget(bg_btn, stretch=1)
@@ -154,11 +148,15 @@ class AppearancePanel(QWidget):
 
         self._wireframe_cb = QCheckBox("Wireframe")
         self._wireframe_cb.setChecked(self._wireframe)
+        self._wireframe_cb.setToolTip("Show the surface as a wireframe mesh instead of a solid")
         self._wireframe_cb.toggled.connect(self._on_wireframe_toggled)
         vl.addWidget(self._wireframe_cb)
 
         self._edges_cb = QCheckBox("Show edges")
         self._edges_cb.setChecked(self._show_edges)
+        self._edges_cb.setToolTip(
+            "Overlay mesh edges on the solid surface (inactive in wireframe mode)"
+        )
         self._edges_cb.toggled.connect(self._on_edges_toggled)
         vl.addWidget(self._edges_cb)
 
@@ -174,11 +172,13 @@ class AppearancePanel(QWidget):
         self._opacity_slider.setValue(self._opacity)
         self._opacity_slider.setTickPosition(QSlider.TickPosition.TicksBelow)
         self._opacity_slider.setTickInterval(25)
+        self._opacity_slider.setToolTip("Surface opacity: 0% = fully transparent, 100% = opaque")
         self._opacity_slider.valueChanged.connect(self._on_opacity_changed)
         vl.addWidget(self._opacity_slider)
 
         self._opacity_label = QLabel(f"{self._opacity}%")
         self._opacity_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._opacity_label.setStyleSheet(VALUE_MONO_STYLE)
         vl.addWidget(self._opacity_label)
 
         return box
@@ -190,7 +190,13 @@ class AppearancePanel(QWidget):
 
         self._shading_group = QButtonGroup(self)
         self._smooth_rb = QRadioButton("Smooth (Phong)")
+        self._smooth_rb.setToolTip(
+            "Phong interpolation: smooth normals produce a glossy, rounded appearance"
+        )
         self._flat_rb = QRadioButton("Flat")
+        self._flat_rb.setToolTip(
+            "Flat shading: each triangle has a uniform color — accentuates the mesh structure"
+        )
         self._shading_group.addButton(self._smooth_rb, 0)
         self._shading_group.addButton(self._flat_rb, 1)
 

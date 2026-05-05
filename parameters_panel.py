@@ -11,15 +11,17 @@ from typing import Iterable
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
-    QFrame,
     QHBoxLayout,
     QLabel,
     QPushButton,
+    QSizePolicy,
     QSlider,
+    QSpacerItem,
     QVBoxLayout,
     QWidget,
 )
 
+from styles import MUTED_TEXT_STYLE, RANGE_LABEL_STYLE, SMALL_LABEL_STYLE, VALUE_MONO_STYLE
 from surfaces import ParamSpec
 
 
@@ -36,31 +38,28 @@ class ParametersPanel(QWidget):
         self._root.setContentsMargins(6, 6, 6, 6)
         self._root.setSpacing(6)
 
-        self._title = QLabel("Parameters")
-        self._title.setStyleSheet("font-weight: bold; font-size: 13px;")
-        self._title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self._root.addWidget(self._title)
-
-        sep = QFrame()
-        sep.setFrameShape(QFrame.Shape.HLine)
-        sep.setFrameShadow(QFrame.Shadow.Sunken)
-        self._root.addWidget(sep)
-
         self._content_layout = QVBoxLayout()
-        self._content_layout.setSpacing(8)
+        self._content_layout.setSpacing(10)
         self._root.addLayout(self._content_layout)
 
-        self._empty_label = QLabel("(no parameters)")
-        self._empty_label.setStyleSheet("color: #888;")
+        self._empty_label = QLabel("(no parameters for this surface)")
+        self._empty_label.setStyleSheet(MUTED_TEXT_STYLE)
         self._empty_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._content_layout.addWidget(self._empty_label)
 
-        self._reset_btn = QPushButton("Reset to defaults")
+        # Reset button — styled via object name so the app stylesheet targets it
+        self._reset_btn = QPushButton("Reset all to defaults")
+        self._reset_btn.setObjectName("resetDefaultsBtn")
+        self._reset_btn.setToolTip(
+            "Reset all parameter sliders to their default values (Ctrl+D)"
+        )
         self._reset_btn.clicked.connect(self._reset_defaults)
         self._reset_btn.setEnabled(False)
         self._root.addWidget(self._reset_btn)
 
-        self._root.addStretch(1)
+        self._root.addSpacerItem(
+            QSpacerItem(0, 0, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
+        )
 
     # ------------------------------------------------------------------
     # Public API
@@ -106,28 +105,51 @@ class ParametersPanel(QWidget):
         outer.setContentsMargins(0, 0, 0, 0)
         outer.setSpacing(2)
 
+        # Header: parameter name on the left, current value on the right
         header = QHBoxLayout()
         header.setContentsMargins(0, 0, 0, 0)
         name_lbl = QLabel(spec.label)
-        name_lbl.setStyleSheet("font-size: 11px;")
+        name_lbl.setStyleSheet(SMALL_LABEL_STYLE)
+        name_lbl.setToolTip(spec.description or spec.label)
         header.addWidget(name_lbl)
         header.addStretch(1)
         value_lbl = QLabel(self._format_value(spec.default, spec))
-        value_lbl.setStyleSheet("font-family: monospace; font-size: 11px; color: #444;")
+        value_lbl.setStyleSheet(VALUE_MONO_STYLE)
+        value_lbl.setToolTip("Current value")
         header.addWidget(value_lbl)
         outer.addLayout(header)
 
+        # Slider
         slider = QSlider(Qt.Orientation.Horizontal)
         ticks = max(1, int(round((spec.maximum - spec.minimum) / spec.step)))
         slider.setRange(0, ticks)
         slider.setValue(self._value_to_tick(spec.default, spec))
+        slider.setToolTip(
+            f"{spec.label}\n"
+            f"Range: {spec.minimum:g} – {spec.maximum:g}  |  Step: {spec.step:g}"
+        )
         slider.valueChanged.connect(lambda _v, s=spec: self._on_value_changed(s))
         slider.sliderReleased.connect(self._on_slider_released)
         outer.addWidget(slider)
 
+        # Min / max range labels flanking below the slider
+        range_row = QHBoxLayout()
+        range_row.setContentsMargins(0, 0, 0, 0)
+        min_lbl = QLabel(f"{spec.minimum:g}{spec.suffix}")
+        min_lbl.setStyleSheet(RANGE_LABEL_STYLE)
+        min_lbl.setToolTip("Minimum value")
+        max_lbl = QLabel(f"{spec.maximum:g}{spec.suffix}")
+        max_lbl.setStyleSheet(RANGE_LABEL_STYLE)
+        max_lbl.setToolTip("Maximum value")
+        max_lbl.setAlignment(Qt.AlignmentFlag.AlignRight)
+        range_row.addWidget(min_lbl)
+        range_row.addStretch(1)
+        range_row.addWidget(max_lbl)
+        outer.addLayout(range_row)
+
         if spec.description:
             desc = QLabel(spec.description)
-            desc.setStyleSheet("color: #888; font-size: 10px;")
+            desc.setStyleSheet(MUTED_TEXT_STYLE)
             desc.setWordWrap(True)
             outer.addWidget(desc)
 

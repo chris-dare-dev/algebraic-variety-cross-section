@@ -10,6 +10,7 @@ from __future__ import annotations
 import sys
 
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QApplication,
     QComboBox,
@@ -25,7 +26,8 @@ from pyvistaqt import QtInteractor
 
 from appearance_panel import AppearancePanel
 from parameters_panel import ParametersPanel
-from surfaces import VARIETIES, Surface
+from styles import APP_STYLESHEET
+from surfaces import VARIETIES, VARIETY_TOOLTIPS, SUBTYPE_TOOLTIPS, Surface
 from view_panel import ViewPanel
 
 _PLACEHOLDER = "— Select —"
@@ -35,7 +37,7 @@ class MainWindow(QMainWindow):
     def __init__(self) -> None:
         super().__init__()
         self.setWindowTitle("Algebraic Variety Viewer")
-        self.resize(1100, 760)
+        self.resize(1200, 800)
 
         central = QWidget()
         self.setCentralWidget(central)
@@ -43,19 +45,29 @@ class MainWindow(QMainWindow):
         root.setContentsMargins(8, 8, 8, 8)
 
         controls = QHBoxLayout()
-        controls.setSpacing(8)
+        controls.setSpacing(12)
 
-        controls.addWidget(QLabel("Variety:"))
+        variety_lbl = QLabel("Variety:")
+        controls.addWidget(variety_lbl)
         self.variety_combo = QComboBox()
+        self.variety_combo.setMinimumWidth(180)
         self.variety_combo.addItem(_PLACEHOLDER)
         self.variety_combo.addItems(VARIETIES.keys())
+        self.variety_combo.setToolTip(
+            "Choose a family of algebraic surfaces.\n\n"
+            + "\n\n".join(
+                f"{name}:\n{tip}" for name, tip in VARIETY_TOOLTIPS.items()
+            )
+        )
         self.variety_combo.currentTextChanged.connect(self._on_variety_changed)
         controls.addWidget(self.variety_combo)
 
-        self.subtype_label = QLabel("Subtype:")
+        self.subtype_label = QLabel("Model:")
         controls.addWidget(self.subtype_label)
         self.subtype_combo = QComboBox()
+        self.subtype_combo.setMinimumWidth(220)
         self.subtype_combo.addItem(_PLACEHOLDER)
+        self.subtype_combo.setToolTip("Choose a specific surface model within the selected family.")
         self.subtype_combo.currentTextChanged.connect(self._on_subtype_changed)
         controls.addWidget(self.subtype_combo)
 
@@ -63,6 +75,10 @@ class MainWindow(QMainWindow):
         root.addLayout(controls)
 
         self.plotter = QtInteractor(central)
+        self.plotter.setToolTip(
+            "3D viewport\n"
+            "Left-drag: rotate  |  Scroll / Right-drag: zoom  |  Shift-drag: pan"
+        )
         root.addWidget(self.plotter.interactor, stretch=1)
 
         self.setStatusBar(QStatusBar())
@@ -127,6 +143,24 @@ class MainWindow(QMainWindow):
         # Apply default background color from the appearance panel
         self.appearance_panel.apply_to_actor(None)
 
+        # --- Keyboard shortcuts ----------------------------------------------
+        self._setup_shortcuts()
+
+    # --- keyboard shortcuts ------------------------------------------------
+
+    def _setup_shortcuts(self) -> None:
+        # Ctrl+R — Reset Camera
+        sc_reset = QShortcut(QKeySequence("Ctrl+R"), self)
+        sc_reset.activated.connect(self.view_panel._on_reset_camera)
+
+        # Ctrl+Shift+S — Screenshot
+        sc_shot = QShortcut(QKeySequence("Ctrl+Shift+S"), self)
+        sc_shot.activated.connect(self.view_panel._on_screenshot)
+
+        # Ctrl+D — Reset Parameters to defaults
+        sc_params = QShortcut(QKeySequence("Ctrl+D"), self)
+        sc_params.activated.connect(self.parameters_panel._reset_defaults)
+
     # --- dropdown handlers -------------------------------------------------
 
     def _set_subtype_enabled(self, enabled: bool) -> None:
@@ -138,9 +172,15 @@ class MainWindow(QMainWindow):
         self.subtype_combo.clear()
         self.subtype_combo.addItem(_PLACEHOLDER)
         if name in VARIETIES:
-            self.subtype_combo.addItems(VARIETIES[name].keys())
+            subtypes = list(VARIETIES[name].keys())
+            self.subtype_combo.addItems(subtypes)
+            # Attach per-subtype tooltips
+            for i, subtype in enumerate(subtypes, start=1):
+                tip = SUBTYPE_TOOLTIPS.get(subtype, "")
+                if tip:
+                    self.subtype_combo.setItemData(i, tip, Qt.ItemDataRole.ToolTipRole)
             self._set_subtype_enabled(True)
-            self.statusBar().showMessage(f"Variety: {name}. Now choose a subtype.")
+            self.statusBar().showMessage(f"Variety: {name}. Now choose a model.")
         else:
             self._set_subtype_enabled(False)
             self._clear_actor()
@@ -152,9 +192,19 @@ class MainWindow(QMainWindow):
         if variety not in VARIETIES or name not in VARIETIES[variety]:
             self._current_surface = None
             self.parameters_panel.set_specs([])
+            # Update subtype combo tooltip to the currently hovered item's tip
+            self.subtype_combo.setToolTip(
+                SUBTYPE_TOOLTIPS.get(name,
+                    "Choose a specific surface model within the selected family.")
+            )
             return
         surface = VARIETIES[variety][name]
         self._current_surface = surface
+        # Update subtype combo tooltip with the selected model's description
+        self.subtype_combo.setToolTip(
+            SUBTYPE_TOOLTIPS.get(name,
+                "Choose a specific surface model within the selected family.")
+        )
         # Repopulate the parameters panel for the new surface.
         self.parameters_panel.set_specs(surface.params)
         self._render_current(reset_camera=True)
@@ -192,6 +242,8 @@ class MainWindow(QMainWindow):
         if self._computing:
             return
         self._computing = True
+        # Show busy cursor while the marching-cubes pipeline runs
+        QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
         try:
             surface = self._current_surface
             params = self.parameters_panel.values() if surface.params else {}
@@ -200,8 +252,15 @@ class MainWindow(QMainWindow):
             QApplication.processEvents()
             try:
                 self._raw_mesh = surface.generate(**params)
-            except Exception as exc:
+            except ValueError as exc:
                 self._raw_mesh = None  # don't let a stale mesh be domain-clipped
+                # Surface the error with a user-friendly hint in addition to
+                # the raw exception message from surfaces.py.
+                msg = str(exc)
+                self.statusBar().showMessage(f"Parameter out of range — {msg}")
+                return
+            except Exception as exc:
+                self._raw_mesh = None
                 self.statusBar().showMessage(f"Error: {exc}")
                 return
 
@@ -217,6 +276,7 @@ class MainWindow(QMainWindow):
                 f"{self._raw_mesh.n_cells:,} faces{param_str}"
             )
         finally:
+            QApplication.restoreOverrideCursor()
             self._computing = False
 
     def _apply_domain_and_render(self, *, reset_camera: bool) -> None:
@@ -234,7 +294,8 @@ class MainWindow(QMainWindow):
         if clipped.n_points == 0:
             # Domain is set smaller than the surface — show the outline only.
             self.statusBar().showMessage(
-                "Domain is smaller than the surface — no geometry to display."
+                "Clip region is smaller than the surface — reduce the radius "
+                "or change the clip shape to see geometry."
             )
             if overlay is not None:
                 self._domain_overlay_actor = self.plotter.add_mesh(
@@ -284,6 +345,7 @@ class MainWindow(QMainWindow):
 def main() -> int:
     QApplication.setAttribute(Qt.AA_ShareOpenGLContexts, True)
     app = QApplication(sys.argv)
+    app.setStyleSheet(APP_STYLESHEET)
     win = MainWindow()
     win.show()
     return app.exec()

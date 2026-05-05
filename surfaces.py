@@ -396,21 +396,73 @@ VARIETIES: dict[str, dict[str, Surface]] = {
         "Kummer surface": Surface("Kummer surface", kummer_surface, KUMMER_PARAMS),
     },
     "Enriques surface": {
-        "Figure 1": Surface(
+        "Canonical sextic  [Fig. 1]": Surface(
             "Enriques sextic (canonical, S₄ symmetry)",
             enriques_figure_1, ENRIQUES_FIGURE_1_PARAMS,
         ),
-        "Figure 2": Surface(
+        "Diagonal λ-family  [Fig. 2]": Surface(
             "Enriques sextic (diagonal λ-family)",
             enriques_figure_2, ENRIQUES_FIGURE_2_PARAMS,
         ),
-        "Figure 3": Surface(
+        "Cayley symmetroid  [Fig. 3]": Surface(
             "Cayley quartic symmetroid (Reye cover)",
             enriques_figure_3, ENRIQUES_FIGURE_3_PARAMS,
         ),
-        "Figure 4": Surface(
+        "Icosahedral sextic  [Fig. 4]": Surface(
             "Barth-style icosahedral sextic (A₅ symmetry)",
             enriques_figure_4, ENRIQUES_FIGURE_4_PARAMS,
         ),
     },
+}
+
+# ---------------------------------------------------------------------------
+# Tooltips for the variety / subtype dropdowns (used by the GUI)
+# ---------------------------------------------------------------------------
+
+VARIETY_TOOLTIPS: dict[str, str] = {
+    "K3 surface": (
+        "A K3 surface is a compact complex surface with trivial canonical bundle "
+        "and first Betti number 0. K3 surfaces are the 2-dimensional analogue of "
+        "elliptic curves and play a central role in mirror symmetry."
+    ),
+    "Enriques surface": (
+        "An Enriques surface is the quotient of a K3 surface by a fixed-point-free "
+        "involution. It has Euler number 12 and 2K=0. Four representative real "
+        "affine models are provided here."
+    ),
+}
+
+SUBTYPE_TOOLTIPS: dict[str, str] = {
+    # K3
+    "Fermat quartic": (
+        "Fig. — | x⁴+y⁴+z⁴+… = c | "
+        "3-parameter deformation of the classical Fermat quartic. "
+        "Full octahedral O_h symmetry at α=β=γ=0."
+    ),
+    "Kummer surface": (
+        "Fig. — | (x²+y²+z²−μ²)² = λ·pqrs | "
+        "Classic 16-nodal quartic (Hudson form). "
+        "Smooth in the range 1 < μ² < 3."
+    ),
+    # Enriques
+    "Canonical sextic  [Fig. 1]": (
+        "Figure 1 · S₄ tetrahedral symmetry | "
+        "The Enriques 1896 canonical sextic: "
+        "x²y²+x²z²+y²z²+x²y²z² + c·xyz·(1+x²+y²+z²) = 0."
+    ),
+    "Diagonal λ-family  [Fig. 2]": (
+        "Figure 2 · S₄→S₃ symmetry breaking | "
+        "Dolgachev's λ-family: independent weights on the four "
+        "'missing-one-variable' degree-6 monomials."
+    ),
+    "Cayley symmetroid  [Fig. 3]": (
+        "Figure 3 · Reye congruence model | "
+        "Cayley quartic symmetroid: (x+y+z+xy+xz+yz)² = k·xyz. "
+        "Historically the first Enriques surface (Reye 1882)."
+    ),
+    "Icosahedral sextic  [Fig. 4]": (
+        "Figure 4 · A₅ icosahedral symmetry | "
+        "Endrass-normalized variant of Barth's 65-nodal sextic; "
+        "τ≈0.18 gives Enriques-compatible node count."
+    ),
 }
