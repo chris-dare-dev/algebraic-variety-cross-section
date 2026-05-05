@@ -15,15 +15,20 @@ to re-attach bounding-box and grid actors to the newly generated mesh.
 
 from __future__ import annotations
 
-from PySide6.QtCore import Qt
+import numpy as np
+import pyvista as pv
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QCheckBox,
+    QComboBox,
     QFileDialog,
     QGridLayout,
     QGroupBox,
+    QHBoxLayout,
     QLabel,
     QPushButton,
     QSizePolicy,
+    QSlider,
     QSpacerItem,
     QVBoxLayout,
     QWidget,
@@ -32,6 +37,15 @@ from PySide6.QtWidgets import (
 
 class ViewPanel(QWidget):
     """Left-side panel providing view presets and scene-aid toggles."""
+
+    # Emitted whenever the domain mode, radius, or overlay toggle changes.
+    # MainWindow listens and re-clips the cached mesh without regenerating it.
+    domain_changed = Signal()
+
+    # Domain mode constants
+    DOMAIN_NONE = "Off"
+    DOMAIN_SPHERE = "Sphere"
+    DOMAIN_CUBE = "Cube"
 
     def __init__(self, plotter) -> None:
         super().__init__()
@@ -54,6 +68,7 @@ class ViewPanel(QWidget):
 
         root.addWidget(self._make_view_presets_group())
         root.addWidget(self._make_camera_group())
+        root.addWidget(self._make_domain_group())
         root.addWidget(self._make_scene_aids_group())
         root.addWidget(self._make_screenshot_group())
 
@@ -109,6 +124,52 @@ class ViewPanel(QWidget):
         reset_btn.clicked.connect(self._on_reset_camera)
         layout.addWidget(reset_btn)
 
+        return group
+
+    def _make_domain_group(self) -> QGroupBox:
+        group = QGroupBox("Domain")
+        layout = QVBoxLayout(group)
+        layout.setContentsMargins(6, 6, 6, 6)
+        layout.setSpacing(4)
+
+        # Mode selector
+        mode_row = QHBoxLayout()
+        mode_row.addWidget(QLabel("Shape:"))
+        self._domain_mode = QComboBox()
+        self._domain_mode.addItems([self.DOMAIN_NONE, self.DOMAIN_SPHERE, self.DOMAIN_CUBE])
+        self._domain_mode.setCurrentText(self.DOMAIN_NONE)
+        self._domain_mode.currentTextChanged.connect(self._on_domain_mode_changed)
+        mode_row.addWidget(self._domain_mode, stretch=1)
+        layout.addLayout(mode_row)
+
+        # Radius / half-side slider
+        radius_header = QHBoxLayout()
+        self._radius_label = QLabel("Radius")
+        self._radius_label.setStyleSheet("font-size: 11px;")
+        radius_header.addWidget(self._radius_label)
+        radius_header.addStretch(1)
+        self._radius_value = QLabel("2.50")
+        self._radius_value.setStyleSheet("font-family: monospace; font-size: 11px; color: #444;")
+        radius_header.addWidget(self._radius_value)
+        layout.addLayout(radius_header)
+
+        # Slider stores radius * 100 (range 0.10 .. 10.00, step 0.05)
+        self._radius_slider = QSlider(Qt.Orientation.Horizontal)
+        self._radius_slider.setRange(10, 1000)
+        self._radius_slider.setSingleStep(5)
+        self._radius_slider.setPageStep(50)
+        self._radius_slider.setValue(250)
+        self._radius_slider.valueChanged.connect(self._on_radius_value_changed)
+        self._radius_slider.sliderReleased.connect(self._emit_domain_changed)
+        layout.addWidget(self._radius_slider)
+
+        # Show overlay
+        self._domain_overlay_cb = QCheckBox("Show domain outline")
+        self._domain_overlay_cb.setChecked(True)
+        self._domain_overlay_cb.toggled.connect(lambda _: self._emit_domain_changed())
+        layout.addWidget(self._domain_overlay_cb)
+
+        self._update_domain_controls_enabled()
         return group
 
     def _make_scene_aids_group(self) -> QGroupBox:
@@ -181,6 +242,29 @@ class ViewPanel(QWidget):
             self._remove_grid()
         self._plotter.render()
 
+    def _on_domain_mode_changed(self, _mode: str) -> None:
+        self._update_domain_controls_enabled()
+        self._emit_domain_changed()
+
+    def _on_radius_value_changed(self, tick: int) -> None:
+        # Live-update the readout while dragging; emit only on release.
+        self._radius_value.setText(f"{tick / 100.0:.2f}")
+
+    def _emit_domain_changed(self) -> None:
+        self.domain_changed.emit()
+
+    def _update_domain_controls_enabled(self) -> None:
+        active = self._domain_mode.currentText() != self.DOMAIN_NONE
+        self._radius_slider.setEnabled(active)
+        self._radius_value.setEnabled(active)
+        self._radius_label.setEnabled(active)
+        self._domain_overlay_cb.setEnabled(active)
+        # Update radius label to match shape (radius vs half-side)
+        if self._domain_mode.currentText() == self.DOMAIN_CUBE:
+            self._radius_label.setText("Half-side")
+        else:
+            self._radius_label.setText("Radius")
+
     def _on_screenshot(self) -> None:
         path, _ = QFileDialog.getSaveFileName(
             self,
@@ -212,6 +296,50 @@ class ViewPanel(QWidget):
         except Exception:
             pass
         self._grid_actor = None
+
+    # ------------------------------------------------------------------
+    # Public API — domain clipping
+    # ------------------------------------------------------------------
+
+    def domain_settings(self) -> dict:
+        return {
+            "mode": self._domain_mode.currentText(),
+            "radius": self._radius_slider.value() / 100.0,
+            "show_overlay": self._domain_overlay_cb.isChecked(),
+        }
+
+    def clip_to_domain(self, mesh: pv.PolyData) -> tuple[pv.PolyData, pv.PolyData | None]:
+        """Apply the user-chosen domain clip to *mesh*.
+
+        Returns ``(clipped_mesh, overlay_mesh_or_None)``. The overlay is the
+        wireframe sphere/cube to draw alongside the clipped surface, or
+        ``None`` if the user disabled the overlay or selected mode ``Off``.
+        """
+        s = self.domain_settings()
+        mode = s["mode"]
+        if mode == self.DOMAIN_NONE or mesh.n_points == 0:
+            return mesh, None
+
+        r = s["radius"]
+        # Both clips use the same scalar-clipping approach for reliable
+        # behavior on PolyData surfaces: tag every vertex with a "domain
+        # function" (radial distance for the sphere, Chebyshev / max-coord
+        # distance for the cube), then keep only verts where that function
+        # is <= the threshold.
+        work = mesh.copy()
+        if mode == self.DOMAIN_SPHERE:
+            work.point_data["_domain_dist"] = np.linalg.norm(work.points, axis=1)
+            overlay = (
+                pv.Sphere(radius=r, center=(0.0, 0.0, 0.0),
+                          theta_resolution=48, phi_resolution=24)
+                if s["show_overlay"] else None
+            )
+        else:  # DOMAIN_CUBE
+            work.point_data["_domain_dist"] = np.max(np.abs(work.points), axis=1)
+            overlay = pv.Box(bounds=(-r, r, -r, r, -r, r)) if s["show_overlay"] else None
+
+        clipped = work.clip_scalar(scalars="_domain_dist", value=r, invert=True)
+        return clipped, overlay
 
     # ------------------------------------------------------------------
     # Public API — called by MainWindow after each surface switch

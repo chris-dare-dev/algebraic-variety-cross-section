@@ -69,11 +69,14 @@ class MainWindow(QMainWindow):
         self.statusBar().showMessage("Choose a variety to begin.")
 
         self._actor = None
+        self._domain_overlay_actor = None
+        self._raw_mesh = None
         self._current_surface: Surface | None = None
         self._set_subtype_enabled(False)
 
         # --- View dock (left) ------------------------------------------------
         self.view_panel = ViewPanel(self.plotter)
+        self.view_panel.domain_changed.connect(self._on_domain_changed)
         view_dock = QDockWidget("View", self)
         view_dock.setObjectName("ViewDock")
         view_dock.setWidget(self.view_panel)
@@ -161,13 +164,24 @@ class MainWindow(QMainWindow):
         # tune parameters.
         self._render_current(reset_camera=False)
 
+    def _on_domain_changed(self) -> None:
+        # Domain shape/radius/overlay-toggle changed — re-clip the cached raw
+        # mesh without regenerating it. Camera preserved.
+        if self._raw_mesh is None:
+            return
+        self._apply_domain_and_render(reset_camera=False)
+
     # --- rendering ---------------------------------------------------------
 
     def _clear_actor(self) -> None:
         if self._actor is not None:
             self.plotter.remove_actor(self._actor)
             self._actor = None
-        self.plotter.render()
+
+    def _clear_domain_overlay(self) -> None:
+        if self._domain_overlay_actor is not None:
+            self.plotter.remove_actor(self._domain_overlay_actor)
+            self._domain_overlay_actor = None
 
     def _render_current(self, *, reset_camera: bool) -> None:
         if self._current_surface is None:
@@ -178,32 +192,58 @@ class MainWindow(QMainWindow):
         self.statusBar().showMessage(f"Computing {surface.label}…")
         QApplication.processEvents()
         try:
-            mesh = surface.generate(**params)
+            self._raw_mesh = surface.generate(**params)
         except Exception as exc:
             self.statusBar().showMessage(f"Error: {exc}")
             return
 
-        self._clear_actor()
-        self._actor = self.plotter.add_mesh(
-            mesh,
-            smooth_shading=True,
-            specular=0.3,
-            specular_power=15,
-        )
-        self.appearance_panel.apply_to_actor(self._actor)
-        if reset_camera:
-            self.plotter.reset_camera()
-        self.view_panel.re_apply_overlays()
-        self.plotter.render()
+        self._apply_domain_and_render(reset_camera=reset_camera)
 
+        params = self.parameters_panel.values() if surface.params else {}
         param_str = (
             "  ·  " + ", ".join(f"{k}={v:g}" for k, v in params.items())
             if params else ""
         )
         self.statusBar().showMessage(
-            f"{surface.label}  ·  {mesh.n_points:,} verts, "
-            f"{mesh.n_cells:,} faces{param_str}"
+            f"{surface.label}  ·  {self._raw_mesh.n_points:,} verts, "
+            f"{self._raw_mesh.n_cells:,} faces{param_str}"
         )
+
+    def _apply_domain_and_render(self, *, reset_camera: bool) -> None:
+        """Clip the cached raw mesh per the View panel's domain settings,
+        re-add the surface and (optional) domain-outline actors, and render.
+        Called whenever either the mesh OR the domain settings change."""
+        if self._raw_mesh is None:
+            return
+
+        clipped, overlay = self.view_panel.clip_to_domain(self._raw_mesh)
+
+        self._clear_actor()
+        self._clear_domain_overlay()
+
+        self._actor = self.plotter.add_mesh(
+            clipped,
+            smooth_shading=True,
+            specular=0.3,
+            specular_power=15,
+        )
+        self.appearance_panel.apply_to_actor(self._actor)
+
+        if overlay is not None:
+            self._domain_overlay_actor = self.plotter.add_mesh(
+                overlay,
+                style="wireframe",
+                color="#888888",
+                opacity=0.35,
+                line_width=1,
+                pickable=False,
+                lighting=False,
+            )
+
+        if reset_camera:
+            self.plotter.reset_camera()
+        self.view_panel.re_apply_overlays()
+        self.plotter.render()
 
     # --- lifecycle ---------------------------------------------------------
 
