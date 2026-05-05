@@ -95,7 +95,7 @@ class ViewPanel(QWidget):
 
         iso_btn = QPushButton("Isometric")
         iso_btn.setFixedHeight(26)
-        iso_btn.clicked.connect(lambda: self._plotter.view_isometric())
+        iso_btn.clicked.connect(self._make_view_callback("view_isometric"))
         grid.addWidget(iso_btn, 3, 0, 1, 2)
 
         return group
@@ -106,7 +106,7 @@ class ViewPanel(QWidget):
         layout.setContentsMargins(6, 6, 6, 6)
 
         reset_btn = QPushButton("Reset Camera")
-        reset_btn.clicked.connect(lambda: self._plotter.reset_camera())
+        reset_btn.clicked.connect(self._on_reset_camera)
         layout.addWidget(reset_btn)
 
         return group
@@ -150,16 +150,22 @@ class ViewPanel(QWidget):
     # ------------------------------------------------------------------
 
     def _make_view_callback(self, method_name: str):
-        """Return a slot that calls self._plotter.<method_name>()."""
+        """Return a slot that calls self._plotter.<method_name>() and re-renders."""
         def _slot():
             getattr(self._plotter, method_name)()
+            self._plotter.render()
         return _slot
+
+    def _on_reset_camera(self) -> None:
+        self._plotter.reset_camera()
+        self._plotter.render()
 
     def _on_axes_toggled(self, checked: bool) -> None:
         if checked:
             self._plotter.show_axes()
         else:
             self._plotter.hide_axes()
+        self._plotter.render()
 
     def _on_bbox_toggled(self, checked: bool) -> None:
         if checked:

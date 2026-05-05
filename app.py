@@ -24,7 +24,8 @@ from PySide6.QtWidgets import (
 from pyvistaqt import QtInteractor
 
 from appearance_panel import AppearancePanel
-from surfaces import VARIETIES
+from parameters_panel import ParametersPanel
+from surfaces import VARIETIES, Surface
 from view_panel import ViewPanel
 
 _PLACEHOLDER = "— Select —"
@@ -68,6 +69,7 @@ class MainWindow(QMainWindow):
         self.statusBar().showMessage("Choose a variety to begin.")
 
         self._actor = None
+        self._current_surface: Surface | None = None
         self._set_subtype_enabled(False)
 
         # --- View dock (left) ------------------------------------------------
@@ -101,6 +103,23 @@ class MainWindow(QMainWindow):
         appearance_dock.setWidget(self.appearance_panel)
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, appearance_dock)
 
+        # --- Parameters dock (right, above Appearance) -----------------------
+        self.parameters_panel = ParametersPanel()
+        self.parameters_panel.params_changed.connect(self._on_params_changed)
+        params_dock = QDockWidget("Parameters", self)
+        params_dock.setObjectName("ParametersDock")
+        params_dock.setWidget(self.parameters_panel)
+        params_dock.setAllowedAreas(
+            Qt.DockWidgetArea.RightDockWidgetArea | Qt.DockWidgetArea.LeftDockWidgetArea
+        )
+        params_dock.setFeatures(
+            QDockWidget.DockWidgetFeature.DockWidgetMovable
+            | QDockWidget.DockWidgetFeature.DockWidgetFloatable
+        )
+        self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, params_dock)
+        # Stack Parameters above Appearance on the right.
+        self.splitDockWidget(params_dock, appearance_dock, Qt.Orientation.Vertical)
+
         # Apply default background color from the appearance panel
         self.appearance_panel.apply_to_actor(None)
 
@@ -127,8 +146,20 @@ class MainWindow(QMainWindow):
     def _on_subtype_changed(self, name: str) -> None:
         variety = self.variety_combo.currentText()
         if variety not in VARIETIES or name not in VARIETIES[variety]:
+            self._current_surface = None
+            self.parameters_panel.set_specs([])
             return
-        self._render_surface(variety, name, VARIETIES[variety][name])
+        surface = VARIETIES[variety][name]
+        self._current_surface = surface
+        # Repopulate the parameters panel for the new surface.
+        self.parameters_panel.set_specs(surface.params)
+        self._render_current(reset_camera=True)
+
+    def _on_params_changed(self, _values: dict) -> None:
+        # Triggered when a slider is released (or Reset clicked).
+        # Don't reset the camera so the user keeps their viewpoint as they
+        # tune parameters.
+        self._render_current(reset_camera=False)
 
     # --- rendering ---------------------------------------------------------
 
@@ -138,10 +169,20 @@ class MainWindow(QMainWindow):
             self._actor = None
         self.plotter.render()
 
-    def _render_surface(self, variety: str, subtype: str, generator) -> None:
-        self.statusBar().showMessage(f"Computing {subtype}…")
+    def _render_current(self, *, reset_camera: bool) -> None:
+        if self._current_surface is None:
+            return
+        surface = self._current_surface
+        params = self.parameters_panel.values() if surface.params else {}
+
+        self.statusBar().showMessage(f"Computing {surface.label}…")
         QApplication.processEvents()
-        mesh = generator()
+        try:
+            mesh = surface.generate(**params)
+        except Exception as exc:
+            self.statusBar().showMessage(f"Error: {exc}")
+            return
+
         self._clear_actor()
         self._actor = self.plotter.add_mesh(
             mesh,
@@ -149,14 +190,19 @@ class MainWindow(QMainWindow):
             specular=0.3,
             specular_power=15,
         )
-        # Re-apply user-chosen appearance (color/wireframe/opacity/shading/bg).
         self.appearance_panel.apply_to_actor(self._actor)
-        self.plotter.reset_camera()
-        # Re-attach view overlays (bounding box / grid) to the new mesh's bounds.
+        if reset_camera:
+            self.plotter.reset_camera()
         self.view_panel.re_apply_overlays()
         self.plotter.render()
+
+        param_str = (
+            "  ·  " + ", ".join(f"{k}={v:g}" for k, v in params.items())
+            if params else ""
+        )
         self.statusBar().showMessage(
-            f"{variety} → {subtype}  ·  {mesh.n_points:,} verts, {mesh.n_cells:,} faces"
+            f"{surface.label}  ·  {mesh.n_points:,} verts, "
+            f"{mesh.n_cells:,} faces{param_str}"
         )
 
     # --- lifecycle ---------------------------------------------------------
