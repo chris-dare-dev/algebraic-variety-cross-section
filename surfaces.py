@@ -878,25 +878,37 @@ FANO_TWO_QUADRICS_PARAMS = [
 
 
 def fano_sextic_double_solid(
-    t: float = 0.5,
+    R: float = 1.2,
+    alpha: float = 0.0,
     n: int = 240,
 ) -> pv.PolyData:
     """**Figure 4** — Real slice of a **sextic double solid** V_1.
 
     Standard model in weighted P(1,1,1,1,3) with [x_0:x_1:x_2:x_3:w]:
 
-        w² = x_0⁶ + x_1⁶ + x_2⁶ + x_3⁶            (Fermat-symmetric branch).
+        w² = f_6(x_0, x_1, x_2, x_3)
 
-    This is the simplest Fano 3-fold of index 1, genus 2 (Iskovskikh
-    family 1-1).  Dehomogenizing x_3 = 1 and slicing by fixing x_2 = t,
-    then renaming (x_0, x_1, w) → (x, y, z):
+    is the simplest Fano 3-fold of index 1, genus 2 (Iskovskikh family 1-1).
 
-        f(x, y, z) = z² - x⁶ - y⁶ - t⁶ - 1
+    The Fermat-symmetric branch f_6 = Σ x_i⁶ has only positive values in any
+    affine chart, so its real locus is two non-intersecting parallel sheets
+    — visually uninteresting.  We use a **sign-flipped Fermat-style branch**
 
-    Both sheets z = ±√(x⁶+y⁶+t⁶+1) are real for all (x, y, t) since the
-    radicand is always ≥ 1 — the surface is a global graph over (x, y) split
-    into two sheets.  The slider is restricted to t ≥ 0 because t⁶ is an even
-    function of t, so negative t values produce identical meshes (t²ⁿ = (-t)²ⁿ).
+        f_6 = R⁶ - x_0⁶ - x_1⁶ - x_2⁶ - α · x_0²·x_1²·(x_0²+x_1²)
+
+    which takes both signs in any affine chart, so the two sheets z = ±√f_6
+    actually meet on the sextic branch curve f_6 = 0.  Slicing by setting
+    x_2 = 0 and x_3 = 1, then renaming (x_0, x_1, w) → (x, y, z), gives the
+    plotted equation
+
+        f(x, y, z) = z² + x⁶ + y⁶ + α · x²y²(x²+y²) - R⁶ = 0,
+
+    a closed compact sextic surface — two domes joined along the sextic
+    curve z = 0, x⁶ + y⁶ + α·x²y²(x²+y²) = R⁶.
+
+    R controls the overall size; α deforms the equator's sextic branch curve
+    along the (x = ±y) diagonals.  At α = 0 the surface has the full
+    octahedral symmetry of x⁶+y⁶; α ≠ 0 breaks it to D₂.
 
     References:
     - Iskovskikh & Prokhorov, *Fano Varieties*, Encyclopaedia of Math. Sci. 47.
@@ -905,14 +917,23 @@ def fano_sextic_double_solid(
     bounds = 2.0
     g = np.linspace(-bounds, bounds, n)
     X, Y, Z = np.meshgrid(g, g, g, indexing="ij")
-    F = Z * Z - X**6 - Y**6 - (t**6) - 1.0
+    X2, Y2 = X * X, Y * Y
+    F = (
+        Z * Z
+        + X2 * X2 * X2
+        + Y2 * Y2 * Y2
+        + alpha * X2 * Y2 * (X2 + Y2)
+        - R**6
+    )
     F = np.clip(F, -200.0, 200.0)
     return _marching_cubes_to_polydata(F, bounds)
 
 
 FANO_SEXTIC_DOUBLE_SOLID_PARAMS = [
-    ParamSpec("t", "t (slice x₂)", 0.0, 1.2, 0.5, 0.02,
-              description="fixed projective coordinate x₂; negative t gives the same surface (t⁶=(−t)⁶), so only t ≥ 0 is shown"),
+    ParamSpec("R", "R (size)", 0.6, 2.0, 1.2, 0.02,
+              description="z²+x⁶+y⁶+… = R⁶ — controls the overall size of the closed sextic surface"),
+    ParamSpec("alpha", "α (deformation)", -2.0, 2.0, 0.0, 0.05,
+              description="coeff of x²y²(x²+y²) — breaks octahedral to D₂; pinches/bulges along x=±y"),
 ]
 
 
@@ -976,7 +997,7 @@ VARIETIES: dict[str, dict[str, Surface]] = {
             fano_two_quadrics, FANO_TWO_QUADRICS_PARAMS,
         ),
         "Sextic double solid  [Fig. 4]": Surface(
-            "Sextic double solid V₁ (Fermat-symmetric branch)",
+            "Sextic double solid V₁ (sign-flipped Fermat branch)",
             fano_sextic_double_solid, FANO_SEXTIC_DOUBLE_SOLID_PARAMS,
         ),
     },
@@ -1086,7 +1107,7 @@ SUBTYPE_TOOLTIPS: dict[str, str] = {
     ),
     "Sextic double solid  [Fig. 4]": (
         "Figure 4 · Index 1, genus 2 (Iskovskikh family 1-1) | "
-        "z² = x⁶+y⁶+t⁶+1. Two-sheeted double cover branched along a "
-        "Fermat-symmetric sextic."
+        "z² + x⁶+y⁶+α·x²y²(x²+y²) = R⁶. Sign-flipped Fermat branch "
+        "gives a closed compact double cover; α deforms the sextic equator."
     ),
 }

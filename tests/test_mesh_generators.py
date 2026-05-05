@@ -211,9 +211,24 @@ def test_fano_two_quadrics_low_eps_warns():
 
 
 def test_fano_sextic_double_solid_two_sheets():
-    """The sextic double solid has two sheets: verify both positive and negative z
-    are spanned by the mesh, confirming both sheets z = ±√(x⁶+y⁶+t⁶+1) are present."""
+    """The sextic double solid is a closed compact surface — verify the mesh
+    spans both positive and negative z (the upper and lower domes joined at the
+    sextic branch curve x⁶+y⁶+α·x²y²(x²+y²) = R⁶)."""
     mesh = fano_sextic_double_solid()
     z_coords = mesh.points[:, 2]
-    assert z_coords.min() < 0, "Missing negative-z sheet"
-    assert z_coords.max() > 0, "Missing positive-z sheet"
+    assert z_coords.min() < 0, "Missing negative-z sheet (lower dome)"
+    assert z_coords.max() > 0, "Missing positive-z sheet (upper dome)"
+
+
+def test_fano_sextic_double_solid_alpha_zero_is_octahedral():
+    """At α=0 the equator is the Fermat sextic x⁶+y⁶=R⁶, which has 4-fold
+    rotational symmetry. Spot-check by verifying the mesh extent is symmetric
+    in x and y to within sampling noise."""
+    mesh = fano_sextic_double_solid(R=1.2, alpha=0.0)
+    pts = mesh.points
+    x_extent = pts[:, 0].max() - pts[:, 0].min()
+    y_extent = pts[:, 1].max() - pts[:, 1].min()
+    assert abs(x_extent - y_extent) < 0.05, (
+        f"α=0 should give x↔y symmetric extents; got x_extent={x_extent:.3f}, "
+        f"y_extent={y_extent:.3f}"
+    )
