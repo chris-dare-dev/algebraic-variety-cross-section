@@ -47,6 +47,14 @@ def _marching_cubes_to_polydata(
 ) -> pv.PolyData:
     n = field.shape[0]
     spacing = (2 * bounds / (n - 1),) * 3
+    # Detect the case where the field has no zero-crossing before calling
+    # marching_cubes, which would otherwise raise a cryptic internal error.
+    if field.min() > level or field.max() < level:
+        raise ValueError(
+            "No real zero set in the sampling box for these parameters. "
+            f"Field range: [{field.min():.4g}, {field.max():.4g}], "
+            f"level={level:.4g}, bounds={bounds:.4g}."
+        )
     verts, faces, _normals, _ = measure.marching_cubes(field, level=level, spacing=spacing)
     verts -= bounds
     n_faces = faces.shape[0]
@@ -77,13 +85,25 @@ def fermat_quartic(
           = c
 
     At (alpha, beta, gamma, c) = (0, 0, 0, 1) this is the classical
-    Fermat-style real quartic x^4 + y^4 + z^4 = 1. alpha and beta are
+    Fermat-style real quartic x^4 + y^4 + z^4 = 1.  alpha and beta are
     independent symmetric degree-4 invariants; together with the Fermat
-    power-sum they span the natural degree-4 deformation directions,
-    giving a family of (generically smooth) quartic surfaces in P^3 — a
-    family of K3 surfaces in the projective completion. The gamma term
-    is a quadratic "carve" that lengthens the six axial arms toward the
-    octahedral-arm K3 shape.
+    power-sum they span the natural degree-4 deformation directions.
+
+    **K3 connection (projective completion only).**  The *homogeneous
+    quartic part* x^4 + y^4 + z^4 + alpha·(x^2 y^2 + y^2 z^2 + z^2 x^2)
+    + beta·xyz(x+y+z) defines a quartic surface in P^3 that is generically
+    a K3 surface in the sense of algebraic geometry.  The gamma·(x^2+y^2+z^2)
+    term is a non-projective degree-2 perturbation; it modifies the affine
+    real slice but not the projective completion's K3 type.  The surface
+    displayed here is the *real affine zero set* of the full equation, not
+    the projective K3 itself.
+
+    Compactness constraints:
+    - alpha >= -1 is required to keep the leading quartic form positive
+      definite along the body diagonal (alpha < -1 makes the surface
+      non-compact).
+    - |beta| <= 3 keeps the tetrahedral perturbation from opening
+      non-compact channels.
 
     alpha and gamma are bounded from above at zero so no slider direction
     drives the surface toward a sphere (alpha=2 collapses the equation to
@@ -126,10 +146,10 @@ def fermat_quartic(
 FERMAT_PARAMS = [
     ParamSpec("c", "Level c", 0.1, 30.0, 1.0, 0.1,
               description="RHS of  x⁴+y⁴+z⁴ + … = c"),
-    ParamSpec("alpha", "α  (mixed-square)", -10.0, 0.0, 0.0, 0.1,
-              description="coeff of (x²y² + y²z² + z²x²) — sharpens cube into octahedral star"),
-    ParamSpec("beta", "β  (tetrahedral)", -10.0, 10.0, 0.0, 0.1,
-              description="coeff of xyz(x+y+z) — breaks octahedral to tetrahedral symmetry"),
+    ParamSpec("alpha", "α  (mixed-square)", -1.0, 0.0, 0.0, 0.05,
+              description="coeff of (x²y² + y²z² + z²x²) — alpha < -1 makes surface non-compact"),
+    ParamSpec("beta", "β  (tetrahedral)", -3.0, 3.0, 0.0, 0.1,
+              description="coeff of xyz(x+y+z) — breaks octahedral to tetrahedral symmetry; |β|>3 opens non-compact channels"),
     ParamSpec("gamma", "γ  (quadratic carve)", -15.0, 0.0, 0.0, 0.1,
               description="coeff of (x²+y²+z²) — carves central body, extends axial arms"),
 ]
@@ -140,18 +160,31 @@ FERMAT_PARAMS = [
 # ---------------------------------------------------------------------------
 
 
-def kummer_surface(mu_squared: float = 1.3, n: int = 170, bounds: float = 2.6) -> pv.PolyData:
+def kummer_surface(mu_squared: float = 1.3, n: int = 170) -> pv.PolyData:
     """Kummer quartic in standard tetrahedral form (Hudson; MathWorld).
 
         (x^2 + y^2 + z^2 - mu^2)^2  -  lambda * p*q*r*s  =  0
         lambda(mu) = (3*mu^2 - 1) / (3 - mu^2)
 
-    mu^2 = 3 is a pole. mu^2 ∈ {1/3, 2/3, 1} are degenerate cases.
+    mu^2 = 3 is a pole.  mu^2 <= 1/3 gives lambda <= 0, meaning the
+    biquadratic dominates everywhere and there is no real zero set.
     The classic 16-nodal Kummer regime is 1 < mu^2 < 3.
+
+    Raises ValueError for mu^2 = 3 (pole) or mu^2 <= 1/3 (no zero set).
+    The sampling bounds are chosen adaptively from mu_squared so the
+    surface fits comfortably inside the marching-cubes box.
     """
     if abs(mu_squared - 3.0) < 1e-6:
         raise ValueError("mu^2 = 3 is a pole of lambda(mu); choose another value.")
+    if mu_squared <= 1.0 / 3.0:
+        raise ValueError(
+            f"mu² must be > 1/3 (lambda=0 at mu²=1/3, no zero set); got {mu_squared:.3f}"
+        )
     lam = (3.0 * mu_squared - 1.0) / (3.0 - mu_squared)
+
+    # Adaptive bounds: the surface grows as mu_squared increases beyond 1.
+    bounds = max(2.6, 2.6 + 2.0 * (mu_squared - 1.0))
+    bounds = min(bounds, 6.0)
 
     g = np.linspace(-bounds, bounds, n)
     X, Y, Z = np.meshgrid(g, g, g, indexing="ij")
@@ -167,8 +200,8 @@ def kummer_surface(mu_squared: float = 1.3, n: int = 170, bounds: float = 2.6) -
 
 
 KUMMER_PARAMS = [
-    ParamSpec("mu_squared", "μ²", 0.05, 2.95, 1.3, 0.05,
-              description="μ²=1/3, 2/3, 1 are degenerate · μ²=3 is a pole"),
+    ParamSpec("mu_squared", "μ²", 0.40, 2.95, 1.3, 0.05,
+              description="μ²≤1/3 gives no zero set · μ²=3 is a pole · classic 16-node regime: 1<μ²<3"),
 ]
 
 
@@ -309,17 +342,24 @@ def enriques_figure_4(
     n: int = 200,
     bounds: float = 1.5,
 ) -> pv.PolyData:
-    """**Figure 4** — Barth-style icosahedral sextic (Enriques-cousin parameter).
+    """**Figure 4** — Endrass-normalized icosahedral sextic (Barth-dial variant).
 
         P(x, y, z) = 4 · (φ²x² − y²)(φ²y² − z²)(φ²z² − x²)
         Q(x, y, z) = (1 + 2φ) · (x² + y² + z² − 1)²
         f(x, y, z) = P  −  τ · Q  =  0,
 
-    where φ = (1+√5)/2 is the golden ratio. At τ = 1 this is Barth's
-    classical 65-nodal sextic K3; at τ ≈ 0.18 the node count drops to
-    Enriques-compatible levels (Endrass variant). Carries the full
-    icosahedral A_5 symmetry — visually contrasts the discrete-cubic
-    symmetries of Figures 1–3.
+    where φ = (1+√5)/2 is the golden ratio.
+
+    **Note on the Barth sextic.**  Barth's classical 65-nodal sextic uses
+    Q = (1+2φ)·(x²+y²+z²)² (without the −1 shift).  The equation here uses
+    (x²+y²+z²−1)² following Endrass's normalization, which shifts node
+    positions relative to the classical Barth surface.  Consequently τ = 1
+    here is *not* Barth's 65-nodal surface; it is the Endrass-normalized
+    variant and produces a different (still icosahedrally symmetric) surface.
+
+    At τ ≈ 0.18 the node count drops to Enriques-compatible levels.
+    The full icosahedral A_5 symmetry is preserved for all τ, providing a
+    visual contrast to the discrete-cubic symmetries of Figures 1–3.
 
     References: Barth, *J. Algebraic Geom.* 5 (1996); Endrass,
     *J. reine angew. Math.* 485 (1997).
@@ -341,7 +381,7 @@ def enriques_figure_4(
 
 ENRIQUES_FIGURE_4_PARAMS = [
     ParamSpec("tau", "τ (Barth dial)", 0.05, 1.0, 0.18, 0.01,
-              description="τ=1 is Barth's 65-node K3 sextic; τ≈0.18 reduces to Enriques cousin"),
+              description="Endrass-normalized variant; τ≈0.18 gives Enriques-compatible node count"),
 ]
 
 

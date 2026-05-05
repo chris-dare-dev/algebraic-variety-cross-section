@@ -71,6 +71,7 @@ class MainWindow(QMainWindow):
         self._actor = None
         self._domain_overlay_actor = None
         self._raw_mesh = None
+        self._computing = False
         self._current_surface: Surface | None = None
         self._set_subtype_enabled(False)
 
@@ -186,28 +187,37 @@ class MainWindow(QMainWindow):
     def _render_current(self, *, reset_camera: bool) -> None:
         if self._current_surface is None:
             return
-        surface = self._current_surface
-        params = self.parameters_panel.values() if surface.params else {}
-
-        self.statusBar().showMessage(f"Computing {surface.label}…")
-        QApplication.processEvents()
-        try:
-            self._raw_mesh = surface.generate(**params)
-        except Exception as exc:
-            self.statusBar().showMessage(f"Error: {exc}")
+        # Re-entrancy guard: QApplication.processEvents() below can cause a
+        # second call via slider release → _on_params_changed → _render_current.
+        if self._computing:
             return
+        self._computing = True
+        try:
+            surface = self._current_surface
+            params = self.parameters_panel.values() if surface.params else {}
 
-        self._apply_domain_and_render(reset_camera=reset_camera)
+            self.statusBar().showMessage(f"Computing {surface.label}…")
+            QApplication.processEvents()
+            try:
+                self._raw_mesh = surface.generate(**params)
+            except Exception as exc:
+                self._raw_mesh = None  # don't let a stale mesh be domain-clipped
+                self.statusBar().showMessage(f"Error: {exc}")
+                return
 
-        params = self.parameters_panel.values() if surface.params else {}
-        param_str = (
-            "  ·  " + ", ".join(f"{k}={v:g}" for k, v in params.items())
-            if params else ""
-        )
-        self.statusBar().showMessage(
-            f"{surface.label}  ·  {self._raw_mesh.n_points:,} verts, "
-            f"{self._raw_mesh.n_cells:,} faces{param_str}"
-        )
+            self._apply_domain_and_render(reset_camera=reset_camera)
+
+            params = self.parameters_panel.values() if surface.params else {}
+            param_str = (
+                "  ·  " + ", ".join(f"{k}={v:g}" for k, v in params.items())
+                if params else ""
+            )
+            self.statusBar().showMessage(
+                f"{surface.label}  ·  {self._raw_mesh.n_points:,} verts, "
+                f"{self._raw_mesh.n_cells:,} faces{param_str}"
+            )
+        finally:
+            self._computing = False
 
     def _apply_domain_and_render(self, *, reset_camera: bool) -> None:
         """Clip the cached raw mesh per the View panel's domain settings,
@@ -220,6 +230,25 @@ class MainWindow(QMainWindow):
 
         self._clear_actor()
         self._clear_domain_overlay()
+
+        if clipped.n_points == 0:
+            # Domain is set smaller than the surface — show the outline only.
+            self.statusBar().showMessage(
+                "Domain is smaller than the surface — no geometry to display."
+            )
+            if overlay is not None:
+                self._domain_overlay_actor = self.plotter.add_mesh(
+                    overlay,
+                    style="wireframe",
+                    color="#888888",
+                    opacity=0.35,
+                    line_width=1,
+                    pickable=False,
+                    lighting=False,
+                )
+            self.view_panel.re_apply_overlays()
+            self.plotter.render()
+            return
 
         self._actor = self.plotter.add_mesh(
             clipped,

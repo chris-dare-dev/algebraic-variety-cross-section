@@ -123,9 +123,6 @@ class ParametersPanel(QWidget):
         slider.setValue(self._value_to_tick(spec.default, spec))
         slider.valueChanged.connect(lambda _v, s=spec: self._on_value_changed(s))
         slider.sliderReleased.connect(self._on_slider_released)
-        # Also fire on click without drag (single-step) — sliderReleased covers drags;
-        # for a click without drag we rely on valueChanged + a short final emit.
-        slider.actionTriggered.connect(lambda _a: None)  # placeholder; release handles emit
         outer.addWidget(slider)
 
         if spec.description:

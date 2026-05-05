@@ -15,6 +15,7 @@ to re-attach bounding-box and grid actors to the newly generated mesh.
 
 from __future__ import annotations
 
+import logging
 import numpy as np
 import pyvista as pv
 from PySide6.QtCore import Qt, Signal
@@ -79,12 +80,12 @@ class ViewPanel(QWidget):
             "Shift-drag to pan"
         )
         help_label.setWordWrap(True)
-        help_label.setAlignment(Qt.AlignLeft | Qt.AlignTop)
+        help_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
         help_label.setStyleSheet("color: #888888; font-size: 10px;")
         root.addWidget(help_label)
 
         root.addSpacerItem(
-            QSpacerItem(0, 0, QSizePolicy.Minimum, QSizePolicy.Expanding)
+            QSpacerItem(0, 0, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
         )
 
     def _make_view_presets_group(self) -> QGroupBox:
@@ -285,16 +286,16 @@ class ViewPanel(QWidget):
         """Remove the bounding box actor if present."""
         try:
             self._plotter.remove_bounding_box()
-        except Exception:
-            pass
+        except Exception as exc:
+            logging.getLogger(__name__).warning("Could not remove bounding box: %s", exc)
         self._bbox_actor = None
 
     def _remove_grid(self) -> None:
         """Remove the grid actor if present."""
         try:
             self._plotter.remove_bounds_axes()
-        except Exception:
-            pass
+        except Exception as exc:
+            logging.getLogger(__name__).warning("Could not remove bounds axes: %s", exc)
         self._grid_actor = None
 
     # ------------------------------------------------------------------
