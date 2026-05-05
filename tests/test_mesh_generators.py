@@ -19,6 +19,10 @@ from surfaces import (
     enriques_figure_2,
     enriques_figure_3,
     enriques_figure_4,
+    calabi_yau_quintic,
+    calabi_yau_cubic,
+    calabi_yau_asymmetric,
+    calabi_yau_dwork,
 )
 
 
@@ -104,3 +108,48 @@ def test_fermat_quartic_c_high():
     """c = 30.0 (slider maximum) should still produce a non-empty mesh."""
     mesh = fermat_quartic(c=30.0)
     _assert_nonempty(mesh)
+
+
+# ---------------------------------------------------------------------------
+# Calabi–Yau 3-fold smoke tests
+# ---------------------------------------------------------------------------
+
+def test_calabi_yau_quintic_defaults():
+    """Default parameters should produce a non-empty mesh."""
+    mesh = calabi_yau_quintic()
+    assert mesh.n_points > 0, "calabi_yau_quintic: no vertices"
+    assert mesh.n_cells > 0, "calabi_yau_quintic: no faces"
+
+
+def test_calabi_yau_cubic_defaults():
+    """Default parameters should produce a non-empty mesh."""
+    mesh = calabi_yau_cubic()
+    assert mesh.n_points > 0, "calabi_yau_cubic: no vertices"
+    assert mesh.n_cells > 0, "calabi_yau_cubic: no faces"
+
+
+def test_calabi_yau_asymmetric_defaults():
+    """Default parameters should produce a non-empty mesh."""
+    mesh = calabi_yau_asymmetric()
+    assert mesh.n_points > 0, "calabi_yau_asymmetric: no vertices"
+    assert mesh.n_cells > 0, "calabi_yau_asymmetric: no faces"
+
+
+def test_calabi_yau_dwork_defaults():
+    """Default parameters (ψ=0.5) should produce a non-empty mesh."""
+    mesh = calabi_yau_dwork()
+    assert mesh.n_points > 0, "calabi_yau_dwork: no vertices"
+    assert mesh.n_cells > 0, "calabi_yau_dwork: no faces"
+
+
+def test_calabi_yau_dwork_psi_zero():
+    """ψ=0 (Fermat quintic shadow) should produce a non-empty mesh."""
+    mesh = calabi_yau_dwork(psi=0.0)
+    assert mesh.n_points > 0, "calabi_yau_dwork(psi=0): no vertices"
+    assert mesh.n_cells > 0, "calabi_yau_dwork(psi=0): no faces"
+
+
+def test_calabi_yau_dwork_conifold_warns():
+    """ψ≈1 (real conifold point) should emit a RuntimeWarning."""
+    with pytest.warns(RuntimeWarning, match="conifold"):
+        calabi_yau_dwork(psi=1.0)

@@ -9,6 +9,7 @@ built directly from a 2D parameter grid via `_grid_to_polydata`.
 
 from __future__ import annotations
 
+import warnings
 from dataclasses import dataclass, field
 from typing import Callable
 
@@ -133,7 +134,11 @@ def _grid_to_polydata(X: np.ndarray, Y: np.ndarray, Z: np.ndarray) -> pv.PolyDat
 
 
 def _concat_polydata(meshes: list[pv.PolyData]) -> pv.PolyData:
-    """Concatenate a list of PolyData into one, remapping face indices."""
+    """Concatenate a list of PolyData into one, remapping face indices.
+
+    Assumes every input mesh has triangle-only faces (``[3, i0, i1, i2]`` per
+    face). Call ``mesh.triangulate()`` first if your meshes have quad/poly faces.
+    """
     if not meshes:
         return pv.PolyData()
     all_verts = []
@@ -143,6 +148,9 @@ def _concat_polydata(meshes: list[pv.PolyData]) -> pv.PolyData:
         if m.n_points == 0:
             continue
         all_verts.append(m.points)
+        assert len(m.faces) % 4 == 0, (
+            f"_concat_polydata expects triangle faces; got faces array of length {len(m.faces)}"
+        )
         faces_arr = m.faces.reshape(-1, 4).copy()
         faces_arr[:, 1:] += offset
         all_faces.append(faces_arr.ravel())
@@ -492,15 +500,15 @@ def _hanson_cross_section(
     grid: float,
     xi_max: float,
 ) -> pv.PolyData:
-    """Hanson's parametric cross-section of  z₁ⁿ + z₂ⁿ² = 1  in C².
+    """Hanson's parametric cross-section of  z₁ⁿ + z₂ⁿ₂ = 1  in C².
 
     Parameterization (Hanson 1994, Eqs. 5–7):
 
         z₁(θ, ξ, k₁) = exp(2πi·k₁/n ) · cosh(ξ + iθ)^(2/n)
-        z₂(θ, ξ, k₂) = exp(2πi·k₂/n²) · (-i·sinh(ξ + iθ))^(2/n²)
+        z₂(θ, ξ, k₂) = exp(2πi·k₂/n₂) · (-i·sinh(ξ + iθ))^(2/n₂)
 
-    with θ ∈ [0, π/2], ξ ∈ [-ξ_max, ξ_max], and (k₁, k₂) ∈ {0..n−1}×{0..n²−1}
-    indexing the n·n² patches that tile the surface.
+    with θ ∈ [0, π/2], ξ ∈ [-ξ_max, ξ_max], and (k₁, k₂) ∈ {0..n−1}×{0..n₂−1}
+    indexing the n·n₂ patches that tile the surface.
 
     Projection to R³:
 
@@ -509,9 +517,18 @@ def _hanson_cross_section(
     The α slider rotates between the two suppressed imaginary axes (α = π/4
     is the canonical Hanson choice).
 
+    Args:
+        n: exponent for z₁.
+        n2: exponent for z₂ (= n₂ in the parameterization above).
+        alpha: projection angle in radians.
+        grid: number of sample points per patch axis (odd preferred; see below).
+              If grid is even, it is silently coerced to grid + 1 (Hanson 1994
+              p. 6: surface must pass through fixed points along ξ = 0).
+        xi_max: ξ-extent of each patch.
+
     What the user sees: a real 2-surface in R⁴, projected to R³ — a
-    2-slice of the complex curve z₁ⁿ + z₂ⁿ² = 1, which is itself a
-    2-slice of the projective Fermat hypersurface in CP^N. For (n, n²) =
+    2-slice of the complex curve z₁ⁿ + z₂ⁿ₂ = 1, which is itself a
+    2-slice of the projective Fermat hypersurface in CP^N. For (n, n₂) =
     (5, 5) this is the iconic image associated with Calabi–Yau 3-folds.
     """
     # Hanson's tip (paper p. 6): xiSteps must be odd for the surface to pass
@@ -528,7 +545,7 @@ def _hanson_cross_section(
     # u₁ = cosh(z), u₂ = -i·sinh(z) — satisfy u₁² + u₂² = 1.
     # Both lie in the closed right half-plane for (ξ, θ) ∈ [-ξ_max, ξ_max] × [0, π/2],
     # so np.power's principal-branch fractional exponent is continuous on each patch;
-    # the Z_n × Z_n² phase factors then cover the remaining branches.
+    # the Z_n × Z_n₂ phase factors then cover the remaining branches.
     u1 = np.cosh(z)
     u2 = -1j * np.sinh(z)
     u1_pow = u1 ** (2.0 / n)
@@ -553,9 +570,19 @@ def _hanson_cross_section(
 
     merged = _concat_polydata(patches)
     if merged.n_points > 0:
+        # Note: smooth_taubin is intentionally omitted here. The parametric grid
+        # already defines a C² surface; smoothing would smear patch boundaries
+        # without quality benefit and would multiply the cost on dense grids.
+        #
+        # We use cell_normals=True with consistent_normals=False because the
+        # 25 patches from _concat_polydata are disconnected components.
+        # consistent_normals=True cannot orient normals coherently across
+        # components and causes per-patch lighting flips. Cell normals derived
+        # from triangle winding are correct within each patch and PyVista uses
+        # them correctly under default lighting.
         merged = merged.compute_normals(
-            cell_normals=False, point_normals=True,
-            consistent_normals=True, auto_orient_normals=False,
+            cell_normals=True, point_normals=True,
+            consistent_normals=False, auto_orient_normals=False,
             split_vertices=False,
         )
     return merged
@@ -563,7 +590,7 @@ def _hanson_cross_section(
 
 def calabi_yau_quintic(
     alpha: float = np.pi / 4,
-    grid: float =41,
+    grid: float = 41,
     xi_max: float = 1.0,
 ) -> pv.PolyData:
     """**Figure 1** — Hanson's quintic cross-section (the canonical CY3 image).
@@ -590,7 +617,7 @@ CALABI_YAU_QUINTIC_PARAMS = [
 
 def calabi_yau_cubic(
     alpha: float = np.pi / 4,
-    grid: float =33,
+    grid: float = 33,
     xi_max: float = 1.0,
 ) -> pv.PolyData:
     """**Figure 2** — Hanson cross-section with n = 3 (torus).
@@ -614,7 +641,7 @@ CALABI_YAU_CUBIC_PARAMS = [
 
 def calabi_yau_asymmetric(
     alpha: float = np.pi / 4,
-    grid: float =35,
+    grid: float = 35,
     xi_max: float = 1.0,
 ) -> pv.PolyData:
     """**Figure 3** — Hanson's asymmetric construction with (n₁, n₂) = (5, 3).
@@ -651,8 +678,11 @@ def calabi_yau_dwork(
         f(x, y, z) = x⁵ + y⁵ + z⁵ + 2 - 5·ψ·x·y·z = 0.
 
     ψ is the canonical Dwork-pencil modulus: ψ = 0 reduces to the Fermat
-    quintic shadow (no cross-coupling); |ψ| = 1 is the famous **conifold**
-    point where the projective fibre acquires 125 nodal singularities.
+    quintic shadow (no cross-coupling); ψ = 1 is the (real) conifold point;
+    the five conifold points in ℂ are the fifth roots of unity, at which the
+    projective fibre acquires 125 nodal singularities. The +2 constant arises
+    from dehomogenizing with z₄ = z₅ = 1; the conventional 'Fermat quintic
+    shadow' x⁵+y⁵+z⁵=1 is topologically equivalent under (x,y,z)→(−x,−y,−z).
     Dragging ψ across the slider moves the user through a one-parameter
     family of Calabi–Yau 3-folds — the family parameter has direct
     geometric meaning even though we only see a 2D real shadow.
@@ -662,6 +692,13 @@ def calabi_yau_dwork(
       soluble superconformal theory," Nucl. Phys. B 359 (1991), 21–74.
     - Wikipedia, "Dwork family."
     """
+    if abs(psi - 1.0) < 0.01:
+        warnings.warn(
+            "ψ ≈ 1 is the (real) conifold point of the Dwork pencil. "
+            "The fibre acquires a node at (1,1,1) that marching cubes will not "
+            "capture; the displayed mesh is the smooth complement.",
+            category=RuntimeWarning,
+        )
     g = np.linspace(-bounds, bounds, n)
     X, Y, Z = np.meshgrid(g, g, g, indexing="ij")
     F = X**5 + Y**5 + Z**5 + 2.0 - 5.0 * psi * X * Y * Z
@@ -671,7 +708,7 @@ def calabi_yau_dwork(
 
 CALABI_YAU_DWORK_PARAMS = [
     ParamSpec("psi", "ψ (Dwork modulus)", -2.5, 2.5, 0.5, 0.02,
-              description="One-parameter CY₃ family; |ψ|=1 is the conifold (125 nodes)"),
+              description="One-parameter CY₃ family; ψ=1 is the (real) conifold point; the five conifold points in ℂ are the fifth roots of unity"),
 ]
 
 
@@ -798,6 +835,7 @@ SUBTYPE_TOOLTIPS: dict[str, str] = {
     "Dwork pencil  [Fig. 4]": (
         "Figure 4 · Implicit Dwork-pencil real slice | "
         "x⁵+y⁵+z⁵+2 = 5ψ·xyz. The ψ slider sweeps the canonical "
-        "one-parameter CY₃ family; |ψ|=1 is the conifold (125 nodes)."
+        "one-parameter CY₃ family; ψ=1 is the (real) conifold point; "
+        "the five conifold points in ℂ are the fifth roots of unity."
     ),
 }
