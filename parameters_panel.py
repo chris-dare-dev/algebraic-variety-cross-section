@@ -38,6 +38,15 @@ class ParametersPanel(QWidget):
         self._root.setContentsMargins(6, 6, 6, 6)
         self._root.setSpacing(6)
 
+        # Context hint banner — shown only when a variety provides extra context
+        # (e.g. CY3 parametric surfaces).  Hidden by default.
+        self._hint_label = QLabel("")
+        self._hint_label.setStyleSheet(MUTED_TEXT_STYLE)
+        self._hint_label.setWordWrap(True)
+        self._hint_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
+        self._hint_label.hide()
+        self._root.addWidget(self._hint_label)
+
         self._content_layout = QVBoxLayout()
         self._content_layout.setSpacing(10)
         self._root.addLayout(self._content_layout)
@@ -64,6 +73,21 @@ class ParametersPanel(QWidget):
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
+
+    def set_context_hint(self, text: str) -> None:
+        """Show or hide a small informational banner above the sliders.
+
+        Pass an empty string to hide the banner (e.g. for K3/Enriques where
+        no extra context is needed).  Pass a non-empty string to show it —
+        used by MainWindow to surface CY3-specific notes ("each figure is a
+        2D real shadow of a 6-dimensional manifold") without cluttering the
+        panel with permanent text.
+        """
+        if text:
+            self._hint_label.setText(text)
+            self._hint_label.show()
+        else:
+            self._hint_label.hide()
 
     def set_specs(self, specs: Iterable[ParamSpec]) -> None:
         """Rebuild the panel for a new surface's parameter spec list."""

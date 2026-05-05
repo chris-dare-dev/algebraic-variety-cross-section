@@ -8,6 +8,7 @@ mouse — no extra wiring required.
 from __future__ import annotations
 
 import sys
+import warnings
 
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QKeySequence, QShortcut
@@ -180,11 +181,27 @@ class MainWindow(QMainWindow):
                 if tip:
                     self.subtype_combo.setItemData(i, tip, Qt.ItemDataRole.ToolTipRole)
             self._set_subtype_enabled(True)
-            self.statusBar().showMessage(f"Variety: {name}. Now choose a model.")
+            # For CY3, include a brief contextual note in the status bar AND
+            # in the Parameters dock banner so first-time users understand they
+            # are viewing 2D shadows, not the full 6-dimensional manifold.
+            if name == "Calabi–Yau 3-fold":
+                self.statusBar().showMessage(
+                    "Calabi–Yau 3-fold — each figure is a 2D real shadow of a "
+                    "6-dimensional manifold.  Now choose a model."
+                )
+                self.parameters_panel.set_context_hint(
+                    "A Calabi–Yau 3-fold is 6-real-dimensional and cannot live in ℝ³. "
+                    "The figures here are 2D shadows in the Hanson-1994 tradition "
+                    "(parametric cross-sections) and one implicit Dwork-pencil slice."
+                )
+            else:
+                self.statusBar().showMessage(f"Variety: {name}. Now choose a model.")
+                self.parameters_panel.set_context_hint("")
         else:
             self._set_subtype_enabled(False)
             self._clear_actor()
             self.statusBar().showMessage("Choose a variety to begin.")
+            self.parameters_panel.set_context_hint("")
         self.subtype_combo.blockSignals(False)
 
     def _on_subtype_changed(self, name: str) -> None:
@@ -250,8 +267,18 @@ class MainWindow(QMainWindow):
 
             self.statusBar().showMessage(f"Computing {surface.label}…")
             QApplication.processEvents()
+            _surface_warning: str = ""
             try:
-                self._raw_mesh = surface.generate(**params)
+                # Capture RuntimeWarning (e.g. the Dwork conifold warning at
+                # ψ≈1) so it appears in the status bar rather than vanishing
+                # into stderr.
+                with warnings.catch_warnings(record=True) as _caught:
+                    warnings.simplefilter("always")
+                    self._raw_mesh = surface.generate(**params)
+                for _w in _caught:
+                    if issubclass(_w.category, RuntimeWarning):
+                        _surface_warning = str(_w.message)
+                        break
             except ValueError as exc:
                 self._raw_mesh = None  # don't let a stale mesh be domain-clipped
                 # Surface the error with a user-friendly hint in addition to
@@ -268,13 +295,24 @@ class MainWindow(QMainWindow):
 
             params = self.parameters_panel.values() if surface.params else {}
             param_str = (
-                "  ·  " + ", ".join(f"{k}={v:g}" for k, v in params.items())
+                "  ·  " + ", ".join(
+                    # Format each param with a precision that matches the slider
+                    # display (step-derived) rather than :g (which gives more
+                    # digits than the slider label, creating an inconsistency).
+                    f"{k}={self._format_param(v, surface, k)}"
+                    for k, v in params.items()
+                )
                 if params else ""
             )
-            self.statusBar().showMessage(
+            base_msg = (
                 f"{surface.label}  ·  {self._raw_mesh.n_points:,} verts, "
                 f"{self._raw_mesh.n_cells:,} faces{param_str}"
             )
+            if _surface_warning:
+                # Prepend a ⚠ marker so the warning stands out from the mesh stats.
+                self.statusBar().showMessage(f"⚠ {_surface_warning}  |  {base_msg}")
+            else:
+                self.statusBar().showMessage(base_msg)
         finally:
             QApplication.restoreOverrideCursor()
             self._computing = False
@@ -334,6 +372,29 @@ class MainWindow(QMainWindow):
             self.plotter.reset_camera()
         self.view_panel.re_apply_overlays()
         self.plotter.render()
+
+    # --- helpers -----------------------------------------------------------
+
+    @staticmethod
+    def _format_param(value: float, surface: Surface, key: str) -> str:
+        """Format a parameter value using the same precision as the slider label.
+
+        ParametersPanel._format_value uses step-derived precision:
+          step >= 1   → 0 decimal places
+          step >= 0.1 → 2 decimal places
+          else        → 3 decimal places
+
+        Using :g in the status bar would show ``alpha=0.785398`` while the
+        slider label shows ``0.785`` — inconsistent. This matches them.
+        """
+        spec = next((p for p in surface.params if p.name == key), None)
+        if spec is None:
+            return f"{value:g}"
+        if spec.step >= 1:
+            return f"{value:.0f}"
+        if spec.step >= 0.1:
+            return f"{value:.2f}"
+        return f"{value:.3f}"
 
     # --- lifecycle ---------------------------------------------------------
 
