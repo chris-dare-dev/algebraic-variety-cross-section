@@ -27,7 +27,7 @@ from pyvistaqt import QtInteractor
 
 from appearance_panel import AppearancePanel
 from parameters_panel import ParametersPanel
-from styles import APP_STYLESHEET
+from styles import APP_STYLESHEET, COLOR_WIREFRAME_OVERLAY
 from surfaces import VARIETIES, VARIETY_TOOLTIPS, SUBTYPE_TOOLTIPS, Surface
 from view_panel import ViewPanel
 
@@ -383,7 +383,7 @@ class MainWindow(QMainWindow):
             self._domain_overlay_actor = self.plotter.add_mesh(
                 overlay,
                 style="wireframe",
-                color="#888888",
+                color=COLOR_WIREFRAME_OVERLAY,
                 opacity=0.35,
                 line_width=1,
                 pickable=False,

@@ -29,7 +29,12 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from styles import VALUE_MONO_STYLE
+from styles import (
+    BG_SURFACE_DEFAULT,
+    BG_VIEWPORT,
+    BORDER_SWATCH,
+    VALUE_MONO_STYLE,
+)
 
 
 def _make_swatch(color: QColor, size: int = 20) -> QLabel:
@@ -45,7 +50,7 @@ def _make_swatch(color: QColor, size: int = 20) -> QLabel:
 def _apply_swatch_color(swatch: QLabel, color: QColor) -> None:
     hex_color = color.name()
     swatch.setStyleSheet(
-        f"background-color: {hex_color}; border: 1px solid #888;"
+        f"background-color: {hex_color}; border: 1px solid {BORDER_SWATCH};"
     )
 
 
@@ -71,8 +76,12 @@ class AppearancePanel(QWidget):
         self._get_plotter = get_plotter
 
         # --- stored appearance state (persists across mesh switches) ----------
-        self._surface_color = QColor("#b0c4de")   # lightsteelblue default
-        self._bg_color = QColor("#2f2f2f")         # dark grey default
+        # Default colors come from the central palette tokens (UPL-1):
+        #   BG_SURFACE_DEFAULT — lightsteelblue mesh fill
+        #   BG_VIEWPORT        — dark grey viewport background
+        # UPL-5 will override _surface_color per-variety via apply_to_actor().
+        self._surface_color = QColor(BG_SURFACE_DEFAULT)
+        self._bg_color = QColor(BG_VIEWPORT)
         self._wireframe = False
         self._show_edges = False
         self._opacity = 100          # 0-100 integer (maps to 0.0-1.0)
