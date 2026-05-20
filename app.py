@@ -141,8 +141,12 @@ class MainWindow(QMainWindow):
         # Stack Parameters above Appearance on the right.
         self.splitDockWidget(params_dock, appearance_dock, Qt.Orientation.Vertical)
 
-        # Apply default background color from the appearance panel
-        self.appearance_panel.apply_to_actor(None)
+        # Apply the launch background color BEFORE any surface renders, so
+        # the user never sees the VTK default light-grey background flash on
+        # the first frame.  Decoupled from apply_to_actor(None) which used to
+        # silently no-op the background-init step.  See UPL-3 in
+        # plans/panel-refresh-2026q2-roadmap.md.
+        self.appearance_panel.apply_background()
 
         # --- Keyboard shortcuts ----------------------------------------------
         self._setup_shortcuts()

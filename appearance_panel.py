@@ -280,11 +280,24 @@ class AppearancePanel(QWidget):
     # Public API
     # -----------------------------------------------------------------------
 
-    def apply_to_actor(self, actor) -> None:
-        """Re-apply all stored appearance settings to *actor*.
+    def apply_background(self) -> None:
+        """Apply the stored background color to the plotter.
 
-        Safe to call with ``actor=None`` (no-op).
+        Independent of actor state — safe to call before any mesh has been
+        added (e.g. from ``MainWindow.__init__`` to set the launch background
+        before the first surface renders, eliminating the VTK-default-bg flash).
         """
+        self._get_plotter().set_background(self._bg_color.name())
+
+    def apply_to_actor(self, actor) -> None:
+        """Re-apply all stored appearance settings.
+
+        Background color is applied unconditionally (independent of actor).
+        Actor-specific properties (color, wireframe, opacity, shading) are
+        applied only when *actor* is not ``None``.
+        """
+        self.apply_background()
+
         if actor is None:
             return
 
@@ -294,6 +307,3 @@ class AppearancePanel(QWidget):
             actor.prop.show_edges = self._show_edges
         actor.prop.opacity = self._opacity / 100.0
         actor.prop.interpolation = self._shading
-
-        # Apply background color to the plotter (independent of actor)
-        self._get_plotter().set_background(self._bg_color.name())
