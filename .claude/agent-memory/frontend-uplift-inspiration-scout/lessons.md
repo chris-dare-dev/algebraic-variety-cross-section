@@ -1,0 +1,5 @@
+# Inspiration Scout — Lessons
+
+- **2026-05-20:** ParaView's user guide is more useful than its homepage for surfacing actual UI patterns — go to the ReferenceManual or UsersGuide chapter pages directly (e.g. `/ReferenceManual/colorMapping.html`, `/UsersGuide/animation.html`) rather than the docs index; the index itself just redirects, and several top-level chapter paths 404 while sub-chapter paths succeed.
+- **2026-05-20:** Blender docs return 403, Mathematica Manipulate returns 403, Wolfram reference returns 403 — for these tools rely on secondary sources (superqt docs, community tutorials) or skip them in future runs; the app-level patterns can be inferred from docs that do respond (ParaView, 3D Slicer, GeoGebra).
+- **2026-05-20:** For visual identity inspiration (palette, typography), fetching the raw homepage HTML is low-signal because CSS/hex values are not in the HTML body — focus the WebFetch prompt on observable patterns ("what colors appear vivid against the background?") rather than asking for hex codes; or fetch a CSS file URL directly if known.

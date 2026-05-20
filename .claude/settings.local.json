@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(bash .claude/scripts/frontend-uplift/init-uplift.sh 2026q2-panel-refresh)"
+    ]
+  }
+}
