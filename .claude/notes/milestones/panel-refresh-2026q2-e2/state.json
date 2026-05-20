@@ -1,0 +1,89 @@
+{
+  "id": "panel-refresh-2026q2-e2",
+  "created_at": "2026-05-20T22:17:29Z",
+  "updated_at": "2026-05-20T22:36:21Z",
+  "phase": "complete",
+  "phase_history": [
+    {
+      "phase": "init",
+      "at": "2026-05-20T22:17:29Z"
+    },
+    {
+      "phase": "research-running",
+      "at": "2026-05-20T22:18:10Z"
+    },
+    {
+      "phase": "research-complete",
+      "at": "2026-05-20T22:23:46Z"
+    },
+    {
+      "phase": "implement-running",
+      "at": "2026-05-20T22:24:17Z"
+    },
+    {
+      "phase": "implement-complete",
+      "at": "2026-05-20T22:27:54Z"
+    },
+    {
+      "phase": "critique-running",
+      "at": "2026-05-20T22:28:04Z"
+    },
+    {
+      "phase": "critique-complete",
+      "at": "2026-05-20T22:33:16Z"
+    },
+    {
+      "phase": "rectify-running",
+      "at": "2026-05-20T22:33:25Z"
+    },
+    {
+      "phase": "complete",
+      "at": "2026-05-20T22:36:21Z"
+    }
+  ],
+  "milestone_brief": "Implement UPL-1 from .claude/notes/frontend-uplifts/2026q2-panel-refresh/artifacts/final-report.md (rank 5, adj-RICE 10.4, foundational): extract scattered hex literals in styles.py and appearance_panel.py into a PALETTE_LIGHT dict with at least 6 named tokens (BG_VIEWPORT, BG_PANEL, TEXT_VALUE, TEXT_MUTED, FOCUS_RING, plus variety-family color placeholders). Preserve every existing rendered color and dock-size. Foundational refactor for the rest of the first-wave bundle. Also resolves the AI-13-adjacency #888 short-hex finding cataloged as UPL-21.",
+  "research_mode": "standard",
+  "oss_scout_requested": false,
+  "research_briefs": [
+    ".claude/notes/milestones/panel-refresh-2026q2-e2/research/agent-a-brief.md",
+    ".claude/notes/milestones/panel-refresh-2026q2-e2/research/agent-b-brief.md"
+  ],
+  "research_synthesis": "Both researchers converged: add module-level PALETTE_LIGHT dict to styles.py (NOT new file), 18 distinct tokens, keep existing named constants as thin aliases for zero call-site changes outside styles.py. Migrate 20 hex literals (15 in styles.py, 3 in appearance_panel.py, 2 in app.py); fix the AI-13-adjacency #888 -> #888888 (UPL-21). Token names follow Qt QPalette/napari/ParaView convention (BG_*, TEXT_*, BORDER_*, FOCUS_RING). Add empty VARIETY_DEFAULT_COLOR stub for UPL-5.",
+  "implementation_path": "inline",
+  "implementation_plan": ".claude/notes/milestones/panel-refresh-2026q2-e2/artifacts/implementation-plan.md",
+  "implementation_base": "dc328d7cccf66002bb162d5395a2adc233e71e01",
+  "implementation_commit_range": "dc328d7..be2b2b9bd814fa3c99c3ba348e69a9fc89ca6416",
+  "implementation_commits": [
+    "be2b2b9bd814fa3c99c3ba348e69a9fc89ca6416"
+  ],
+  "implementation_branch": null,
+  "critique_path": ".claude/notes/milestones/panel-refresh-2026q2-e2/artifacts/adversary-critique.md",
+  "critics_run": [
+    "adversary",
+    "frontend-ux"
+  ],
+  "critique_finding_counts": {
+    "critical": 0,
+    "high": 2,
+    "medium": 5,
+    "low": 4
+  },
+  "rectification_commit": "cf8d2ef6b2e647d8a5ab27464dc46193b3dbde96",
+  "fixed_findings": [
+    "M1",
+    "M2",
+    "M3",
+    "M5",
+    "L1",
+    "L2",
+    "L3",
+    "L4"
+  ],
+  "deferred_findings": [
+    "M4"
+  ],
+  "invalidated_findings": [
+    "H1"
+  ],
+  "regression_tests_added": []
+}

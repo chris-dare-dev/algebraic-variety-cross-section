@@ -1,0 +1,217 @@
+{
+  "id": "2026q2-panel-refresh",
+  "kind": "frontend-uplift",
+  "created_at": "2026-05-20T16:41:28Z",
+  "updated_at": "2026-05-20T17:12:21Z",
+  "phase": "complete",
+  "phase_history": [
+    {
+      "phase": "init",
+      "at": "2026-05-20T16:41:28Z"
+    },
+    {
+      "phase": "discover-running",
+      "at": "2026-05-20T16:44:24Z"
+    },
+    {
+      "phase": "discover-complete",
+      "at": "2026-05-20T16:54:04Z"
+    },
+    {
+      "phase": "synthesize-running",
+      "at": "2026-05-20T16:54:10Z"
+    },
+    {
+      "phase": "synthesize-complete",
+      "at": "2026-05-20T17:01:23Z"
+    },
+    {
+      "phase": "challenge-running",
+      "at": "2026-05-20T17:01:28Z"
+    },
+    {
+      "phase": "challenge-complete",
+      "at": "2026-05-20T17:07:43Z"
+    },
+    {
+      "phase": "prioritize-running",
+      "at": "2026-05-20T17:12:21Z"
+    },
+    {
+      "phase": "complete",
+      "at": "2026-05-20T17:12:21Z"
+    }
+  ],
+  "uplift_brief": "",
+  "discover_mode": "standard",
+  "surfaces_to_render": [],
+  "agents_dispatched": [
+    "visual-scout",
+    "library-scout",
+    "inspiration-scout",
+    "current-state-critic"
+  ],
+  "agents_returned": [
+    "visual-scout",
+    "library-scout",
+    "inspiration-scout",
+    "current-state-critic"
+  ],
+  "discover_briefs": [
+    ".claude/notes/frontend-uplifts/2026q2-panel-refresh/discover/visual-scout-brief.md",
+    ".claude/notes/frontend-uplifts/2026q2-panel-refresh/discover/library-scout-brief.md",
+    ".claude/notes/frontend-uplifts/2026q2-panel-refresh/discover/inspiration-scout-brief.md",
+    ".claude/notes/frontend-uplifts/2026q2-panel-refresh/discover/current-state-critic-brief.md"
+  ],
+  "render_dir": ".claude/notes/frontend-uplifts/2026q2-panel-refresh/renders",
+  "synthesis_path": ".claude/notes/frontend-uplifts/2026q2-panel-refresh/artifacts/synthesis.md",
+  "candidate_count": 23,
+  "challenge_path": ".claude/notes/frontend-uplifts/2026q2-panel-refresh/artifacts/challenge.md",
+  "challenge_finding_counts": {
+    "critical": 0,
+    "high": 5,
+    "medium": 9,
+    "low": 9
+  },
+  "final_report_path": ".claude/notes/frontend-uplifts/2026q2-panel-refresh/artifacts/final-report.md",
+  "ranked_candidates": [
+    {
+      "id": "UPL-5",
+      "title": "Per-variety default surface color",
+      "rice": 30.0,
+      "rank": 1
+    },
+    {
+      "id": "UPL-3",
+      "title": "Initialize plotter bg in MainWindow.__init__",
+      "rice": 26.0,
+      "rank": 2
+    },
+    {
+      "id": "UPL-13",
+      "title": "Status-bar mesh-extent + bbox readout",
+      "rice": 16.0,
+      "rank": 3
+    },
+    {
+      "id": "UPL-18",
+      "title": "Enriques sextic sawtooth mitigation",
+      "rice": 11.25,
+      "rank": 4
+    },
+    {
+      "id": "UPL-1",
+      "title": "Refactor styles.py into named palette tokens",
+      "rice": 10.4,
+      "rank": 5
+    },
+    {
+      "id": "UPL-4",
+      "title": "Dark-mode toggle + STYLESHEET_DARK",
+      "rice": 10.0,
+      "rank": 6
+    },
+    {
+      "id": "UPL-20",
+      "title": "HiDPI baked into app.py main",
+      "rice": 10.0,
+      "rank": 7
+    },
+    {
+      "id": "UPL-7",
+      "title": "Spin-box companion alongside sliders",
+      "rice": 8.0,
+      "rank": 8
+    },
+    {
+      "id": "UPL-23",
+      "title": "Widen pyvista pin to <0.50",
+      "rice": 6.0,
+      "rank": 9
+    },
+    {
+      "id": "UPL-10",
+      "title": "Help menu with About + shortcuts + citations",
+      "rice": 5.0,
+      "rank": 10
+    },
+    {
+      "id": "UPL-11",
+      "title": "First-launch viewport hint overlay",
+      "rice": 5.0,
+      "rank": 11
+    },
+    {
+      "id": "UPL-19",
+      "title": "Enriques back-face culling toggle",
+      "rice": 3.6,
+      "rank": 12
+    },
+    {
+      "id": "UPL-2",
+      "title": "Adopt superqt + qtawesome dep base",
+      "rice": 3.25,
+      "rank": 13
+    },
+    {
+      "id": "UPL-16",
+      "title": "Three-point lighting rig",
+      "rice": 3.0,
+      "rank": 14
+    },
+    {
+      "id": "UPL-17",
+      "title": "Iconic camera presets + reset-with-margin",
+      "rice": 3.0,
+      "rank": 15
+    },
+    {
+      "id": "UPL-14",
+      "title": "Mesh export STL/OBJ/PLY",
+      "rice": 2.4,
+      "rank": 16
+    },
+    {
+      "id": "UPL-21",
+      "title": "AI-11 + AI-13 cleanup sweep",
+      "rice": 1.8,
+      "rank": 17
+    },
+    {
+      "id": "UPL-6",
+      "title": "Named color-map preset menu",
+      "rice": 1.5,
+      "rank": 18
+    },
+    {
+      "id": "UPL-15",
+      "title": "QSettings cross-launch persistence",
+      "rice": 1.25,
+      "rank": 19
+    },
+    {
+      "id": "UPL-22",
+      "title": "Parameter sweep play button",
+      "rice": 0.75,
+      "rank": 20
+    },
+    {
+      "id": "UPL-9",
+      "title": "KaTeX equation tooltip popover",
+      "rice": 0.6,
+      "rank": 21
+    },
+    {
+      "id": "UPL-8",
+      "title": "Collapsible group boxes in docks",
+      "rice": 0.56,
+      "rank": 22
+    },
+    {
+      "id": "UPL-12",
+      "title": "Persistent surface-warning badge",
+      "rice": 0.45,
+      "rank": 23
+    }
+  ]
+}
