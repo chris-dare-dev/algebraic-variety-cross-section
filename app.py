@@ -361,7 +361,7 @@ class MainWindow(QMainWindow):
                 self._domain_overlay_actor = self.plotter.add_mesh(
                     overlay,
                     style="wireframe",
-                    color="#888888",
+                    color=COLOR_WIREFRAME_OVERLAY,
                     opacity=0.35,
                     line_width=1,
                     pickable=False,

@@ -77,6 +77,43 @@ def test_new_named_exports_match_palette() -> None:
     assert styles.COLOR_WIREFRAME_OVERLAY == styles.PALETTE_LIGHT["COLOR_WIREFRAME_OVERLAY"]
 
 
+def test_no_raw_hex_in_pyvista_color_kwargs_at_app_py() -> None:
+    """Regression guard for the e2 rectify-loop finding (M1/Frontend-HIGH):
+
+    The app.py:364 orphan slipped through UPL-1's first pass because the
+    original regression test only scanned APP_STYLESHEET, not the actual
+    PyVista call sites in app.py.  This test reads app.py as source text
+    and asserts no ``color="#xxxxxx"`` literal appears — every PyVista
+    color argument must go through the palette tokens.
+
+    See ``.claude/notes/milestones/panel-refresh-2026q2-e2/artifacts/adversary-critique.md``
+    M1 / Frontend-HIGH for the original finding.
+    """
+    import pathlib
+    repo_root = pathlib.Path(__file__).resolve().parents[1]
+    source = (repo_root / "app.py").read_text(encoding="utf-8")
+    # Match any color="#xxx" or color="#xxxxxx" literal in app.py source.
+    raw_color_re = re.compile(r'color\s*=\s*"#[0-9a-fA-F]{3,6}"')
+    leaks = raw_color_re.findall(source)
+    assert not leaks, (
+        f"app.py contains raw hex literals in color= kwargs: {leaks}. "
+        f"Route all PyVista color args through PALETTE_LIGHT tokens."
+    )
+
+
+def test_no_raw_hex_in_pyvista_color_kwargs_at_appearance_panel() -> None:
+    """Same guard for appearance_panel.py — the other PyVista call surface."""
+    import pathlib
+    repo_root = pathlib.Path(__file__).resolve().parents[1]
+    source = (repo_root / "appearance_panel.py").read_text(encoding="utf-8")
+    raw_color_re = re.compile(r'color\s*=\s*"#[0-9a-fA-F]{3,6}"')
+    leaks = raw_color_re.findall(source)
+    assert not leaks, (
+        f"appearance_panel.py contains raw hex literals in color= kwargs: "
+        f"{leaks}. Route all PyVista color args through PALETTE_LIGHT tokens."
+    )
+
+
 def test_app_stylesheet_substitutes_no_raw_hex_outside_palette() -> None:
     """APP_STYLESHEET must contain only hex values that appear in PALETTE_LIGHT.
 

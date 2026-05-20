@@ -49,18 +49,28 @@ Palette structure (UPL-1, panel-refresh-2026q2-e2):
 PALETTE_LIGHT: dict[str, str] = {
     # === Core viewport + panel backgrounds ===
     "BG_VIEWPORT":              "#2f2f2f",   # dark grey VTK viewport — flows into PyVista
-    "BG_PANEL":                 "#f0f0f0",   # default Qt light-panel ground (anchor for WCAG ratios)
+    "BG_PANEL":                 "#f0f0f0",   # Qt platform default light-panel ground — NOT set explicitly by the app;
+                                             # update if a future Qt platform skin changes this default.  Used as
+                                             # the WCAG contrast anchor in the palette annotations + test suite.
     "BG_SURFACE_DEFAULT":       "#b0c4de",   # lightsteelblue default mesh color — flows into PyVista
 
     # === Text / foreground ===
-    "TEXT_VALUE":               "#333333",   # value readout mono text (~9.1:1 on BG_PANEL — AA pass)
-    "TEXT_MUTED":               "#5a5a5a",   # muted text / labels (~5.4:1 on BG_PANEL — AA pass)
-                                             # NOTE: light-palette only.  UPL-4 must add TEXT_MUTED_DARK.
+    # Contrast ratios verified against BG_PANEL via tests/test_styles_palette.py
+    # using the WCAG 2.x relative-luminance formula (live, not approximate).
+    "TEXT_VALUE":               "#333333",   # value readout mono text (11.09:1 on BG_PANEL — AA pass)
+    "TEXT_MUTED":               "#5a5a5a",   # muted text / labels (6.05:1 on BG_PANEL — AA pass)
+                                             # NOTE: light-palette only.  Measured 1.94:1 on BG_VIEWPORT
+                                             # (dark), so UPL-4 MUST add TEXT_MUTED_DARK.
     "TEXT_DISABLED":            "#aaaaaa",   # disabled widget text (intentional low contrast per WCAG exception)
-    "TEXT_RESET_BTN":           "#5a3a3a",   # dark reddish on reset-btn pink bg (~6.1:1 — AA pass)
+    "TEXT_RESET_BTN":           "#5a3a3a",   # dark reddish on reset-btn pink bg (8.37:1 on BG_RESET_BTN — AA pass)
 
     # === Focus ===
-    "FOCUS_RING":               "#5b9bd5",   # keyboard focus outline (>=3:1 vs adjacent widget bg)
+    # Measured 2.60:1 on BG_PANEL — below WCAG AA 3:1 for non-text UI.  Flagged
+    # for UPL-4 / accessibility pass to darken to e.g. #3c82c4 (~3.1:1) or to
+    # rely on the focus indicator's outline width for visibility.  Kept as-is
+    # in UPL-1 to preserve every existing rendered color (milestone acceptance
+    # signal).  Measured 4.52:1 on BG_VIEWPORT (dark) — passes there.
+    "FOCUS_RING":               "#5b9bd5",   # keyboard focus outline (2.60:1 on BG_PANEL — see note)
 
     # === Dock + group-box structure ===
     "BG_DOCK_HEADER":           "#e8edf2",   # dock title bar background
@@ -87,8 +97,11 @@ PALETTE_LIGHT: dict[str, str] = {
 
 
 # Per-variety default surface color — populated by UPL-5 (panel-refresh-2026q2-e3).
-# Keys are variety family names matching VARIETIES dict in surfaces.py
-# (e.g. "K3 surface", "Enriques surface", "Calabi-Yau 3-fold", "Fano 3-fold (rho=1)").
+# Keys MUST match the VARIETIES dict in surfaces.py VERBATIM, including any
+# non-ASCII characters.  Today those keys are: "K3 surface", "Enriques surface",
+# "Calabi-Yau 3-fold" (ASCII hyphen — see surfaces.py for the canonical form),
+# "Fano 3-fold (rho=1)".  Verify the exact spelling against surfaces.py before
+# adding entries; a mismatched key silently misses the lookup.
 # Each value MUST be 6-digit hex (AI-13) and SHOULD clear >=3:1 luminance contrast
 # against PALETTE_LIGHT["BG_VIEWPORT"] for surface legibility.
 VARIETY_DEFAULT_COLOR: dict[str, str] = {}
@@ -121,6 +134,7 @@ COLOR_RESET_BTN_HOVER_BG   = PALETTE_LIGHT["BG_RESET_BTN_HOVER"]
 # New named exports — for use by appearance_panel.py and app.py to replace
 # previously-inlined literals.
 BG_VIEWPORT                = PALETTE_LIGHT["BG_VIEWPORT"]
+BG_PANEL                   = PALETTE_LIGHT["BG_PANEL"]
 BG_SURFACE_DEFAULT         = PALETTE_LIGHT["BG_SURFACE_DEFAULT"]
 BORDER_SWATCH              = PALETTE_LIGHT["BORDER_SWATCH"]
 COLOR_WIREFRAME_OVERLAY    = PALETTE_LIGHT["COLOR_WIREFRAME_OVERLAY"]
@@ -161,6 +175,11 @@ RANGE_LABEL_STYLE = f"font-family: monospace; font-size: 9px; color: {COLOR_MUTE
 #   * Reset button variant (#resetDefaultsBtn object name)
 #
 # All hex values are substituted from PALETTE_LIGHT — no raw literals here.
+#
+# UPL-4 will refactor this into _build_stylesheet(palette: dict[str, str]) so
+# the same template can render against either PALETTE_LIGHT or PALETTE_DARK.
+# Keep all hex references tokenized through PALETTE_LIGHT[...] subscripts so
+# the swap is a single function-arg change.
 APP_STYLESHEET = f"""
 /* --- Dock widget title bars ------------------------------------------ */
 QDockWidget {{
@@ -230,6 +249,6 @@ QAbstractButton:focus, QComboBox:focus, QSlider:focus {{
 /* --- Status bar -------------------------------------------------------- */
 QStatusBar {{
     font-size: 11px;
-    color: {COLOR_MUTED};
+    color: {PALETTE_LIGHT["TEXT_MUTED"]};
 }}
 """
