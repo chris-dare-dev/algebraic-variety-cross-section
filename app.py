@@ -371,11 +371,19 @@ class MainWindow(QMainWindow):
             self.plotter.render()
             return
 
+        # UPL-9 (graph-and-window-2026q2-e1): explicit ambient + diffuse so the
+        # K3 surface family doesn't render flat against the dark viewport.  VTK
+        # scene defaults (ambient=0.0, diffuse=1.0) under PyVista produce shallow
+        # shading on convex surfaces — current-state-critic M-5.  Elevated
+        # ambient (0.15) + slightly-reduced diffuse (0.85) keep the bright
+        # highlights but lift dark concavities so curvature variation is legible.
         self._actor = self.plotter.add_mesh(
             clipped,
             smooth_shading=True,
             specular=0.3,
             specular_power=15,
+            ambient=0.15,
+            diffuse=0.85,
         )
         self.appearance_panel.apply_to_actor(self._actor)
 

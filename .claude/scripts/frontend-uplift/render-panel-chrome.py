@@ -121,9 +121,14 @@ def main(argv: list[str]) -> int:
 
     # ----- Qt + repo imports (must happen after QT_QPA_PLATFORM is set) -----
     try:
-        from PySide6.QtCore import QSize, qInstallMessageHandler
+        from PySide6.QtCore import QSize, Qt, qInstallMessageHandler
         from PySide6.QtGui import QPixmap
-        from PySide6.QtWidgets import QApplication, QWidget
+        from PySide6.QtWidgets import (
+            QApplication,
+            QDockWidget,
+            QMainWindow,
+            QWidget,
+        )
     except ImportError as e:  # pragma: no cover - environment-only branch
         _err(f"PySide6 import failed: {e}.  Install requirements.txt first.")
         return 1
@@ -206,6 +211,17 @@ def main(argv: list[str]) -> int:
         app.processEvents()
         widget.adjustSize()
         app.processEvents()
+        # UPL-28: clear focus AFTER the layout pass has settled, otherwise
+        # Qt re-assigns focus to the first tab-stop child during the second
+        # processEvents() pass.  Clear from `QApplication.focusWidget()` (the
+        # actual focus holder — typically a child button), not from `widget`
+        # itself: `widget.clearFocus()` only releases focus FROM widget; if
+        # focus is on a child, that call is a no-op.  Drain once more after
+        # the clear so the `:focus` paint event fully unwinds.
+        focused = QApplication.focusWidget()
+        if focused is not None:
+            focused.clearFocus()
+            app.processEvents()
         # QWidget.grab() renders the widget into a QPixmap at the widget's
         # current logical size.  `-2x.png` here means "widget resized to 2x
         # nominal" — NOT device-pixel-ratio 2.  True HiDPI capture requires
@@ -218,6 +234,53 @@ def main(argv: list[str]) -> int:
         widget.hide()
         captured.append(dest)
 
+    def _grab_in_dock(panel: QWidget, dock_title: str, size: QSize, dest: Path) -> None:
+        """UPL-27: wrap a panel in a `QDockWidget` hosted by a vanilla
+        ``QMainWindow`` and grab the host window.
+
+        Why the QMainWindow host: a bare ``QDockWidget`` outside any parent
+        floats as a top-level window.  In that mode the title bar is rendered
+        by the OS window manager — which is absent under
+        ``QT_QPA_PLATFORM=offscreen``, so the offscreen capture shows no
+        title bar at all (probed: a bare floating dock grabs at 320x21 — just
+        the content area, no chrome).  Docking into a vanilla ``QMainWindow``
+        flips the dock into "docked" mode, where Qt itself paints the title
+        bar and the ``styles.py:APP_STYLESHEET`` ``QDockWidget::title`` rule
+        applies.
+
+        AI-3 compliance: ``MainWindow`` (the app's class) is what AI-3 bans
+        under offscreen — because it hosts a ``QtInteractor``.  A vanilla
+        ``QMainWindow`` here has NO ``QtInteractor`` and NO VTK context, so
+        the QApplication tree contains zero ``QtInteractor`` instances —
+        which is the AI-3 one-line rule's safe-under-offscreen condition.
+        See ``.claude/references/app-invariants.md`` AI-3.
+
+        ``dock_title`` must match the production dock title in ``app.py``:
+        "Appearance" / "View" / "Parameters".
+        """
+        host = QMainWindow()
+        dock = QDockWidget(dock_title)
+        dock.setWidget(panel)
+        # Hide the host's empty central widget so the dock fills the captured
+        # area; without this the central area paints a default-coloured strip.
+        host.setCentralWidget(QWidget())
+        host.centralWidget().setMaximumSize(0, 0)
+        host.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, dock)
+        try:
+            _grab(host, size, dest)
+        finally:
+            # `QDockWidget.setWidget()` transferred C++ ownership of `panel`
+            # to `dock` (which is owned by `host`); when `host` goes out of
+            # scope, Qt would delete the entire subtree including `panel` —
+            # crashing the *next* call that reuses the same Python `panel`
+            # reference (e.g. the HIRES capture after the DEFAULT capture).
+            #
+            # Re-parent the panel to None before host teardown.  PySide6
+            # `QDockWidget` has no `takeWidget()` (unlike
+            # `QMainWindow.takeCentralWidget()`), so do it manually.  The
+            # panel's Python reference (held by the caller) keeps it alive.
+            panel.setParent(None)
+
     for theme_name, qss in themes:
         app.setStyleSheet(qss)
 
@@ -228,13 +291,15 @@ def main(argv: list[str]) -> int:
             get_actor=lambda: None,
             get_plotter=lambda: MagicMock(),
         )
-        _grab(
+        _grab_in_dock(
             appearance_empty,
+            "Appearance",
             DEFAULT_SIZE,
             out_dir / f"appearance-{theme_name}-empty-default.png",
         )
-        _grab(
+        _grab_in_dock(
             appearance_empty,
+            "Appearance",
             HIRES_SIZE,
             out_dir / f"appearance-{theme_name}-empty-2x.png",
         )
@@ -258,13 +323,15 @@ def main(argv: list[str]) -> int:
         appearance_populated._opacity_slider.setValue(72)
         appearance_populated._wireframe_cb.setChecked(True)
         appearance_populated._edges_cb.setChecked(True)
-        _grab(
+        _grab_in_dock(
             appearance_populated,
+            "Appearance",
             DEFAULT_SIZE,
             out_dir / f"appearance-{theme_name}-populated-default.png",
         )
-        _grab(
+        _grab_in_dock(
             appearance_populated,
+            "Appearance",
             HIRES_SIZE,
             out_dir / f"appearance-{theme_name}-populated-2x.png",
         )
@@ -273,13 +340,15 @@ def main(argv: list[str]) -> int:
         # Empty state: ViewPanel takes the plotter directly (not a callable);
         # a MagicMock satisfies the attribute access without rendering.
         view_empty = ViewPanel(MagicMock())
-        _grab(
+        _grab_in_dock(
             view_empty,
+            "View",
             DEFAULT_SIZE,
             out_dir / f"view-{theme_name}-empty-default.png",
         )
-        _grab(
+        _grab_in_dock(
             view_empty,
+            "View",
             HIRES_SIZE,
             out_dir / f"view-{theme_name}-empty-2x.png",
         )
@@ -298,13 +367,15 @@ def main(argv: list[str]) -> int:
         view_populated._domain_mode.setCurrentText(view_populated.DOMAIN_SPHERE)
         view_populated._bbox_cb.setChecked(True)
         view_populated._axes_cb.setChecked(True)
-        _grab(
+        _grab_in_dock(
             view_populated,
+            "View",
             DEFAULT_SIZE,
             out_dir / f"view-{theme_name}-populated-default.png",
         )
-        _grab(
+        _grab_in_dock(
             view_populated,
+            "View",
             HIRES_SIZE,
             out_dir / f"view-{theme_name}-populated-2x.png",
         )
@@ -313,13 +384,15 @@ def main(argv: list[str]) -> int:
         # Empty state: no specs loaded → the "(no parameters for this
         # surface)" placeholder + disabled reset button.
         params_empty = ParametersPanel()
-        _grab(
+        _grab_in_dock(
             params_empty,
+            "Parameters",
             DEFAULT_SIZE,
             out_dir / f"parameters-{theme_name}-empty-default.png",
         )
-        _grab(
+        _grab_in_dock(
             params_empty,
+            "Parameters",
             HIRES_SIZE,
             out_dir / f"parameters-{theme_name}-empty-2x.png",
         )
@@ -334,13 +407,15 @@ def main(argv: list[str]) -> int:
             "Each parameter sweep alters the variety's geometry. Release "
             "the slider to re-extract the level set."
         )
-        _grab(
+        _grab_in_dock(
             params_populated,
+            "Parameters",
             DEFAULT_SIZE,
             out_dir / f"parameters-{theme_name}-populated-default.png",
         )
-        _grab(
+        _grab_in_dock(
             params_populated,
+            "Parameters",
             HIRES_SIZE,
             out_dir / f"parameters-{theme_name}-populated-2x.png",
         )
