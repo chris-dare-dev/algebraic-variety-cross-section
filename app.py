@@ -27,7 +27,12 @@ from pyvistaqt import QtInteractor
 
 from appearance_panel import AppearancePanel
 from parameters_panel import ParametersPanel
-from styles import APP_STYLESHEET, COLOR_WIREFRAME_OVERLAY
+from styles import (
+    APP_STYLESHEET,
+    BG_SURFACE_DEFAULT,
+    COLOR_WIREFRAME_OVERLAY,
+    VARIETY_DEFAULT_COLOR,
+)
 from surfaces import VARIETIES, VARIETY_TOOLTIPS, SUBTYPE_TOOLTIPS, Surface
 from view_panel import ViewPanel
 
@@ -185,6 +190,16 @@ class MainWindow(QMainWindow):
                 if tip:
                     self.subtype_combo.setItemData(i, tip, Qt.ItemDataRole.ToolTipRole)
             self._set_subtype_enabled(True)
+            # UPL-2 (variety-palette-2026q2-e1): seed the surface color from
+            # the family default so each variety has a visually distinct
+            # identity cue.  Falls back to BG_SURFACE_DEFAULT if the key is
+            # missing — the test_variety_default_color_keys_match_surfaces_varieties
+            # guard in tests/test_styles_palette.py prevents drift.  User's
+            # subsequent override via the "Surface…" swatch still wins; this
+            # only sets the starting point on switch.
+            self.appearance_panel.set_default_color(
+                VARIETY_DEFAULT_COLOR.get(name, BG_SURFACE_DEFAULT)
+            )
             # For CY3 and Fano, include a brief contextual note in the status
             # bar AND in the Parameters dock banner so first-time users
             # understand they are viewing 2D shadows/slices, not the full
@@ -233,6 +248,18 @@ class MainWindow(QMainWindow):
             return
         surface = VARIETIES[variety][name]
         self._current_surface = surface
+        # UPL-2 (variety-palette-2026q2-e1): re-seed family default on every
+        # subtype switch.  This implements the V0 "re-seed on switch-back"
+        # semantic: if a user is on K3 (custom red override), switches to
+        # Enriques, then back to K3, the K3 family default re-applies — we
+        # don't carry the per-user override across surface switches in V0
+        # (UPL-25 dock state persistence is the future home for sticky
+        # overrides).  Symmetric with the wire in _on_variety_changed so
+        # the swatch updates whether the user changes only Variety or also
+        # picks a Subtype.
+        self.appearance_panel.set_default_color(
+            VARIETY_DEFAULT_COLOR.get(variety, BG_SURFACE_DEFAULT)
+        )
         # Update subtype combo tooltip with the selected model's description
         self.subtype_combo.setToolTip(
             SUBTYPE_TOOLTIPS.get(name,

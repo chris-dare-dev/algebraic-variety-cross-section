@@ -316,3 +316,31 @@ class AppearancePanel(QWidget):
             actor.prop.show_edges = self._show_edges
         actor.prop.opacity = self._opacity / 100.0
         actor.prop.interpolation = self._shading
+
+    def set_default_color(self, hex_str: str) -> None:
+        """Seed the surface color from the variety-family default (UPL-2).
+
+        Called by ``MainWindow`` on variety / subtype switch — see
+        ``app.py:_on_variety_changed`` and ``_on_subtype_changed`` for the
+        wire points.  The user's subsequent override via the "Surface…"
+        swatch still wins for the rest of that surface session; this only
+        sets the starting point so each family is visually distinct on
+        first render.
+
+        Does NOT trigger a render: the caller flows naturally into
+        ``_render_current`` → ``apply_to_actor`` which reads
+        ``self._surface_color`` on the next pass.  This keeps the method
+        safe to call before any actor exists (first launch) and free of
+        AI-9 re-entrancy concerns.
+
+        Invalid hex strings (failed ``QColor.isValid()``) are silently
+        ignored; the existing colour is preserved.  A future invalid value
+        from ``VARIETY_DEFAULT_COLOR`` would be caught by
+        ``test_variety_default_color_all_six_digit_hex`` before reaching
+        runtime.
+        """
+        color = QColor(hex_str)
+        if not color.isValid():
+            return
+        self._surface_color = color
+        _apply_swatch_color(self._surf_swatch, color)

@@ -96,15 +96,43 @@ PALETTE_LIGHT: dict[str, str] = {
 }
 
 
-# Per-variety default surface color — populated by UPL-5 (panel-refresh-2026q2-e3).
-# Keys MUST match the VARIETIES dict in surfaces.py VERBATIM, including any
-# non-ASCII characters.  Today those keys are: "K3 surface", "Enriques surface",
-# "Calabi-Yau 3-fold" (ASCII hyphen — see surfaces.py for the canonical form),
-# "Fano 3-fold (rho=1)".  Verify the exact spelling against surfaces.py before
-# adding entries; a mismatched key silently misses the lookup.
-# Each value MUST be 6-digit hex (AI-13) and SHOULD clear >=3:1 luminance contrast
-# against PALETTE_LIGHT["BG_VIEWPORT"] for surface legibility.
-VARIETY_DEFAULT_COLOR: dict[str, str] = {}
+# Per-variety default surface color — populated by variety-palette-2026q2-e1
+# (the UPL-2 milestone in the 2026q2-graph-and-window uplift).
+#
+# Keys MUST match the VARIETIES dict in surfaces.py VERBATIM, including the
+# non-ASCII characters.  The actual keys use Unicode U+2013 (en-dash) in
+# "Calabi–Yau 3-fold" — NOT an ASCII hyphen — and U+03C1 (Greek small rho)
+# in "Fano 3-fold (ρ=1)".  Copy-paste from surfaces.py:946,950,968,986 rather
+# than retyping; a mismatched key silently misses the lookup and falls back
+# to BG_SURFACE_DEFAULT.  The `test_variety_default_color_keys_match_surfaces_varieties`
+# test in tests/test_styles_palette.py guards against this drift.
+#
+# Each value MUST be 6-digit hex (AI-13) and MUST clear >=4.5:1 luminance
+# contrast against PALETTE_LIGHT["BG_VIEWPORT"] (AI-12; the surface fills
+# enough of the dark canvas to function as text-level contrast for the
+# variety-family identity cue, not just non-text decoration).
+#
+# All four values below were numerically verified against #2f2f2f:
+#   K3        #8e9ed4  5.09:1  (cool periwinkle — mathematical / classical)
+#   Enriques  #c4a882  5.91:1  (warm ochre — classical-geometry register)
+#   CY3       #85b5d0  6.07:1  (teal-cobalt — Elegant Universe / Hanson)
+#   Fano      #8fbe85  6.29:1  (sage green — distinct from the three blues)
+# Hue separations are >=25° pairwise (perceptually distinct even under
+# mild color-vision deficiency).
+VARIETY_DEFAULT_COLOR: dict[str, str] = {
+    "K3 surface":          "#8e9ed4",
+    "Enriques surface":    "#c4a882",
+    "Calabi–Yau 3-fold":   "#85b5d0",   # U+2013 en-dash in key
+    "Fano 3-fold (ρ=1)":   "#8fbe85",   # U+03C1 rho in key
+}
+
+# UPL-4 dark-mode parallel: VARIETY_DEFAULT_COLOR_DARK will live here with
+# key-identical entries tuned for a dark panel background (BG_PANEL_DARK).
+# Do NOT add it in this milestone — populate alongside PALETTE_DARK in UPL-4.
+# Adoption pattern for that milestone: route the .get() call in
+# appearance_panel.set_default_color through the active-theme dict
+# (VARIETY_DEFAULT_COLOR if light, VARIETY_DEFAULT_COLOR_DARK if dark) rather
+# than referencing VARIETY_DEFAULT_COLOR directly.
 
 
 # UPL-4 placeholder marker: PALETTE_DARK will live here as a parallel dict

@@ -15,6 +15,32 @@ import styles
 HEX6 = re.compile(r"^#[0-9a-fA-F]{6}$")
 
 
+# --- WCAG contrast helpers (module-level so multiple tests share them) -------
+# Extracted from test_critical_text_tokens_meet_wcag_aa_on_bg_panel during
+# variety-palette-2026q2-e1 so the new VARIETY_DEFAULT_COLOR tests below can
+# use the same canonical implementation.  The local nested copy in that test
+# is left in place for backward-compat readability of its self-contained
+# fixture; this module-level pair is the source of truth for new callers.
+
+
+def _luminance(hex_color: str) -> float:
+    """WCAG 2.x relative luminance (0.0 .. 1.0) from a 6-digit hex color."""
+    h = hex_color.lstrip("#")
+    r, g, b = (int(h[i:i + 2], 16) / 255.0 for i in (0, 2, 4))
+
+    def channel(c: float) -> float:
+        return c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4
+
+    return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b)
+
+
+def _ratio(fg: str, bg: str) -> float:
+    """WCAG 2.x contrast ratio between two 6-digit hex colors (>=1.0)."""
+    l1, l2 = _luminance(fg), _luminance(bg)
+    lighter, darker = max(l1, l2), min(l1, l2)
+    return (lighter + 0.05) / (darker + 0.05)
+
+
 def test_palette_light_has_minimum_tokens() -> None:
     """UPL-1 brief requires at least 6 named tokens covering the core roles."""
     required = {
@@ -130,12 +156,67 @@ def test_app_stylesheet_substitutes_no_raw_hex_outside_palette() -> None:
     )
 
 
-def test_variety_default_color_is_stub_for_upl5() -> None:
-    """UPL-1 leaves VARIETY_DEFAULT_COLOR empty; UPL-5 populates it."""
-    assert isinstance(styles.VARIETY_DEFAULT_COLOR, dict)
-    # UPL-1 leaves it empty; once UPL-5 lands this assertion is relaxed
-    # (a follow-on test in UPL-5 will assert specific variety keys).
-    assert styles.VARIETY_DEFAULT_COLOR == {}
+def test_variety_default_color_has_all_four_families() -> None:
+    """variety-palette-2026q2-e1: dict must have exactly the four family keys
+    matching surfaces.VARIETIES outer keys verbatim (Unicode included).
+
+    Unicode key risk: "Calabi–Yau 3-fold" uses U+2013 (en-dash), and
+    "Fano 3-fold (ρ=1)" uses U+03C1 (Greek small rho).  Retyping with ASCII
+    substitutes (hyphen-minus, lowercase "p") would silently miss the lookup
+    in app.py's VARIETY_DEFAULT_COLOR.get() call.  Asserting equality on the
+    key set catches that drift immediately.
+    """
+    expected = {
+        "K3 surface",
+        "Enriques surface",
+        "Calabi–Yau 3-fold",
+        "Fano 3-fold (ρ=1)",
+    }
+    assert set(styles.VARIETY_DEFAULT_COLOR.keys()) == expected, (
+        f"VARIETY_DEFAULT_COLOR keys mismatch.  Got "
+        f"{sorted(styles.VARIETY_DEFAULT_COLOR.keys())!r}, expected "
+        f"{sorted(expected)!r}."
+    )
+
+
+def test_variety_default_color_all_six_digit_hex() -> None:
+    """AI-13: all variety colors must be 6-digit hex (PyVista requires this)."""
+    for variety, color in styles.VARIETY_DEFAULT_COLOR.items():
+        assert HEX6.match(color), (
+            f"VARIETY_DEFAULT_COLOR[{variety!r}] = {color!r} is not 6-digit hex"
+        )
+
+
+def test_variety_default_color_wcag_on_bg_viewport() -> None:
+    """AI-12: each variety color must clear >=4.5:1 contrast against
+    BG_VIEWPORT (#2f2f2f).  The surface fills enough of the dark canvas to
+    function as text-level contrast for the family-identity cue, not just
+    non-text decoration — the prior frontend-uplift challenger MINOR
+    specifically called this out, requiring re-audit of any borderline
+    candidate.
+    """
+    bg = styles.PALETTE_LIGHT["BG_VIEWPORT"]
+    for variety, color in styles.VARIETY_DEFAULT_COLOR.items():
+        r = _ratio(color, bg)
+        assert r >= 4.5, (
+            f"VARIETY_DEFAULT_COLOR[{variety!r}] = {color} fails 4.5:1 against "
+            f"BG_VIEWPORT ({bg}): measured {r:.2f}:1.  Lighten the value."
+        )
+
+
+def test_variety_default_color_keys_match_surfaces_varieties() -> None:
+    """Forward-compat guard: keys in VARIETY_DEFAULT_COLOR must be present in
+    surfaces.VARIETIES.  Any future variety rename that mismatches the dict
+    will be caught here before the silent BG_SURFACE_DEFAULT fallback masks
+    the bug in production.
+    """
+    from surfaces import VARIETIES
+    for key in styles.VARIETY_DEFAULT_COLOR:
+        assert key in VARIETIES, (
+            f"VARIETY_DEFAULT_COLOR has key {key!r} that is not present in "
+            f"surfaces.VARIETIES (keys: {sorted(VARIETIES.keys())!r}).  "
+            f"Either the variety was renamed or this dict is out of date."
+        )
 
 
 def test_critical_text_tokens_meet_wcag_aa_on_bg_panel() -> None:
