@@ -367,6 +367,15 @@ class MainWindow(QMainWindow):
                     pickable=False,
                     lighting=False,
                 )
+            # Empty-clip branch: `self._actor` is NOT reconstructed here — the
+            # previous render's actor is still live (or there is no actor on
+            # first launch).  If a future refactor adds an actor in this
+            # branch (e.g. a placeholder surface or bounding-box stand-in), it
+            # MUST mirror the UPL-9 lighting (`ambient`, `diffuse`, `specular`,
+            # `specular_power`) from the main path below, otherwise the actor
+            # silently uses VTK scene defaults and visibly mismatches the rest
+            # of the app.  Pulled out as a guard comment per the milestone's
+            # frontend-ux critic MEDIUM finding.
             self.view_panel.re_apply_overlays()
             self.plotter.render()
             return
@@ -374,9 +383,11 @@ class MainWindow(QMainWindow):
         # UPL-9 (graph-and-window-2026q2-e1): explicit ambient + diffuse so the
         # K3 surface family doesn't render flat against the dark viewport.  VTK
         # scene defaults (ambient=0.0, diffuse=1.0) under PyVista produce shallow
-        # shading on convex surfaces — current-state-critic M-5.  Elevated
-        # ambient (0.15) + slightly-reduced diffuse (0.85) keep the bright
-        # highlights but lift dark concavities so curvature variation is legible.
+        # shading on convex surfaces — see finding M-5 in
+        # `.claude/notes/frontend-uplifts/2026q2-graph-and-window/discover/current-state-critic-brief.md`.
+        # Elevated ambient (0.15) + slightly-reduced diffuse (0.85) keep the
+        # bright highlights but lift dark concavities so curvature variation
+        # is legible.
         self._actor = self.plotter.add_mesh(
             clipped,
             smooth_shading=True,

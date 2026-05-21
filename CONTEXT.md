@@ -352,6 +352,10 @@ The shorthand still works via backward-compat aliases but emits warnings. Use th
 
 `ParamSpec` is all-float (minimum/maximum/default/step). The Hanson `grid` param expects an int count of samples, so the function does `grid = int(round(grid))` and `if grid % 2 == 0: grid += 1`. **If you add an int-typed generator parameter, coerce inside the function.** Don't make ParamSpec int/float-bimodal.
 
+### 8.11 `QDockWidget` has no `takeWidget()` — use `setParent(None)` to detach
+
+PySide6's `QDockWidget.setWidget(panel)` transfers C++ ownership of `panel` to the dock; when the dock is garbage-collected, Qt deletes `panel`'s C++ object. The obvious analogue to `QMainWindow.takeCentralWidget()` does NOT exist on `QDockWidget` (verified: PySide6 6.6+ `QDockWidget` exposes only `setWidget()` and `widget()`). If you need to reuse the same panel across multiple dock containers (the panel-chrome capture script does this for the DEFAULT + HIRES grabs of the same panel), call `panel.setParent(None)` in a `finally:` block before the dock goes out of scope. This re-parents the panel to None, restoring Python's reference as the keep-alive — without it, the next grab crashes with `libshiboken: Internal C++ object (AppearancePanel) already deleted`. The capture script's `_grab_in_dock` helper at [`.claude/scripts/frontend-uplift/render-panel-chrome.py`](.claude/scripts/frontend-uplift/render-panel-chrome.py) documents this in-line.
+
 ---
 
 ## 9. Things explicitly NOT done (and why)

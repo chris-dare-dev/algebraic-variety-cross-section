@@ -16,3 +16,20 @@
 
 ### First-launch / section-9 regressions
 - UPL-1 was a stylesheet-only refactor; no auto-render temptation was present. Worth flagging fast: any refactor that touches `appearance_panel.py` constructor `self._surface_color` or `self._bg_color` defaults could silently change launch colors. Verify the QColor() constructor calls still receive the same 6-digit hex as before.
+
+## graph-and-window-2026q2-e1 (UPL-9 lighting + UPL-27/28 scout tooling) — 2026-05-21
+
+### Token-discipline near-misses
+- No short-hex or shorthand-enum slip in this diff. `Qt.DockWidgetArea.LeftDockWidgetArea` was the one new Qt enum — already qualified. `p.set_background("#2f2f2f")` was the one new hex string flowing into PyVista — already 6-digit. Both passed clean on first read.
+- New numeric kwargs (`ambient=0.15`, `diffuse=0.85`) are not color arguments — AI-13 does not apply to float shading params. Make this check fast: ask "does this arg accept a color string?" before applying AI-13 to a new kwarg.
+
+### Industry-comparison note (UPL-9 lighting calibration)
+- ParaView 5.12 default implicit-surface material: `ambient=0.1, diffuse=0.8, specular=0.1`. UPL-9's post-patch `ambient=0.15, diffuse=0.85` is in the same regime — a concrete validation that the values are industry-calibrated, not arbitrary. Quote the ParaView defaults when UPL-9 is questioned.
+- Mathematica `ContourPlot3D` default ambient ≈ 0.2, which visibly lifts K3 saddle-region concavities. UPL-9's 0.15 is slightly more conservative and is the correct call for a dark viewport (Mathematica uses a lighter default background).
+
+### First-launch / section-9 regressions
+- Lighting kwarg changes inside `_apply_domain_and_render` are safe with respect to section 9.3 (no auto-render) because that function is only called from `_render_current`, which is only called after a subtype is selected. No first-launch temptation in this diff.
+- Watch for the dual-path risk: `_apply_domain_and_render` has an early-return branch (empty clip) that does NOT reconstruct `self._actor`. Future actor-creation added to that branch will silently miss whatever lighting kwargs are in the main path. Flag this as MEDIUM whenever the early-return branch gains an `add_mesh` call.
+
+### Scope discipline
+- Three files changed, only one (`app.py`) is on the Qt-panel critique surface. Scout-script changes (`.claude/scripts/`) and reference-template changes (`.claude/references/`) are internal tooling with no user-visible UX surface. Explicitly dispose of them per-axis as "not applicable" — do not manufacture UX findings on tooling-only changes.

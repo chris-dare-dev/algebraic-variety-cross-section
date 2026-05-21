@@ -1,0 +1,77 @@
+{
+  "id": "graph-and-window-2026q2-e1",
+  "created_at": "2026-05-21T23:06:40Z",
+  "updated_at": "2026-05-21T23:31:34Z",
+  "phase": "rectify-running",
+  "phase_history": [
+    {
+      "phase": "init",
+      "at": "2026-05-21T23:06:40Z"
+    },
+    {
+      "phase": "research-running",
+      "at": "2026-05-21T23:06:50Z"
+    },
+    {
+      "phase": "research-complete",
+      "at": "2026-05-21T23:11:02Z"
+    },
+    {
+      "phase": "implement-running",
+      "at": "2026-05-21T23:11:24Z"
+    },
+    {
+      "phase": "implement-complete",
+      "at": "2026-05-21T23:21:12Z"
+    },
+    {
+      "phase": "critique-running",
+      "at": "2026-05-21T23:21:12Z"
+    },
+    {
+      "phase": "critique-complete",
+      "at": "2026-05-21T23:29:44Z"
+    },
+    {
+      "phase": "rectify-running",
+      "at": "2026-05-21T23:29:44Z"
+    }
+  ],
+  "milestone_brief": "Sprint 0 of the 2026q2-graph-and-window uplift \u2014 bundle three XS-effort RICE-12.0 candidates from .claude/notes/frontend-uplifts/2026q2-graph-and-window/artifacts/final-report.md into a single milestone. All three are challenger-NONE. Scope: UPL-9 (app.py \u2014 add ambient=0.15, diffuse=0.85 to plotter.add_mesh); UPL-27 (render-panel-chrome.py \u2014 wrap each panel in a bare QDockWidget before grabbing; AI-3 still respected, bare QDockWidget outside QMainWindow does not host QtInteractor); UPL-28 (render-panel-chrome.py + agent-prompts.md visual-scout template \u2014 add p.set_background('#2f2f2f') to off-screen render template + clearFocus() before panel grab). AI invariants to respect: AI-3 (no MainWindow under QT_QPA_PLATFORM=offscreen), AI-11 (qualified Qt enums), AI-13 (6-digit hex). Validation: .venv/bin/python .claude/scripts/frontend-uplift/render-panel-chrome.py /tmp/verify produces dock-bar-inclusive PNGs with integrity check passing.",
+  "research_mode": "single",
+  "oss_scout_requested": false,
+  "research_briefs": [
+    ".claude/notes/milestones/graph-and-window-2026q2-e1/research/agent-solo-brief.md"
+  ],
+  "research_synthesis": "Solo Sonnet researcher confirmed three additive XS-effort changes with no AI-N conflicts: UPL-9 adds ambient=0.15, diffuse=0.85 to app.py:374 (primary add_mesh call; do NOT touch the lighting=False overlay at line 383); UPL-28 adds p.set_background('#2f2f2f') to agent-prompts.md:43 visual-scout template + widget.clearFocus() (NOT setFocusPolicy \u2014 children still tab-cycle) in render-panel-chrome.py _grab(); UPL-27 wraps each panel in a bare QDockWidget (production dock titles: Appearance/View/Parameters) before calling _grab(), AI-3 explicitly cleared by the clarifying paragraph for bare QDockWidget outside QMainWindow. Sequencing UPL-9 -> UPL-28 -> UPL-27 (per researcher's recommendation since UPL-27 and UPL-28 both touch _grab call sites).",
+  "implementation_path": "inline",
+  "implementation_plan": ".claude/notes/milestones/graph-and-window-2026q2-e1/artifacts/implementation-plan.md",
+  "implementation_base": "d9e4c0fc01ccfd0ba84f6bc094f8f8a2730fa922",
+  "implementation_commit_range": "d9e4c0fc01ccfd0ba84f6bc094f8f8a2730fa922..4236b89f6652073cd27c7e5a910b9284ac9ce236",
+  "implementation_commits": [
+    "4236b89f6652073cd27c7e5a910b9284ac9ce236"
+  ],
+  "implementation_branch": null,
+  "critique_path": ".claude/notes/milestones/graph-and-window-2026q2-e1/artifacts/adversary-critique.md",
+  "critics_run": [
+    "adversary",
+    "frontend-ux"
+  ],
+  "critique_finding_counts": {
+    "critical": 0,
+    "high": 0,
+    "medium": 2,
+    "low": 3
+  },
+  "rectification_commit": null,
+  "fixed_findings": [
+    "M1",
+    "L1",
+    "L2",
+    "M2",
+    "L3"
+  ],
+  "deferred_findings": [],
+  "invalidated_findings": [],
+  "regression_tests_added": []
+}

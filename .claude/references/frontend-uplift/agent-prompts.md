@@ -40,12 +40,28 @@ surf = VARIETIES[variety_key][model_key]
 mesh = surf.generate()  # at default params
 for w, h, suffix in [(1200, 800, "default"), (2400, 1600, "2x")]:
     p = pv.Plotter(off_screen=True, window_size=(w, h))
-    # UPL-28: match the app's intended viewport background (styles.py:BG_VIEWPORT).
-    # The default PyVista white background is not representative of how the
-    # surface renders in the live app — capture against the same dark grey so
-    # the scout's findings reflect actual user experience.
+    # UPL-28: match the app's intended viewport background.
+    # keep "#2f2f2f" in sync with styles.py:PALETTE_LIGHT["BG_VIEWPORT"] — the
+    # template is executed as a standalone snippet that cannot import styles.py
+    # without making the scout dispatch heavier; grep for `BG_VIEWPORT` finds
+    # both sites.  The default PyVista white background is not representative
+    # of how the surface renders in the live app — capture against the same
+    # dark grey so the scout's findings reflect actual user experience.
     p.set_background("#2f2f2f")
-    p.add_mesh(mesh, color="#9aa6c8", smooth_shading=True)
+    # UPL-9: match app.py:_apply_domain_and_render lighting (ambient + diffuse
+    # + specular).  Without these, scout renders show VTK defaults
+    # (ambient=0.0, diffuse=1.0) that under-light the surface relative to the
+    # live app — past scouts have wasted findings re-opening a resolved
+    # lighting question.  Keep in sync with app.py's add_mesh call.
+    p.add_mesh(
+        mesh,
+        color="#9aa6c8",
+        smooth_shading=True,
+        specular=0.3,
+        specular_power=15,
+        ambient=0.15,
+        diffuse=0.85,
+    )
     p.show(screenshot=f"{RENDER_DIR}/{slug}-{suffix}.png")
 ```
 
