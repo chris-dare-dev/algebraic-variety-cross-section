@@ -13,6 +13,13 @@ set -euo pipefail
 
 REPO_ROOT="$(git -C "$(dirname "$0")" rev-parse --show-toplevel)"
 
+# The Python heredoc probes below import `surfaces` and `appearance_panel` —
+# both live at the repo root.  Running this script from any other CWD (e.g.
+# from an agent's worktree dispatch, from /tmp, or from a parent shell that
+# chdir'd elsewhere) would cause ModuleNotFoundError before the smoke probe
+# can fail meaningfully.  cd to the repo root so the imports resolve.
+cd "$REPO_ROOT"
+
 PY=""
 if [[ -x "$REPO_ROOT/.venv/bin/python" ]]; then
   PY="$REPO_ROOT/.venv/bin/python"
@@ -60,12 +67,10 @@ p.show(screenshot=png)
 sys.exit(0 if os.path.getsize(png) > 1024 else 11)
 PYEOF
 then
-  echo "[ok] off-screen render pipeline operational ($PY)"
-  exit 0
-fi
-
-cat <<EOF >&2
-[fail] off-screen render pipeline NOT operational.
+  :  # off-screen surface pipeline ok — fall through to the panel-chrome probe
+else
+  cat <<EOF >&2
+[fail] off-screen surface-render pipeline NOT operational.
 
 The visual scout requires \`pv.OFF_SCREEN = True\` + \`pv.Plotter(off_screen=True).show(screenshot=...)\` to produce a non-empty PNG.  The smoke probe failed.
 
@@ -83,5 +88,59 @@ Common causes + recovery:
   4. macOS Qt+VTK GUI offscreen segfault — confirm you're using \`pv.OFF_SCREEN\` and NOT QT_QPA_PLATFORM=offscreen with a QApplication.  The visual scout pipeline never instantiates MainWindow.
 
 Then re-invoke /frontend-uplift <ID> — init-uplift.sh is idempotent and status.sh will show phase=init ready to advance.
+EOF
+  exit 1
+fi
+
+# --- Tier 1 panel-chrome probe ------------------------------------------------
+# The panel-chrome scout grabs the three QWidget panels under
+# QT_QPA_PLATFORM=offscreen.  AI-3 forbids MainWindow under offscreen because
+# its embedded QtInteractor segfaults; pure-Qt panels DO NOT host QtInteractor
+# and are safe.  Smoke-probe one panel here so a panel-chrome breakage shows
+# up at preflight, not deep inside the visual scout.
+PROBE_PANEL_PNG="$TMPDIR/avc-panel-probe-$$.png"
+trap 'rm -f "$PROBE_PNG" "$PROBE_PANEL_PNG"' EXIT
+
+if QT_QPA_PLATFORM=offscreen "$PY" - "$PROBE_PANEL_PNG" <<'PYEOF' 2>/dev/null
+import os, sys
+from unittest.mock import MagicMock
+from PySide6.QtWidgets import QApplication
+from PySide6.QtCore import QSize
+from appearance_panel import AppearancePanel  # safe: no QtInteractor inside
+
+app = QApplication.instance() or QApplication([sys.argv[0]])
+w = AppearancePanel(get_actor=lambda: None, get_plotter=lambda: MagicMock())
+w.resize(QSize(320, 720))
+w.show()
+app.processEvents()
+pix = w.grab()
+ok = (not pix.isNull()) and pix.save(sys.argv[1])
+sys.exit(0 if ok and os.path.getsize(sys.argv[1]) > 1024 else 12)
+PYEOF
+then
+  echo "[ok] off-screen surface + panel-chrome pipelines operational ($PY)"
+  exit 0
+fi
+
+cat <<EOF >&2
+[fail] panel-chrome capture NOT operational.
+
+The off-screen surface pipeline succeeded, but constructing AppearancePanel
+under \`QT_QPA_PLATFORM=offscreen\` + \`QWidget.grab()\` failed.  This is
+allowed under AI-3 (pure-Qt panels host no VTK GL context); something else
+broke.
+
+Recovery:
+
+  1. PySide6 install state — exercise:
+        $PY -c "from PySide6.QtWidgets import QApplication; print('ok')"
+
+  2. Panel module import — exercise:
+        $PY -c "from appearance_panel import AppearancePanel; print('ok')"
+
+  3. If a panel constructor signature drifted (e.g. AppearancePanel now takes
+     a different callable shape), update render-panel-chrome.py to match.
+
+Then re-invoke /frontend-uplift <ID>.
 EOF
 exit 1

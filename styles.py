@@ -112,6 +112,14 @@ VARIETY_DEFAULT_COLOR: dict[str, str] = {}
 # dicts (or merge PALETTE_LIGHT with PALETTE_DARK_OVERRIDES).  Do NOT add
 # the dark dict in UPL-1 — it ships in its own milestone with its own
 # WCAG verification pass.
+#
+# UPL-4 contract — ALSO export an `APP_STYLESHEET_DARK` module attribute
+# (the rendered QSS string against PALETTE_DARK) alongside the data dict.
+# `.claude/scripts/frontend-uplift/render-panel-chrome.py` auto-detects that
+# export via `getattr(styles, "APP_STYLESHEET_DARK", None)` and emits dark
+# variants of every panel-chrome capture with no slash-command edit.  If
+# UPL-4 only ships the data dict without the QSS string, dark captures stay
+# silently disabled — please honor the naming convention.
 
 
 # ---------------------------------------------------------------------------

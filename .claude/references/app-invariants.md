@@ -36,6 +36,16 @@ p.show(screenshot="/tmp/out.png")
 
 **Implication:** the frontend-uplift visual scout MUST use `pv.OFF_SCREEN`, NOT a Qt offscreen platform.  See `.claude/scripts/frontend-uplift/ensure-render-up.sh` for the canonical smoke probe.
 
+**Clarifying scope — what the AI-3 ban does NOT forbid:**
+
+The forbidden combination is *specifically* `MainWindow()` (which hosts `pyvistaqt.QtInteractor`) under `QT_QPA_PLATFORM=offscreen`.  These adjacent patterns are explicitly **allowed**:
+
+1. **Pure-Qt panel widgets under offscreen.**  `AppearancePanel`, `ViewPanel`, and `ParametersPanel` are `QWidget` subclasses that do not instantiate `QtInteractor` — they receive a plotter via constructor argument or callable but never construct VTK context themselves.  Instantiating them under `QT_QPA_PLATFORM=offscreen` and capturing their pixels via `QWidget.grab()` is safe and is the mechanism the frontend-uplift panel-chrome scout uses (`.claude/scripts/frontend-uplift/render-panel-chrome.py`).  See `.claude/references/frontend-uplift/source-registry.md` §4b for the capture set.
+
+2. **Headed `MainWindow()` on a real desktop session.**  Launching `app.py` as a subprocess on the user's actual macOS window server (no `QT_QPA_PLATFORM=offscreen` override) is the normal app-run mode and is unaffected by this invariant.  Future tooling that captures the integrated MainWindow chrome should do so via headed launch + `screencapture` CLI, never via offscreen.
+
+**One-line rule (macOS):** on macOS, offscreen is safe whenever the QApplication tree contains *zero* `QtInteractor` instances; the moment one is added, switch to a real window server.  On Linux with mesa/EGL or osmesa, `QtInteractor` *can* work under offscreen (this is how many Docker-based VTK CI flows run), but that path is outside this repo's tested surface — it is not currently exercised and should not be relied on without a CI matrix proving it.
+
 ## AI-4 — Domain clipping uses `clip_scalar`, not `clip_box`
 
 PyVista's `clip_box(invert=...)` semantics on PolyData are reversed/unreliable (returned 0 vertices or the full mesh — both wrong; see CONTEXT.md §8.2 / commit `b68456f`).  Both sphere and cube clip modes in `view_panel.py:clip_to_domain` use the scalar-clipping approach:

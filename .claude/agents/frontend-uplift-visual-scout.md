@@ -53,6 +53,18 @@ for w, h, suffix in [(1200, 800, "default"), (2400, 1600, "2x")]:
 
 3. For `app-startup`: do NOT instantiate `MainWindow()` (AI-3 — segfaults under offscreen).  Instead, read `app.py:_PLACEHOLDER` + the dock-setup section + `styles.py:APP_STYLESHEET` and describe the first-launch state synthetically.
 
+4. For panel chrome (sliders, group boxes, buttons, QSS-rendered colors): the slash command's Phase 1a' step has already captured PNGs under `{RENDER_DIR}/panels/` via `.claude/scripts/frontend-uplift/render-panel-chrome.py`.  Read every PNG in that subdirectory — 12 captures today (3 panels × empty/populated × 1x/2x, LIGHT theme; dark variants appear automatically once UPL-4 lands `APP_STYLESHEET_DARK`).  Critique slider rails, value-readout typography, range-label positioning, group-box header weight, button styling (especially the styled `resetDefaultsBtn`), spacing between control rows, the context-hint banner styling, and the empty-state placeholder copy.  These panels are pure-Qt — AI-3's clarifying paragraph permits their offscreen capture (no `QtInteractor` instantiated).
+
+   **What these captures CANNOT show, and the source-of-truth to use instead:**
+   - **Focus rings.**  No widget is in focus state in these static captures — Qt only paints `:focus` styling when a control has keyboard focus, and `QWidget.grab()` captures a never-touched widget.  Assess focus rings from the `:focus` rules in `styles.py:APP_STYLESHEET` instead, NOT from these PNGs.
+   - **Hover states / cursor changes.**  Not captured; assess from QSS `:hover` rules + the panel files' `setCursor`/`setMouseTracking` calls (none today).
+   - **Tooltips on hover.**  Not captured; assess from `setToolTip(...)` calls in the panel `_build_ui` methods.
+   - **Modal dialogs** (QColorDialog from Appearance's color swatches; QFileDialog from View's "Screenshot…").  Not captured; assess the launching button + dialog code path only.
+   - **2x captures are NOT true HiDPI.**  The `-2x.png` files are the widget resized to 2× nominal size at device-pixel-ratio 1.  They exercise layout breathing room at a wider dock, NOT Retina sub-pixel rendering or anti-aliasing.  Do not draw conclusions about font crispness or border precision from these files.
+   - **The integrated viewport + dock chrome together.**  Panels are captured as standalone QWidgets, not embedded in `QDockWidget` with the dock title bar.  Critique `QDockWidget::title` styling from `styles.py:APP_STYLESHEET` directly.
+
+   Use these source-of-truth fallbacks rather than fabricating pixel evidence for things the captures cannot show.
+
 `<slug>` derivation: `<variety-lower-with-hyphens>-<model-lower-with-hyphens-no-bracketed-tag>`.  E.g. `K3 surface / Fermat quartic` → `k3-surface-fermat-quartic`.
 
 After rendering, write the brief.  For every VISUAL gap you surface, capture:

@@ -145,6 +145,64 @@ User override via `init-uplift.sh --surfaces "K3 surface/Fermat quartic,Enriques
 
 ---
 
+## 4b. Canonical panel-chrome capture set
+
+The visual scout needs pixel-truth on the Qt panel chrome — slider rails, group-box headers, button states, QSS-rendered colors — not just the 3D surfaces.  Phase 1a' of `/frontend-uplift` runs `.claude/scripts/frontend-uplift/render-panel-chrome.py` which captures each panel widget directly via `QT_QPA_PLATFORM=offscreen` + `QWidget.grab()`.  This is safe under AI-3 (clarifying paragraph) because the three panel classes — `AppearancePanel`, `ViewPanel`, `ParametersPanel` — host no `QtInteractor` and therefore create no VTK GL context.
+
+For each panel the script captures two states at two resolutions per theme:
+
+| Panel | Empty state | Populated state |
+|---|---|---|
+| **AppearancePanel** | default colors, opacity 100%, Phong, no wireframe | opacity 72%, wireframe on (exercises active slider + active checkbox styling) |
+| **ViewPanel** | domain Off, no overlays | domain Sphere, bbox overlay on (exercises active combo + checkbox styling) |
+| **ParametersPanel** | "(no parameters for this surface)" placeholder + disabled reset button | K3 / Fermat quartic's 4 ParamSpecs (`c`, `α`, `β`, `γ`) + context hint banner + enabled reset button |
+
+PNG names: `<panel>-<theme>-<state>-<resolution>.png` — e.g. `parameters-light-populated-2x.png`.
+
+Themes captured:
+- **light** — always emitted (`styles.APP_STYLESHEET`)
+- **dark** — auto-emitted only if `styles.APP_STYLESHEET_DARK` exists (UPL-4 forward-compat; not present in 2026-05 baseline)
+
+Outputs land under `{RENDER_DIR}/panels/` alongside the surface renders.  Total capture count today: **12 PNGs** (3 panels × 2 states × 2 resolutions × 1 theme).  When UPL-4 lands the dark theme adds another 12 with no slash-command edit.
+
+**When the script breaks at construction:** the most common drift is a panel constructor signature changing (e.g. `AppearancePanel` adding a required argument).  The preflight `ensure-render-up.sh` probes `AppearancePanel(get_actor, get_plotter)` specifically so signature drift surfaces at preflight, not deep inside the visual scout.  When that happens, edit `render-panel-chrome.py` to match the new signature in the same PR as the panel change.
+
+**When a panel's private setter attribute is renamed:** the populated-state setup pokes private attributes (`_opacity_slider`, `_wireframe_cb`, `_domain_mode`, `_bbox_cb`, `_axes_cb`).  These are *unconditional* accesses — if a panel rename ships, the script fails loudly with `AttributeError` (correct).  The script ALSO performs a post-capture sha256 check of every empty/populated pair and emits a stderr WARNING (`populated capture IDENTICAL to empty`) if any pair hashes the same.  This catches a related failure mode: the access succeeded but the setter call has no visual effect (e.g. signals were blocked, theme didn't repaint, etc.).  Always check stderr for these warnings after a run.
+
+**Two-resolution captures are NOT HiDPI captures.**  The `-2x.png` files are the widget resized to 2× nominal at device-pixel-ratio 1 — they test layout at a wider dock, not Retina sub-pixel rendering.  True DPR-2 captures require a headed macOS session (`screencapture -l <window-id>` honors DPR) — see Tier 2 design notes below.
+
+### §4b.1 — Tier 2 design notes (proposed integrated-window capture)
+
+Tier 2 has not been implemented.  When it is, the chat-message proposal needs the following refinements (lessons from the Tier 1 adversary review):
+
+- **Window-finder strategy.**  The original sketch used `osascript -e 'tell app "System Events" to id of window 1 of (first process whose frontmost is true)'`.  This grabs whichever app happens to be frontmost — likely the terminal that launched the subprocess, NOT `app.py`.  Use PID-based lookup instead: `tell app "System Events" to id of window 1 of (first process whose unix id is <PID>)` where `<PID>` is the just-launched `app.py` subprocess id.
+
+- **Readiness gating.**  The original sketch used a fixed `sleep 1.8` before `screencapture`.  VTK GL context + shader compilation on first `show()` can take 3–5 s on a loaded system; the capture would frame the empty placeholder.  Use a watchfile readiness signal instead: `app.py` writes `.avc_ready` after the first surface render completes; the capture script polls (with a generous timeout) for the file to appear, then captures, then deletes it.
+
+- **`AVC_AUTO_PRESET` re-entrancy.**  `MainWindow._render_current` is wrapped in the AI-9 `self._computing` guard.  The env-var hook must set `_computing = False` *before* invoking the preset's render call, and must not re-fire while the first render is still in flight.  Schedule the auto-preset render via `QTimer.singleShot(0, ...)` after `__init__` returns so the constructor completes before the first render call lands.
+
+- **Screen Recording permission.**  `screencapture -l <window-id>` requires macOS Screen Recording permission for the invoking process (Terminal / iTerm / Claude Code).  First-time use triggers a system permission prompt.  Document the one-time grant flow in the slash command's Tier 2 section; under SSH or in CI the prompt is suppressed and the capture fails silently — the script must `defaults read com.apple.universalaccess` (or equivalent) to detect the grant before attempting capture, and surface a clear "grant Screen Recording to <app> in System Settings" diagnostic otherwise.
+
+- **`--live-chrome` flag propagation.**  The slash command's Phase 1a' block must read `state.tier2_live_chrome` (or accept the flag in the slash-command arg parser, persist into `state.json` via `init-uplift.sh`, and check it here).  Otherwise the flag can't reach the orchestrator's tool calls.
+
+- **HiDPI behavior.**  `screencapture -l` on Retina captures at DPR 2 automatically — these ARE true HiDPI captures (unlike Tier 1's `-2x.png` files).  Document the resulting pixel dimensions clearly (e.g. `1600×1000` logical → `3200×2000` pixel on Retina) so the visual scout doesn't misread captures from different machines.
+
+- **Cross-platform.**  Tier 2 is explicitly macOS-only.  On Linux / Windows, `--live-chrome` should silently fall back to Tier 1 (panel captures only) with an info-level message — never error.
+
+These notes do NOT mandate the Tier 2 implementation — they are constraints to honor when it's built.
+
+### §4b.2 — Tier 3 production-grade ceiling (capabilities Tier 1+2 still cannot provide)
+
+Even with Tier 1 + Tier 2 fully implemented, a visual scout cannot see: interactive state transitions (slider drag, button hover, focus-on-tab), hover styles, focused-widget states (`:focus` rings), tooltip pixel evidence, modal dialogs (QColorDialog, QFileDialog), the viewport with parameters interactively varied, error/warning status-bar transitions, animation frames, or the accessibility tree.  The "real production-grade" follow-up would add:
+
+- **Tier 3A — Programmatic interaction replay.**  Extend `render-panel-chrome.py` with `PySide6.QtTest.QTest.setFocus / mousePress / keyClick` calls between grabs to capture focused, hovered, and pressed control states.  Scope: ~1 day.
+- **Tier 3B — Headed sequence capture.**  Tier 2 + a sequence of programmatic state changes (load surface → apply clip → toggle wireframe → toggle scene aids) with a capture per state.  Scope: ~2–3 days.
+- **Tier 3C — Accessibility tree.**  Enumerate the widget tree via macOS' `NSAccessibility` (or Linux's AT-SPI2) to give the LLM tab order, role/state, and tooltip text as structured data complementing the pixels.  Scope: ~1 day per platform.
+
+These are deferred to a future milestone.  Tier 1 (shipped) + Tier 2 (designed but not built) cover the high-value 80% — Tier 3 is the diminishing-returns refinement.
+
+---
+
 ## 5. Hard rules (every scout)
 
 - **License citation is mandatory** for every library / OSS reference.  GPL/AGPL is study-only, never import.

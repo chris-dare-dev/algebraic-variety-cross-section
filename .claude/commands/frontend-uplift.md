@@ -46,15 +46,27 @@ Read `.claude/references/frontend-uplift/state-schema.md` only if you need to in
 
 Read `.claude/references/frontend-uplift/phase-discover.md` once at phase start.
 
-### 1a — Preflight: ensure the off-screen render pipeline is operational
+### 1a — Preflight: ensure the off-screen render pipelines are operational
 
-The visual scout drives `pv.OFF_SCREEN = True` renders of representative surfaces.  Before dispatching, run:
+The visual scout drives TWO off-screen pipelines: (i) `pv.OFF_SCREEN = True` renders of representative surfaces, and (ii) `QT_QPA_PLATFORM=offscreen` + `QWidget.grab()` captures of panel chrome (`AppearancePanel`, `ViewPanel`, `ParametersPanel` — these are pure-Qt and host no `QtInteractor`, so they're safe under offscreen; the AI-3 ban is specifically on `MainWindow` under offscreen).  Before dispatching, run:
 
 ```bash
 .claude/scripts/frontend-uplift/ensure-render-up.sh
 ```
 
-If exit status != 0, surface the recovery hint and HALT before dispatching any agent.  Re-invoke `/frontend-uplift <ID>` after fixing — `init-uplift.sh` is idempotent and `status.sh` will show `phase: init` ready to advance.
+The probe exercises both pipelines (cheapest K3 surface + an `AppearancePanel.grab()`).  If exit status != 0, surface the recovery hint and HALT before dispatching any agent.  Re-invoke `/frontend-uplift <ID>` after fixing — `init-uplift.sh` is idempotent and `status.sh` will show `phase: init` ready to advance.
+
+### 1a' — Capture panel chrome (always)
+
+The visual scout needs pixel-truth on the Qt panel chrome (slider rails, group-box headers, button states, QSS-rendered colors), not just the 3D surface.  Run the panel-chrome capture into the same render directory as the surface renders so the scout reads them together:
+
+```bash
+RENDER_DIR=".claude/notes/frontend-uplifts/<ID>/renders"
+mkdir -p "$RENDER_DIR/panels"
+.venv/bin/python .claude/scripts/frontend-uplift/render-panel-chrome.py "$RENDER_DIR/panels"
+```
+
+This emits 12 PNGs today (3 panels × empty/populated × 1×/2×, LIGHT theme only).  When `styles.PALETTE_DARK` lands (UPL-4), the script auto-emits dark variants too — no slash-command edit required.  Cost: ~3 seconds wall-clock.  Safe under offscreen by AI-3's clarifying paragraph (pure-Qt panels host no VTK GL context).
 
 ### 1b — Set mode + dispatch
 
