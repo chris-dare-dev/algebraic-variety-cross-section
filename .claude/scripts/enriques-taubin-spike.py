@@ -127,15 +127,26 @@ def main() -> int:
     _ = _enriques_double_pass(c=1.0)
     print("Done.\n")
 
-    # Baseline: production single-pass at original bounds=1.8.
-    print("--- Baseline (PRODUCTION: single Taubin pass, bounds=1.8) ---")
+    # Baseline: production single-pass — uses whatever `bounds` default is
+    # currently active in `surfaces.enriques_figure_1` at run time.  When the
+    # original spike fired (pre-Path-B), that was bounds=1.8; if this script
+    # is rerun after Path B shipped, the default is now bounds=1.89.  The
+    # Path B conclusion (587.5 ms > 500 ms budget by 87.5 ms) is robust to
+    # this ~1-3 ms swing — see CONTEXT.md §8.16 timing log discussion.
+    # Resolve the active default at print time so the log is unambiguous.
+    import inspect as _inspect
+    _bounds_now = _inspect.signature(surfaces.enriques_figure_1).parameters["bounds"].default
+    print(
+        f"--- Baseline (PRODUCTION: single Taubin pass, "
+        f"bounds={_bounds_now}, the current default) ---"
+    )
     med_single, single_times, _ = measure_runs(
         lambda: surfaces.enriques_figure_1(c=1.0),
         "SINGLE",
         n_runs,
     )
 
-    # Spike: proposed double-pass at bounds*1.05=1.89.
+    # Spike: proposed double-pass at bounds * 1.05 (= 1.89 for fig 1).
     print("--- Spike (PROPOSED: double Taubin pass, bounds=1.89) ---")
     med_double, double_times, _ = measure_runs(
         _enriques_double_pass,
@@ -161,7 +172,7 @@ def main() -> int:
         "Surface:   surfaces.enriques_figure_1(c=1.0), n=240",
         "Budget:    500.0 ms (generate-only)",
         "",
-        "Single-pass (production, bounds=1.8):",
+        f"Single-pass (production, bounds={_bounds_now} — active default at run time):",
         f"  raw times (ms): {[round(x, 1) for x in single_times]}",
         f"  median:         {med_single:.1f} ms",
         "",
