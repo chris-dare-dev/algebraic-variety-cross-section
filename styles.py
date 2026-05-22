@@ -113,6 +113,16 @@ PALETTE_LIGHT: dict[str, str] = {
     "BORDER_CAMERA_BTN":        "#b0bec5",
     "BG_CAMERA_BTN_HOVER":      "#e8f0f5",
 
+    # === Display-toggle checkable button (Wireframe / Show-edges) ===
+    # display-toggles-checkable-button-2026q3-e1 (F-M2 closure): fill tint
+    # for the :checked pseudo-state of QPushButton[role="display-toggle"].
+    # The WCAG 1.4.11 indicator is the 2px FOCUS_RING border (3.56:1 vs
+    # BG_PANEL on light, 5.17:1 on dark — already proven elsewhere).  This
+    # fill is decorative reinforcement only; its contrast vs the hover
+    # tint is ~1.10:1 by design (state communicated by border, not fill).
+    # Text on this fill clears 4.5:1: TEXT_VALUE #333333 vs #d4e6f5 = 9.89:1.
+    "BG_TOGGLE_CHECKED":        "#d4e6f5",   # light blue fill — decorative
+
     # === Domain-clip wireframe overlay (flows into PyVista add_mesh) ===
     "COLOR_WIREFRAME_OVERLAY":  "#888888",
 
@@ -260,6 +270,13 @@ PALETTE_DARK: dict[str, str] = {
     # === Reset-camera button (outlined variant) ===
     "BORDER_CAMERA_BTN":         "#6a8090",   # 3.72:1 vs BG_PANEL — non-text 3:1 PASS
     "BG_CAMERA_BTN_HOVER":       "#2a3a45",   # structural hover
+
+    # === Display-toggle checkable button (Wireframe / Show-edges) ===
+    # display-toggles-checkable-button-2026q3-e1 (F-M2 closure): per-theme
+    # value to match the dark panel.  WCAG indicator is the 2px FOCUS_RING
+    # border (5.17:1 vs BG_PANEL_DARK — already proven).  Fill is decorative.
+    # Text on this fill clears 4.5:1: TEXT_VALUE #e0e0e0 vs #1a3048 = 10.20:1.
+    "BG_TOGGLE_CHECKED":         "#1a3048",   # deep navy fill — decorative
 
     # === Domain-clip wireframe overlay (flows into PyVista add_mesh) ===
     "COLOR_WIREFRAME_OVERLAY":   "#888888",   # SHARED — 4.32:1 vs #252526
@@ -472,6 +489,36 @@ QPushButton#resetCameraBtn {{
 }}
 QPushButton#resetCameraBtn:hover {{
     background: {palette["BG_CAMERA_BTN_HOVER"]};
+}}
+
+/* --- Display-toggle checkable buttons (Appearance dock) ------------------ */
+/* display-toggles-checkable-button-2026q3-e1 (F-M2 closure):
+   QPushButton(checkable=True) replaces QCheckBox for Wireframe + Show-edges.
+   The icon is the primary affordance; the 2px FOCUS_RING border signals
+   the :checked state (WCAG 1.4.11 non-text contrast carried by the border —
+   3.56:1 light / 5.17:1 dark, already proven by focus-ring-contrast-2026q2-e1).
+   BG_TOGGLE_CHECKED is decorative fill reinforcement; its contrast vs hover
+   is ~1.10:1 by design (state is the BORDER, not the fill).  Industry-aligned
+   with Blender N-panel viewport-shading and 3D Slicer modules panel.
+   See CONTEXT.md §8.15 for the migration pattern. */
+QPushButton[role="display-toggle"] {{
+    padding: 3px 8px;
+    border-radius: 3px;
+    border: 1px solid transparent;
+    background: transparent;
+    text-align: left;
+}}
+QPushButton[role="display-toggle"]:hover {{
+    background: {palette["BG_CAMERA_BTN_HOVER"]};
+    border: 1px solid {palette["BORDER_CAMERA_BTN"]};
+}}
+QPushButton[role="display-toggle"]:checked {{
+    background: {palette["BG_TOGGLE_CHECKED"]};
+    border: 2px solid {palette["FOCUS_RING"]};
+}}
+QPushButton[role="display-toggle"]:checked:hover {{
+    background: {palette["BG_CAMERA_BTN_HOVER"]};
+    border: 2px solid {palette["FOCUS_RING"]};
 }}
 
 /* --- Keyboard focus ring -- visible on all interactive widgets --------- */

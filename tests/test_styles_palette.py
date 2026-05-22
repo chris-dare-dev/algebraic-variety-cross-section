@@ -666,11 +666,20 @@ def test_dark_stylesheet_includes_role_selectors() -> None:
     Without these rules, panel labels with `setProperty("role", "muted")`
     etc. would get no color/font override and fall back to QPalette
     defaults — re-opening the AI-12 dark-on-dark failure.
+
+    Extended in display-toggles-checkable-button-2026q3-e1: also asserts
+    the `QPushButton[role="display-toggle"]` selector + its `:checked`
+    pseudo-state are present in both stylesheets.  Without these rules,
+    the Wireframe + Show-edges QPushButton(checkable=True) instances
+    would render as plain push buttons with no checked-state indicator,
+    re-introducing the visual-ambiguity bug that F-M2 closed.
     """
     required_selectors = (
         'QLabel[role="muted"]',
         'QLabel[role="value-mono"]',
         'QLabel[role="range-label"]',
+        # display-toggles-checkable-button-2026q3-e1 (F-M2 closure):
+        'QPushButton[role="display-toggle"]',
     )
     for sel in required_selectors:
         assert sel in styles.APP_STYLESHEET_DARK, (
@@ -682,6 +691,128 @@ def test_dark_stylesheet_includes_role_selectors() -> None:
             f"APP_STYLESHEET missing role selector {sel!r}; "
             f"light theme also depends on it."
         )
+    # Additionally verify the :checked pseudo-state rule is present
+    # (this is what carries the WCAG-compliant active-state indicator).
+    for qss, name in (
+        (styles.APP_STYLESHEET, "APP_STYLESHEET"),
+        (styles.APP_STYLESHEET_DARK, "APP_STYLESHEET_DARK"),
+    ):
+        assert 'QPushButton[role="display-toggle"]:checked' in qss, (
+            f"{name} missing the :checked pseudo-state rule for the "
+            f"display-toggle role — without it, Wireframe + Show-edges "
+            f"buttons have no visual indication of their active state."
+        )
+
+
+def test_bg_toggle_checked_token_is_six_digit_hex_in_both_palettes() -> None:
+    """display-toggles-checkable-button-2026q3-e1 (F-M2 closure, AI-13 guard):
+    the new BG_TOGGLE_CHECKED token must be present in BOTH palettes (the
+    key-identical pattern enforced by test_palette_dark_has_minimum_tokens)
+    and must be 6-digit hex in each.  The token is a decorative fill for
+    the :checked pseudo-state; the WCAG indicator is the FOCUS_RING border
+    (already guarded separately).
+    """
+    for palette_name, palette in (
+        ("PALETTE_LIGHT", styles.PALETTE_LIGHT),
+        ("PALETTE_DARK", styles.PALETTE_DARK),
+    ):
+        assert "BG_TOGGLE_CHECKED" in palette, (
+            f"{palette_name} missing BG_TOGGLE_CHECKED token — the "
+            f"display-toggle :checked QSS rule will reference an "
+            f"undefined palette key and the stylesheet template raises."
+        )
+        value = palette["BG_TOGGLE_CHECKED"]
+        assert HEX6.match(value), (
+            f"{palette_name}['BG_TOGGLE_CHECKED'] = {value!r} is not "
+            f"6-digit hex (AI-13)."
+        )
+    # The two themes must use different values — light gets a light tint,
+    # dark gets a dark tint.  Sharing the same value would produce a
+    # near-invisible :checked state in one of the two themes.
+    assert (
+        styles.PALETTE_LIGHT["BG_TOGGLE_CHECKED"]
+        != styles.PALETTE_DARK["BG_TOGGLE_CHECKED"]
+    ), (
+        "BG_TOGGLE_CHECKED is identical across themes; per-theme values "
+        "are required so the :checked fill tint reads naturally on each "
+        "panel background."
+    )
+
+
+def test_bg_toggle_checked_value_appears_in_both_stylesheets() -> None:
+    """display-toggles-checkable-button-2026q3-e1: the rendered stylesheets
+    must each contain their theme's BG_TOGGLE_CHECKED hex value — verifies
+    that ``_render_stylesheet`` actually consumes the new token rather than
+    declaring it dead.  A dead palette token is a token without a
+    corresponding QSS rule, which would silently leave the :checked state
+    visually identical to the :unchecked state.
+    """
+    assert (
+        styles.PALETTE_LIGHT["BG_TOGGLE_CHECKED"] in styles.APP_STYLESHEET
+    ), (
+        f"APP_STYLESHEET does not contain "
+        f"PALETTE_LIGHT['BG_TOGGLE_CHECKED'] "
+        f"({styles.PALETTE_LIGHT['BG_TOGGLE_CHECKED']}) — the new token "
+        f"is declared but not consumed by any QSS rule."
+    )
+    assert (
+        styles.PALETTE_DARK["BG_TOGGLE_CHECKED"] in styles.APP_STYLESHEET_DARK
+    ), (
+        f"APP_STYLESHEET_DARK does not contain "
+        f"PALETTE_DARK['BG_TOGGLE_CHECKED'] "
+        f"({styles.PALETTE_DARK['BG_TOGGLE_CHECKED']}) — the new token "
+        f"is declared but not consumed by any QSS rule."
+    )
+
+
+def test_appearance_panel_display_toggles_are_qpushbutton_not_qcheckbox() -> None:
+    """display-toggles-checkable-button-2026q3-e1 (F-M2 closure): the
+    Wireframe + Show-edges toggles in `appearance_panel.py` must be
+    constructed as ``QPushButton(checkable=True)``, NOT ``QCheckBox``.
+
+    Source-text grep guard (AI-2 compliant — QPushButton construction
+    requires a live QApplication, which AI-2 bans from the test suite).
+    The guard is weaker than a behavioral test but sufficient to catch
+    a regression where a future palette/widget refactor reverts to
+    QCheckBox.
+
+    The QCheckBox+setIcon idiom produces a ``[check-square][icon][label]``
+    triple-prefix that no peer scientific-viz app uses (Blender N-panel
+    + 3D Slicer modules panel both use checkable QPushButton; ParaView
+    uses plain text checkboxes without icon).  See CONTEXT.md §8.15
+    and qtawesome-icons-2026q2-e2 finding F-M2 for the migration
+    rationale.
+    """
+    import pathlib
+    src = (
+        pathlib.Path(__file__).resolve().parent.parent / "appearance_panel.py"
+    ).read_text(encoding="utf-8")
+
+    # Negative assertions: no QCheckBox construction for these two
+    # specific toggle labels.
+    assert 'QCheckBox("Wireframe")' not in src, (
+        "appearance_panel.py constructs QCheckBox('Wireframe') — F-M2 "
+        "regression.  Migrate to QPushButton(checkable=True) per "
+        "CONTEXT.md §8.15."
+    )
+    assert 'QCheckBox("Show edges")' not in src, (
+        "appearance_panel.py constructs QCheckBox('Show edges') — F-M2 "
+        "regression.  Migrate to QPushButton(checkable=True) per "
+        "CONTEXT.md §8.15."
+    )
+
+    # Positive assertions: the new pattern is present.
+    assert "setCheckable(True)" in src, (
+        "appearance_panel.py is missing setCheckable(True) — the "
+        "QPushButton display toggles must explicitly opt into "
+        "checkable behavior."
+    )
+    assert 'setProperty("role", "display-toggle")' in src, (
+        "appearance_panel.py is missing setProperty('role', "
+        "'display-toggle') — without it the new QSS rules don't "
+        "target the toggles and the :checked state has no visual "
+        "indicator."
+    )
 
 
 def test_dark_stylesheet_dock_title_has_explicit_color() -> None:

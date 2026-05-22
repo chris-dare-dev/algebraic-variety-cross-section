@@ -415,6 +415,26 @@ Closed by `focus-ring-contrast-2026q2-e1` with a per-theme split: `PALETTE_LIGHT
 
 **Test guards:** `tests/test_styles_palette.py` ships both `test_light_non_text_focus_ring_meets_wcag_aa_on_bg_panel` (FOCUS_RING-only assertion against light BG_PANEL) and `test_light_structural_borders_intentionally_below_3_1` (machine-readable negative guard against well-intentioned-but-wrong "harmonization" of the test with the dark twin — the four structural light border tokens measure ~1.1-1.4:1 by design and should not be darkened).
 
+### 8.15 `QCheckBox + setIcon()` creates a triple-prefix affordance — use `QPushButton(checkable=True)` for icon-bearing toggles
+
+`QCheckBox.setIcon()` (inherited from `QAbstractButton`) renders the icon between the platform-drawn check-square indicator and the text label, producing a `[☐][icon][label]` triple prefix.  No peer scientific-viz app uses this pattern: Blender 4.x N-panel viewport-shading section uses checkable `QPushButton` with icon (no check-square indicator); 3D Slicer 5.x modules panel uses checkable `QPushButton` with paired ON/OFF icons; ParaView's Properties panel uses plain text checkboxes (no icon).  The triple prefix creates visual ambiguity — a user is unsure whether to click the check-square or the icon, since both signal interactive affordance.
+
+The fix shipped in `display-toggles-checkable-button-2026q3-e1` (closing F-M2 from `qtawesome-icons-2026q2-e2`): migrate icon-bearing toggles to `QPushButton(checkable=True)` + a QSS `:checked` pseudo-state rule keyed by the `setProperty("role", "display-toggle")` dynamic-property pattern.  The entire button becomes the affordance; the active state is communicated by a 2px `FOCUS_RING`-colored border (the same token already meeting WCAG 1.4.11 3:1 non-text contrast in both themes — 3.56:1 light, 5.17:1 dark) plus an optional `BG_TOGGLE_CHECKED` fill tint for visual reinforcement.
+
+**Rule:** For icon-bearing display toggles, use `QPushButton(checkable=True)` + QSS role-property targeting.  Use plain `QCheckBox` (no icon) only for text-only toggles where the check-square IS the intended affordance.
+
+**Implementation pattern:**
+- `btn = QPushButton("Label")`
+- `btn.setCheckable(True)` + `btn.setChecked(initial_state)`
+- `btn.setProperty("role", "display-toggle")` to pick up the QSS rules
+- `btn.toggled.connect(handler)` — identical signal name and signature as QCheckBox (`toggled(bool)`), inherited from `QAbstractButton`
+- Icons via `setIcon(...)` / `setIconSize(QSize(16, 16))` — same API as QCheckBox (also `QAbstractButton`); no API change in `icons.py`
+- Do NOT call `setFlat(True)` — keep the unchecked-state visual in QSS (`border: transparent; background: transparent`) so the palette controls all chrome
+
+**Checked-state QSS design (WCAG 1.4.11 compliant):** the active-state indicator is a 2px `FOCUS_RING`-colored border.  The fill (`BG_TOGGLE_CHECKED`, a new per-theme token: `#d4e6f5` light, `#1a3048` dark) is decorative reinforcement only — its contrast vs the hover tint is ~1.1:1 by design.  WCAG passes because the BORDER carries the obligation against the panel ground, not the fill against the hover tint.  Text on the checked fill clears 4.5:1 (9.89:1 light, 10.20:1 dark with `TEXT_VALUE`).
+
+**Test guards:** `test_appearance_panel_display_toggles_are_qpushbutton_not_qcheckbox` (source-text grep — AI-2 compliant; QPushButton construction requires QApplication which AI-2 bans), `test_dark_stylesheet_includes_role_selectors` (asserts both `QPushButton[role="display-toggle"]` and its `:checked` pseudo-state are emitted in both stylesheets), `test_bg_toggle_checked_token_is_six_digit_hex_in_both_palettes`, `test_bg_toggle_checked_value_appears_in_both_stylesheets`.  Canonical example: `appearance_panel.py:_build_toggles_group`.
+
 The four Enriques subtypes do NOT all share double-curve topology — be precise:
 
 - **Fig. 1 (canonical sextic)** + **Fig. 2 (Diagonal λ-family)** — degree-6 surfaces with genuine double-curve singularities along the coordinate-tetrahedron edges.  Culling is **beneficial**: removes the white zipper noise from alternating front/back triangles at the near-degenerate ridge (verified: Fig. 1 96627B → 82864B; Fig. 2 46020B → 41433B in off-screen renders).
