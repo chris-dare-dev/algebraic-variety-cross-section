@@ -14,6 +14,8 @@ GUI is PySide6 (LGPL, friendlier than PyQt6's GPL for redistribution). The 3D vi
 
 **Implication:** any candidate that proposes switching to PyQt6 (GPL surface change) or to a non-VTK renderer (matplotlib mpl_toolkits, Plotly, k3d, Mayavi) is an AI-1 conflict.  See AI-1's anti-list at the bottom of §3 of CONTEXT.md.
 
+**Compute dependencies are NOT AI-1 conflicts.** AI-1 locks the *rendering* stack, not the numerics. `numba` (BSD-2-Clause, JIT compiler) is a sanctioned in-tree compute dependency as of realtime-variety-render-e5 — it accelerates scalar-field evaluation in `surfaces.py` and is not a renderer. A future candidate proposing a pure-compute library (Numba, Cython, a BLAS-backed routine) is AI-1-clean as long as it does not touch the PySide6 / PyVista / pyvistaqt render path.
+
 ## AI-2 — Test suite is Qt-free (pure NumPy / PyVista / scikit-image)
 
 All 120 tests under `tests/` exercise pure NumPy / PyVista / scikit-image code paths.  There is no `pytest-qt`.  Reason: Qt + VTK GL context creation is unstable under `QT_QPA_PLATFORM=offscreen` on macOS and segfaults in CI.
@@ -70,7 +72,9 @@ mesh.clip_scalar(scalars="_dist", value=r, invert=True)
 
 ## AI-6 — Implicit surfaces use marching cubes; parametric surfaces do NOT
 
-Implicit surface generators (Fermat, Kummer, all Enriques figures, Dwork pencil) sample a scalar field on a cubic grid and call `_marching_cubes_to_polydata(field, bounds)` which pre-validates the field has a zero crossing (raises `ValueError("No real zero set...")` if not, and again on a 0-point contour result), contours via VTK Flying Edges (`pv.ImageData(...).contour([level], method="flying_edges")` — replaced `skimage.measure.marching_cubes` in realtime-variety-render-e6), applies **Taubin smoothing** (`smooth_taubin(n_iter=20, pass_band=0.1)` — volume-preserving), then `compute_normals()` to refresh after smoothing. No `clean()` pass — Flying Edges emits a watertight shared-vertex mesh and a `clean()` regresses shading (CONTEXT.md §8.15).
+Implicit surface generators (Fermat, Kummer, all Enriques figures, Dwork pencil) sample a scalar field on a cubic grid and call `_marching_cubes_to_polydata(field, bounds)` which pre-validates the field has a zero crossing (raises `ValueError("No real zero set...")` if not, and again on a 0-point contour result), contours via VTK Flying Edges (`pv.ImageData(...).contour([level], method="flying_edges")` — replaced `skimage.measure.marching_cubes` in realtime-variety-render-e6), applies **Taubin smoothing** (`smooth_taubin(n_iter=20, pass_band=0.1)` — volume-preserving), then `compute_normals()` to refresh after smoothing. No `clean()` pass — Flying Edges emits a watertight shared-vertex mesh and a `clean()` regresses shading (CONTEXT.md §8.17).
+
+How the *field array* is computed is an implementation detail of each generator and is NOT part of this pipeline contract: realtime-variety-render-e5 swapped the field evaluation in `fermat_quartic` and `enriques_figure_1` from NumPy meshgrid-broadcasting to `@njit(parallel=True)` Numba kernels. The kernel produces the same `(n, n, n)` `float64` array `_marching_cubes_to_polydata` already consumes — the implicit pipeline downstream of the field array is unchanged. A generator may evaluate its field by any means; it must still hand `_marching_cubes_to_polydata` a scalar-field array.
 
 Parametric surfaces (Hanson cross-sections — quintic, cubic torus, asymmetric) skip marching cubes; they build `(X, Y, Z)` 2D arrays and call `_grid_to_polydata(X, Y, Z)` + `_concat_polydata(meshes)` to assemble triangulated patches directly.  Hanson cross-sections **intentionally skip Taubin smoothing** — the parametric grid is already C², and smoothing would smear patch boundaries.
 

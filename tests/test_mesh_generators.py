@@ -118,6 +118,26 @@ def test_enriques_figure_4_defaults():
     _assert_nonempty(mesh)
 
 
+# ---------------------------------------------------------------------------
+# Numba JIT field-kernel integration seam (realtime-variety-render-e5)
+# ---------------------------------------------------------------------------
+
+def test_numba_kernel_generators_round_trip():
+    """e5 (CAND-2) integration guard: the two generators whose field is now
+    built by an @njit kernel must still round-trip kernel → np.empty array →
+    _marching_cubes_to_polydata → non-empty PolyData.
+
+    test_numba_field_kernels.py pins the kernel's *numerical* contract in
+    isolation; this test pins the *seam* — that the kernel-filled array's
+    dtype / C-contiguity / shape survive the Flying Edges contour. Covered at
+    default params and at a non-default parameter point per generator.
+    """
+    _assert_nonempty(fermat_quartic())
+    _assert_nonempty(fermat_quartic(alpha=-0.5, beta=1.5, gamma=-5.0, c=10.0))
+    _assert_nonempty(enriques_figure_1())
+    _assert_nonempty(enriques_figure_1(c=2.5))
+
+
 def test_enriques_figures_padded_bounds_spike_path_b() -> None:
     """Regression guard for enriques-taubin-spike-2026q2-e1 Path B
     (bounds-padding only; second Taubin pass deferred over-budget —

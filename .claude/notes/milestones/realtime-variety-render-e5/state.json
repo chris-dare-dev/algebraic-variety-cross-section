@@ -1,8 +1,8 @@
 {
   "id": "realtime-variety-render-e5",
   "created_at": "2026-05-22T21:06:58Z",
-  "updated_at": "2026-05-22T21:13:34Z",
-  "phase": "implement-running",
+  "updated_at": "2026-05-22T21:28:16Z",
+  "phase": "rectify-running",
   "phase_history": [
     {
       "phase": "init",
@@ -19,6 +19,22 @@
     {
       "phase": "implement-running",
       "at": "2026-05-22T21:12:32Z"
+    },
+    {
+      "phase": "implement-complete",
+      "at": "2026-05-22T21:17:50Z"
+    },
+    {
+      "phase": "critique-running",
+      "at": "2026-05-22T21:17:50Z"
+    },
+    {
+      "phase": "critique-complete",
+      "at": "2026-05-22T21:23:05Z"
+    },
+    {
+      "phase": "rectify-running",
+      "at": "2026-05-22T21:23:05Z"
     }
   ],
   "milestone_brief": "Implement roadmap epic realtime-variety-render-e5 (plans/realtime-variety-render-roadmap.md section 6.3) -- 'Numba JIT field-evaluation kernel v0', candidate CAND-2. Replace the NumPy-broadcasting scalar-field evaluation for the two highest-cost implicit generators -- Fermat quartic and the Enriques canonical sextic (Fig. 1) -- with @njit(parallel=True, cache=True) Numba kernels, targeting a measured >=5x field-eval speedup visible in the CAND-12 telemetry. Field evaluation is 41-45 percent of total surface.generate() latency. Slice: surfaces.py (two @njit(parallel=True, cache=True) kernel functions replacing the NumPy meshgrid-broadcasting field expressions in the fermat_quartic and enriques_figure_1 generators; set the workqueue Numba threading layer at surfaces.py import time -- numba.config.THREADING_LAYER = 'workqueue' BEFORE any kernel is first called -- so Numba does not contend with VTK's SMP threads inside the e4 worker); requirements.txt (add numba>=0.65,<0.66); tests/ (per-generator numerical spot-check: the njit kernel output must match the NumPy reference to floating-point tolerance at >=3 parameter points each for Fermat and Enriques canonical -- pure NumPy/Numba, no Qt). Spike findings (.claude/notes/roadmaps/realtime-variety-render/spike-numba-arm64.md, verdict VALIDATED-WITH-CAVEAT): (1) the roadmap's numba>=0.60,<0.62 pin is STALE -- numba 0.60-0.61 does not support numpy 2.4.x; the correct pin is numba>=0.65,<0.66 (numba 0.65.1 verified against numpy 2.4.6, no numpy downgrade). (2) First-call JIT latency (~700-1500 ms) EXCEEDS the 500 ms [SHOULD] budget -- do NOT add an eager startup warm-up; instead rely on the e4 background-thread worker absorbing the first-call compile off the GUI thread, and use cache=True so the JIT cost is once-per-machine. The roadmap's 'startup warm-up <=500 ms' acceptance signal is unachievable as written and should be reworded to 'first-call JIT happens off the GUI thread (e4 worker) and cache=True is set'. Hard constraints: AI-1 (no new renderer; numba is a pure compute dependency, allowed); AI-2 (Qt-free tests -- the numerical spot-checks are pure NumPy/Numba, no Qt); AI-6 (implicit pipeline only -- the kernels feed _marching_cubes_to_polydata; the parametric Hanson generators are untouched); AI-8 (generator params are floats; any int coercion stays inside generators); AI-14 (generators still return pv.PolyData or raise ValueError -- the kernel changes only how the field array is computed, not the contract). The kernels must be numerically identical to the current NumPy field expressions -- the existing Fermat quartic and Enriques canonical sextic field formulas in surfaces.py are the reference. Predecessor e4 (background-thread worker) is complete; the Numba arm64 spike passed.",
@@ -32,19 +48,31 @@
   "implementation_path": "inline",
   "implementation_plan": ".claude/notes/milestones/realtime-variety-render-e5/artifacts/implementation-plan.md",
   "implementation_base": "3a07e6e0444a7dec147e9d30e2775b0355a0d6ab",
-  "implementation_commit_range": null,
-  "implementation_commits": [],
+  "implementation_commit_range": "3a07e6e..49f3f67",
+  "implementation_commits": [
+    "49f3f6797e11251d2da17fa23892f9dd8b4ac8fe"
+  ],
   "implementation_branch": null,
-  "critique_path": null,
-  "critics_run": [],
+  "critique_path": ".claude/notes/milestones/realtime-variety-render-e5/artifacts/adversary-critique.md",
+  "critics_run": [
+    "adversary"
+  ],
   "critique_finding_counts": {
     "critical": 0,
-    "high": 0,
-    "medium": 0,
-    "low": 0
+    "high": 1,
+    "medium": 3,
+    "low": 3
   },
   "rectification_commit": null,
-  "fixed_findings": [],
+  "fixed_findings": [
+    "H1",
+    "M1",
+    "M2",
+    "M3",
+    "L1",
+    "L2",
+    "L3"
+  ],
   "deferred_findings": [],
   "invalidated_findings": [],
   "regression_tests_added": []

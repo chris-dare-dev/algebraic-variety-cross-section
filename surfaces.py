@@ -24,6 +24,15 @@ import pyvista as pv
 # always-available, dependency-free layer — it keeps Numba's thread pool
 # separate from VTK's SMP pool so a kernel and a Flying Edges contour running
 # back-to-back in the e4 worker do not contend (e5 Numba arm64 spike §6).
+#
+# NOTE — intentional process-global side-effect: assigning
+# `numba.config.THREADING_LAYER` mutates Numba's *process-wide* config.
+# Importing `surfaces` therefore pins the threading layer for the whole
+# process.  This is benign and desired here — `surfaces` is imported only by
+# the AVC app and its test suite, both of which want `workqueue` — but a
+# future in-process embedding that also uses Numba with a different layer
+# expectation would have its choice silently decided by import order.  See
+# CONTEXT.md §3.
 import numba
 
 numba.config.THREADING_LAYER = "workqueue"
@@ -515,6 +524,10 @@ def enriques_figure_1(
     # realtime-variety-render-e5 (CAND-2): field evaluated by the Numba JIT
     # kernel `_enriques_fig1_field_kernel` (see the helpers section) — replaces
     # the NumPy meshgrid-broadcasting block; the clip (±10) is folded in.
+    # AI-8: coerce `n` to int in-generator so a caller passing a computed
+    # float `n` (e.g. a future screenshot/export path) does not reach
+    # `np.linspace` / `np.empty` as a float.
+    n = int(round(n))
     g = np.linspace(-bounds, bounds, n)
     F = np.empty((n, n, n), dtype=np.float64)
     _enriques_fig1_field_kernel(g, c, F)

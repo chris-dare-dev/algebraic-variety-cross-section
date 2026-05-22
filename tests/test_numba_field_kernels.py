@@ -14,6 +14,16 @@ identical operator order, so per-voxel evaluation should be near bit-exact;
 1e-9 leaves margin for any IEEE-754 op-fusion / arm-vs-x86 ULP drift while
 still failing loudly on a real transcription bug (a wrong sign, a dropped
 term, or a swapped parameter shifts the field by orders of magnitude).
+
+Axis-mapping note: both the Fermat and Enriques fields are *fully symmetric*
+under any permutation of (x, y, z). A value-comparison test therefore CANNOT
+detect an ``(i, j, k) -> (g[k], g[j], g[i])`` axis-transposition bug — a
+transposed kernel produces a field bit-identical to the reference. This is
+not a coverage hole: a transposed evaluation of a symmetric field contours to
+the exact same isosurface, so the bug is harmless by construction. Axis-order
+correctness is delegated to that symmetry argument, not to an assertion. (A
+future *non-symmetric* generator reusing this test pattern WOULD need an
+explicit asymmetric-index probe.)
 """
 
 from __future__ import annotations
