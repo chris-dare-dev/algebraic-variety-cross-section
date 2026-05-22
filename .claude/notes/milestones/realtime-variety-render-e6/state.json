@@ -1,0 +1,51 @@
+{
+  "id": "realtime-variety-render-e6",
+  "created_at": "2026-05-22T15:48:47Z",
+  "updated_at": "2026-05-22T15:57:39Z",
+  "phase": "implement-running",
+  "phase_history": [
+    {
+      "phase": "init",
+      "at": "2026-05-22T15:48:47Z"
+    },
+    {
+      "phase": "research-running",
+      "at": "2026-05-22T15:49:24Z"
+    },
+    {
+      "phase": "research-complete",
+      "at": "2026-05-22T15:56:16Z"
+    },
+    {
+      "phase": "implement-running",
+      "at": "2026-05-22T15:56:42Z"
+    }
+  ],
+  "milestone_brief": "Implement roadmap epic realtime-variety-render-e6 -- VTK Flying Edges marching-cubes replacement (CAND-1). Replace skimage.measure.marching_cubes in surfaces.py:_marching_cubes_to_polydata with VTK vtkFlyingEdges3D via pv.ImageData(...).contour([level], method='flying_edges'). SMP-threaded, mathematically identical to MC, zero new deps. Implicit pipeline ONLY (Fermat, Kummer, Enriques x4, Dwork) -- Hanson parametric pipeline untouched (AI-6). Address challenger MINOR objections: (1) Flying Edges drops skimage analytic gradient normals -- derive via compute_normals() post-extraction; add off-screen visual comparison on Kummer + Enriques canonical sextic to confirm no shading regression on high-curvature surfaces; (2) measure real before/after speedup on this machine via the CAND-12 telemetry shipped in e1. Constraints: AI-1, AI-3, AI-6, AI-13, AI-14; tests/test_mesh_generators.py smoke tests guard regressions. Predecessor e1 (CAND-12 telemetry) shipped directly in commit 3e40ddf -- treat the e1 dependency as satisfied.",
+  "research_mode": "standard",
+  "oss_scout_requested": false,
+  "research_briefs": [
+    ".claude/notes/milestones/realtime-variety-render-e6/research/agent-a-brief.md",
+    ".claude/notes/milestones/realtime-variety-render-e6/research/agent-b-brief.md"
+  ],
+  "research_synthesis": "Both researchers converged: swap skimage.measure.marching_cubes for pv.ImageData(...).contour([level], method=flying_edges) inside _marching_cubes_to_polydata only. F-order ravel is REQUIRED (C-order silently swaps x/z axes). compute_normals=True gives native gradient normals so the challenger normals-lost objection is moot; the post-Taubin compute_normals() re-derives anyway. origin=(-bounds,)*3 replaces the manual verts-=bounds shift. Keep the zero-crossing ValueError guard before contour (AI-14). Measured ~7-10x MC-step / ~2.5x full-pipeline. Implicit pipeline only; Hanson untouched (AI-6).",
+  "implementation_path": "inline",
+  "implementation_plan": ".claude/notes/milestones/realtime-variety-render-e6/artifacts/implementation-plan.md",
+  "implementation_base": "42b6c1712603de1032e930dcdb615e44d58d7def",
+  "implementation_commit_range": null,
+  "implementation_commits": [],
+  "implementation_branch": null,
+  "critique_path": null,
+  "critics_run": [],
+  "critique_finding_counts": {
+    "critical": 0,
+    "high": 0,
+    "medium": 0,
+    "low": 0
+  },
+  "rectification_commit": null,
+  "fixed_findings": [],
+  "deferred_findings": [],
+  "invalidated_findings": [],
+  "regression_tests_added": []
+}

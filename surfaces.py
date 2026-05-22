@@ -15,7 +15,6 @@ from typing import Callable
 
 import numpy as np
 import pyvista as pv
-from skimage import measure
 
 
 @dataclass(frozen=True)
@@ -93,41 +92,68 @@ def _marching_cubes_to_polydata(
     """Extract the level set of *field* as a smooth PolyData.
 
     Pipeline:
-      1. ``skimage.measure.marching_cubes`` on the sampled scalar field. We
-         keep the analytic gradient-based normals it returns — these are
-         derived from the implicit-function gradient and are much smoother
-         than face-averaged mesh normals, especially near regions of high
-         curvature.
-      2. ``clean()`` to merge duplicate vertices that marching cubes
-         occasionally produces at cell boundaries.
-      3. ``smooth_taubin()`` for *volume-preserving* smoothing. Plain
+      1. ``vtkFlyingEdges3D`` (via ``pv.ImageData.contour(method=
+         'flying_edges')``) on the sampled scalar field. Flying Edges is
+         VTK's modern, SMP-threaded isocontouring algorithm — geometrically
+         identical to classic marching cubes to machine precision but
+         ~7-10× faster on the marching-cubes step at production resolutions
+         (realtime-variety-render-e6 / CAND-1). ``compute_normals=True``
+         seeds gradient-based normals from the scalar field; they are
+         re-derived in step 3 after smoothing anyway, so this is only a
+         convenience seed.
+      2. ``smooth_taubin()`` for *volume-preserving* smoothing. Plain
          Laplacian smoothing shrinks the surface; Taubin's twin-coefficient
          scheme lets us iterate ~20× without losing scale or features.
-      4. ``compute_normals()`` re-derives normals after smoothing so
+      3. ``compute_normals()`` re-derives normals after smoothing so
          shading stays consistent with the new vertex positions.
+
+    Note: unlike ``skimage.measure.marching_cubes``, ``vtkFlyingEdges3D``
+    already emits a watertight, shared-vertex triangle mesh — there are no
+    duplicate vertices to merge, so no ``clean()`` pass is run. A ``clean()``
+    here would actually *regress* shading: merging the handful of
+    near-coincident points it finds collapses incident triangles to
+    zero-area degenerate cells, and ``vtkPolyDataNormals``' orientation walk
+    cannot cross a degenerate cell — the mesh splits into orientation
+    islands and half the surface shades inside-out (verified MC-vs-FE
+    off-screen comparison on the Enriques canonical sextic,
+    realtime-variety-render-e6).
     """
     n = field.shape[0]
-    spacing = (2 * bounds / (n - 1),) * 3
-    # Detect the case where the field has no zero-crossing before calling
-    # marching_cubes, which would otherwise raise a cryptic internal error.
+    spacing_val = 2 * bounds / (n - 1)
+    # Detect the case where the field has no zero-crossing before calling the
+    # contour filter.  vtkFlyingEdges3D returns an EMPTY mesh (not an error)
+    # when no isosurface exists, so this explicit guard is what upholds the
+    # AI-14 ``ValueError`` contract for the no-real-zero-set case.
     if field.min() > level or field.max() < level:
         raise ValueError(
             "No real zero set in the sampling box for these parameters "
             f"(field range [{field.min():.3g}, {field.max():.3g}]). "
             "Try adjusting the sliders to a different parameter combination."
         )
-    verts, faces, normals, _ = measure.marching_cubes(field, level=level, spacing=spacing)
-    verts -= bounds
-    n_faces = faces.shape[0]
-    pv_faces = np.empty((n_faces, 4), dtype=np.int64)
-    pv_faces[:, 0] = 3
-    pv_faces[:, 1:] = faces
-    mesh = pv.PolyData(verts, pv_faces.ravel())
-    # Attach the gradient-based normals before smoothing so smooth_taubin's
-    # output has them as the seed for compute_normals later.
-    mesh.point_data["Normals"] = normals.astype(np.float32)
-
-    mesh = mesh.clean()
+    # realtime-variety-render-e6 (CAND-1): VTK Flying Edges replaces
+    # skimage.measure.marching_cubes.  The field grid is built with
+    # ``np.meshgrid(..., indexing="ij")`` (x is the first/slowest NumPy axis),
+    # but VTK ImageData stores points with i (=x) as the FASTEST-varying
+    # index — so the scalar array MUST be raveled in Fortran order.  A C-order
+    # ravel silently transposes the x and z axes of the isosurface with no
+    # error (it would pass the non-empty/bounds smoke tests undetected).
+    grid = pv.ImageData(
+        dimensions=(n, n, n),
+        spacing=(spacing_val, spacing_val, spacing_val),
+        origin=(-bounds, -bounds, -bounds),  # replaces the old ``verts -= bounds``
+    )
+    grid.point_data["field"] = field.ravel(order="F")
+    mesh = grid.contour(
+        [level],
+        scalars="field",
+        method="flying_edges",
+        compute_normals=True,
+        compute_scalars=False,
+    )
+    # No clean()/triangulate() pass: vtkFlyingEdges3D is contractually an
+    # all-triangle, shared-vertex, watertight extractor — there is nothing to
+    # merge or re-triangulate. Adding clean() here regresses shading (see the
+    # docstring note); triangulate() would be a pure no-op.
     if smooth_iter > 0 and mesh.n_points > 0:
         # Taubin (lambda > 0, mu < 0) is volume-preserving — unlike vanilla
         # Laplacian which shrinks the surface every iteration.

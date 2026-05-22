@@ -1,10 +1,12 @@
-"""Tests for the six surface mesh generators in surfaces.py.
+"""Tests for the surface mesh generators in surfaces.py.
 
-No Qt or GUI code is required — all generators are pure NumPy/scikit-image.
+No Qt or GUI code is required — the generators are pure NumPy field
+evaluation plus VTK Flying Edges isocontouring (no on-screen rendering).
 """
 
 from __future__ import annotations
 
+import numpy as np
 import pytest
 import sys
 import os
@@ -48,6 +50,40 @@ def _assert_nonempty(mesh, bounds: float = 10.0) -> None:
         f"z vertices out of [-{bounds}, {bounds}]"
 
 
+def _assert_consistent_winding(mesh) -> None:
+    """Assert the mesh is an all-triangle surface with globally consistent
+    triangle winding.
+
+    Regression guard for realtime-variety-render-e6 (VTK Flying Edges). The
+    isocontour swap originally ran a ``clean()`` pass, which merged
+    near-coincident vertices, collapsed incident triangles into zero-area
+    degenerate cells (breaking the all-triangle invariant), and split the
+    mesh into orientation islands — half the surface shaded inside-out.
+
+    A consistently wound surface traverses every directed edge ``(a, b)`` at
+    most once: an interior edge is shared by exactly two triangles that walk
+    it in opposite directions, so ``(a, b)`` and ``(b, a)`` each occur once.
+    A duplicated directed edge means two adjacent triangles wind the same
+    way — i.e. an inside-out facet.
+    """
+    assert mesh.is_all_triangles, (
+        "Flying Edges output must stay all-triangle — a clean()/degenerate-"
+        "cell pass would break this and the normal-orientation walk"
+    )
+    faces = mesh.faces.reshape(-1, 4)[:, 1:]
+    big = np.int64(mesh.n_points + 1)
+    directed = np.concatenate([
+        faces[:, 0] * big + faces[:, 1],
+        faces[:, 1] * big + faces[:, 2],
+        faces[:, 2] * big + faces[:, 0],
+    ])
+    _, counts = np.unique(directed, return_counts=True)
+    assert counts.max() == 1, (
+        f"{(counts > 1).sum()} directed edge(s) traversed more than once — "
+        "triangle winding is inconsistent, shading would be inside-out"
+    )
+
+
 # ---------------------------------------------------------------------------
 # Default-parameter smoke tests
 # ---------------------------------------------------------------------------
@@ -80,6 +116,26 @@ def test_enriques_figure_3_defaults():
 def test_enriques_figure_4_defaults():
     mesh = enriques_figure_4()
     _assert_nonempty(mesh)
+
+
+# ---------------------------------------------------------------------------
+# Flying Edges winding / orientation regression guards (e6)
+# ---------------------------------------------------------------------------
+
+def test_enriques_figure_1_consistent_winding():
+    """The Enriques canonical sextic is the e6 regression case: a clean()
+    pass on the Flying Edges output split it into orientation islands."""
+    _assert_consistent_winding(enriques_figure_1())
+
+
+def test_kummer_surface_consistent_winding():
+    """Kummer (16 nodes, high curvature) — Flying Edges winding guard."""
+    _assert_consistent_winding(kummer_surface())
+
+
+def test_fermat_quartic_consistent_winding():
+    """Fermat quartic — Flying Edges winding guard."""
+    _assert_consistent_winding(fermat_quartic())
 
 
 # ---------------------------------------------------------------------------
