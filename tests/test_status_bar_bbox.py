@@ -8,6 +8,7 @@ directly and verify the bbox-format contract used by
 """
 from __future__ import annotations
 
+import math
 import re
 
 import pytest
@@ -42,8 +43,10 @@ def test_bbox_max_extents_are_positive_for_symmetric_generator() -> None:
     (the positive max-extents) must be > 0.  Validates the ±max framing
     that app.py uses — a non-positive max would mean the surface is
     confined to the negative half-space, which makes ± framing
-    nonsensical.  All 12 implicit-surface generators in the live
-    registry produce strictly positive max-extents at defaults."""
+    nonsensical.  Exercised here against a representative
+    symmetric-sampling-box generator (Fermat quartic); the same
+    contract is documented in CONTEXT.md §4.3 for all 11
+    implicit-surface generators."""
     mesh = surfaces.fermat_quartic()
     b = mesh.bounds
     assert b[1] > 0.0, f"Fermat quartic xmax was {b[1]} (expected > 0)"
@@ -59,6 +62,26 @@ def test_bbox_format_matches_regex_on_kummer_surface() -> None:
     result = _format_bbox(mesh)
     assert BBOX_REGEX.fullmatch(result), (
         f"bbox string {result!r} does not match {BBOX_REGEX.pattern!r}"
+    )
+
+
+def test_bbox_format_matches_regex_on_hanson_quintic() -> None:
+    """Hanson parametric generators sample `theta ∈ [0, π/2]` (non-centered),
+    so their mesh.bounds are not guaranteed exactly symmetric — CONTEXT.md
+    §4.3 documents the ±max display as an honest over-approximation for
+    this family.  The format-contract still holds (regex match), and the
+    bounds must be finite (no NaN/Inf): this guards against future
+    changes to `_hanson_cross_section` that might produce degenerate
+    vertex coordinates (e.g. a phase-cancelling configuration), which
+    would otherwise let the status bar emit `bbox ±nan × ±nan × ±nan`."""
+    mesh = surfaces.calabi_yau_quintic()
+    b = mesh.bounds
+    assert math.isfinite(b[1]), f"Hanson quintic xmax was {b[1]!r}; expected finite"
+    assert math.isfinite(b[3]), f"Hanson quintic ymax was {b[3]!r}; expected finite"
+    assert math.isfinite(b[5]), f"Hanson quintic zmax was {b[5]!r}; expected finite"
+    result = _format_bbox(mesh)
+    assert BBOX_REGEX.fullmatch(result), (
+        f"Hanson quintic bbox string {result!r} does not match {BBOX_REGEX.pattern!r}"
     )
 
 

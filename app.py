@@ -432,19 +432,32 @@ class MainWindow(QMainWindow):
             # box of the mathematical surface (not the domain-clipped slice).
             # `self._raw_mesh.bounds` returns (xmin, xmax, ymin, ymax, zmin, zmax);
             # indices [1]/[3]/[5] are the positive max-extents.  The ±max display
-            # is exact for the 12 implicit-surface generators (symmetric
+            # is exact for the 11 implicit-surface generators (symmetric
             # np.linspace(-bounds, bounds, n) sampling) and an honest
-            # over-approximation for the Hanson parametric generator at
-            # default α=π/4 — see CONTEXT.md §4 (status-bar-bbox-2026q2-e1).
+            # over-approximation for the 3 Hanson parametric generators at
+            # default α=π/4 — see CONTEXT.md §4.3 (status-bar-bbox-2026q2-e1).
             _b = self._raw_mesh.bounds
+            bbox_suffix = f"bbox ±{_b[1]:.2f} × ±{_b[3]:.2f} × ±{_b[5]:.2f}"
             base_msg = (
                 f"{surface.label}  ·  {self._raw_mesh.n_points:,} verts, "
                 f"{self._raw_mesh.n_cells:,} faces{param_str}"
-                f"  ·  bbox ±{_b[1]:.2f} × ±{_b[3]:.2f} × ±{_b[5]:.2f}"
+                f"  ·  {bbox_suffix}"
             )
             if _surface_warning:
-                # Prepend a ⚠ marker so the warning stands out from the mesh stats.
-                self.statusBar().showMessage(f"⚠ {_surface_warning}  |  {base_msg}")
+                # Warning path: the Dwork conifold RuntimeWarning text alone
+                # is ~175 chars; combined with base_msg the full string can
+                # exceed QStatusBar's ~120-char clip width.  Hoist bbox right
+                # after the warning so the spatial extent stays visible even
+                # when the trailing `{label} verts, faces` content clips
+                # silently — see CONTEXT.md §4.3 warning-path note.  This is
+                # the one render path where researchers most need bbox: the
+                # conifold mesh is geometrically unusual and verts/faces is
+                # less informative.
+                self.statusBar().showMessage(
+                    f"⚠ {_surface_warning}  ·  {bbox_suffix}"
+                    f"  |  {surface.label}  ·  {self._raw_mesh.n_points:,} verts, "
+                    f"{self._raw_mesh.n_cells:,} faces{param_str}"
+                )
             else:
                 self.statusBar().showMessage(base_msg)
         finally:

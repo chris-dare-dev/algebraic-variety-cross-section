@@ -127,3 +127,20 @@
   has ODP singularities, not the double-curve topology claimed in the UPL-7
   comment.  The gate is safe (harmless on Cayley), but the justification is
   imprecise — flag as LOW whenever a comment over-asserts math.
+
+## status-bar-bbox-2026q2-e1 (UPL-13 status-bar spatial bbox) — 2026-05-22
+
+### Token-discipline near-misses
+- No short-hex, no shorthand-enum, no processEvents in this diff. The change adds a single f-string suffix — no new color or Qt enum surface at all. Make this check fast: if the diff adds no QColor, no Qt.AlignmentFlag, no processEvents, and no pv.add_mesh() call, dispose AI-9/AI-11/AI-12/AI-13 in one sentence.
+- `_b[1]/.2f` is a float format specifier, not a hex color — AI-13 does not apply to numeric format strings. Make this explicit when scanning: "does this arg accept a color string?" is the gate.
+
+### Industry-comparison note (concrete recommendation generated)
+- **ParaView, MeshLab, Blender all use full-extent widths (diameter), not half-extents.** ParaView's Information panel: `X Range: -1.000 to 1.000`. MeshLab's Quoted Box: `X: 2.000`. Blender status bar: `Dimensions: X: 2.00 m`. AVC's `±max` half-extent convention is unique in the peer landscape. The concrete recommendation: switch to full-extent widths (`size: Lx × Ly × Lz` computed as `bounds[1]-bounds[0]`) to align with peer vocabulary AND simultaneously fix the Hanson asymmetry issue — these two problems share a single root cause (half-extent display).
+- Quote this as the "full-extent peer-alignment" recommendation for any future bbox-display milestone.
+
+### First-launch / section-9 regressions
+- No first-launch regression possible: the bbox readout lives inside the success branch of `_render_current`, which is only reached after a subtype is selected and mesh generation succeeds. Fast check: is the readout line reachable before `_on_subtype_changed` fires? If not, section-9.3 is clean.
+
+### Status-bar overflow is the recurring risk for narrow UX milestones
+- The Dwork warning path produces a 294-char status-bar message after this milestone. The ±max bbox suffix is the marginal factor that pushes the already-long warning message past visible bounds. Pattern to flag fast: whenever a suffix is appended to `base_msg`, also check the warning path `f"⚠ {_surface_warning}  |  {base_msg}"` — the warning text can be 145+ chars, so any suffix added to base_msg may be invisible on the warning path. This is MEDIUM (not HIGH) because the bbox is supplementary information, not safety-critical feedback.
+- The warning path overflow is a pre-existing structural issue; the bbox suffix makes it worse but doesn't create it. Attribute correctly when writing findings.
