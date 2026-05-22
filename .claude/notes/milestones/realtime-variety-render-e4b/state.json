@@ -1,8 +1,8 @@
 {
   "id": "realtime-variety-render-e4b",
   "created_at": "2026-05-22T23:19:15Z",
-  "updated_at": "2026-05-22T23:30:40Z",
-  "phase": "implement-running",
+  "updated_at": "2026-05-22T23:54:05Z",
+  "phase": "rectify-running",
   "phase_history": [
     {
       "phase": "init",
@@ -19,6 +19,22 @@
     {
       "phase": "implement-running",
       "at": "2026-05-22T23:29:59Z"
+    },
+    {
+      "phase": "implement-complete",
+      "at": "2026-05-22T23:45:03Z"
+    },
+    {
+      "phase": "critique-running",
+      "at": "2026-05-22T23:45:03Z"
+    },
+    {
+      "phase": "critique-complete",
+      "at": "2026-05-22T23:54:05Z"
+    },
+    {
+      "phase": "rectify-running",
+      "at": "2026-05-22T23:54:05Z"
     }
   ],
   "milestone_brief": "Implement CAND-3 (coarse-preview LOD), the half deliberately split off realtime-variety-render-e4. Follow-on milestone NOT enumerated in plans/realtime-variety-render-roadmap.md section 6.3 (the roadmap only lists e1..e6); e4b is the documented split sanctioned by section 6.3 ('if the spike report reveals XL risk, split CAND-4 into its own L epic and CAND-3 becomes e4b after CAND-4 stablises'). Scope: implement the two-pass coarse-preview LOD pipeline for implicit surfaces only. During slider/grid drag, dispatch the e4 worker with a reduced grid resolution n=coarse_n[surface_key] -- a coarse preview mesh updates continuously; on slider release (or after a debounce settles), dispatch the worker again at full resolution. Slice: app.py (the coarse-path triggers on drag with n=coarse_n[surface_key]; the existing _render_current submit-only dispatch grows a coarse-vs-full mode; the e4 _on_mesh_ready slot handles BOTH coarse and full results -- coarse renders the preview mesh and leaves the Preview badge set; the full-res result clears the badge); surfaces.py (per-surface coarse_n floor table -- e.g. {fermat_quartic: 80, kummer: 100, enriques_*: 80, dwork: 100} -- validated by an off-screen n-sweep that confirms TOPOLOGY HONESTY at the floors: Kummer's 16 nodes must still be visible, Dwork's conifold structure honest, Enriques double curves visible; the coarse-path guard MUST check surface.typical_ms > 0 and SKIP Hanson surfaces -- they are parametric (AI-6), already fast, and routing them through a coarse marching-cubes grid violates the parametric pipeline; the coarse_n table is exposed via a function or a per-Surface field on the Surface dataclass); tests/ (off-screen n-sweep at each coarse-n floor confirming non-empty PolyData + topology-honesty checks for Kummer 16 nodes + Dwork conifold + Enriques double curves -- pure PyVista, no pytest-qt). AI-15 Preview badge contract (the headline UX rule): the status bar shows Preview -- {label} -- NNN ms from the FIRST coarse render and persists until _apply_domain_and_render confirms it has just received the FULL-RES mesh (the coarse-result slot does NOT clear the badge; only the full-res result clears it). A new field on MeshResult (is_coarse: bool) plumbs the coarse-vs-full distinction back to the slot. The challenger MAJOR objections to address are (a) disclaimer timing -- badge appears with the first coarse render, not late; (b) CAND-4 strict dependency -- satisfied (e4 worker complete); (c) topology-misrepresentation -- the per-surface coarse_n floor table is the mitigation. Hard constraints: AI-1 (PySide6+PyVista+pyvistaqt+VTK only); AI-2 (Qt-free tests -- the worker dispatch / coarse-vs-full timing is the documented AI-2 gap from e4); AI-3 (pv.OFF_SCREEN for the n-sweep, never MainWindow under offscreen); AI-6 (Hanson skipped); AI-9 (re-entrancy: the existing _computing/_pending_render queue-latest guard already coalesces a fast drag burst; e4b adds the coarse-vs-full mode parameter to the dispatch context); AI-14 (generators still pv.PolyData or ValueError -- coarse just lowers n, contract unchanged); AI-15 (the Preview badge is the math-honesty disclaimer for the coarse mesh -- it must persist until the full-res mesh confirms). Predecessors: realtime-variety-render-e4 (worker -- complete); realtime-variety-render-e5 (Numba kernels -- complete; bonus, makes coarse mode even faster for Fermat + Enriques canonical). Numba v1 (extending JIT to the other 6 implicit generators) is OUT OF SCOPE here -- it would be a separate follow-up. macOS on-device verification residuals (e3 spike section 7, e5 spike section 7) carry forward as documented pre-ship gates.",
@@ -32,16 +48,21 @@
   "implementation_path": "inline",
   "implementation_plan": ".claude/notes/milestones/realtime-variety-render-e4b/artifacts/implementation-plan.md",
   "implementation_base": "4db5c1254ab3c353415f3492526f9a1a6bf67c20",
-  "implementation_commit_range": null,
-  "implementation_commits": [],
+  "implementation_commit_range": "4db5c12..601612c",
+  "implementation_commits": [
+    "601612c"
+  ],
   "implementation_branch": null,
-  "critique_path": null,
-  "critics_run": [],
+  "critique_path": ".claude/notes/milestones/realtime-variety-render-e4b/artifacts/adversary-critique.md",
+  "critics_run": [
+    "adversary",
+    "frontend-ux"
+  ],
   "critique_finding_counts": {
     "critical": 0,
-    "high": 0,
-    "medium": 0,
-    "low": 0
+    "high": 3,
+    "medium": 8,
+    "low": 6
   },
   "rectification_commit": null,
   "fixed_findings": [],
