@@ -41,7 +41,13 @@ from styles import (
     COLOR_WIREFRAME_OVERLAY,
     get_variety_default_colors,
 )
-from surfaces import VARIETIES, VARIETY_TOOLTIPS, SUBTYPE_TOOLTIPS, Surface
+from surfaces import (
+    VARIETIES,
+    VARIETY_TOOLTIPS,
+    SUBTYPE_TOOLTIPS,
+    Surface,
+    should_render_on_drag,
+)
 from view_panel import ViewPanel
 
 _PLACEHOLDER = "— Select —"
@@ -201,6 +207,13 @@ class MainWindow(QMainWindow):
         # --- Parameters dock (right, above Appearance) -----------------------
         self.parameters_panel = ParametersPanel()
         self.parameters_panel.params_changed.connect(self._on_params_changed)
+        # realtime-variety-render-e2-s2 (CAND-8): the debounced drag-tick
+        # signal.  Distinct from `params_changed` (release) so the handler
+        # can speed-route — fast (Hanson) surfaces render continuously during
+        # a drag, slow surfaces ignore the preview and stay release-only.
+        self.parameters_panel.params_preview_changed.connect(
+            self._on_params_preview_changed
+        )
         params_dock = QDockWidget("Parameters", self)
         params_dock.setObjectName("ParametersDock")
         params_dock.setWidget(self.parameters_panel)
@@ -400,8 +413,46 @@ class MainWindow(QMainWindow):
     def _on_params_changed(self, _values: dict) -> None:
         # Triggered when a slider is released (or Reset clicked).
         # Don't reset the camera so the user keeps their viewpoint as they
-        # tune parameters.
+        # tune parameters.  This release path is unchanged for ALL surfaces,
+        # fast and slow — it is the full-render trigger for everything.
         self._render_current(reset_camera=False)
+
+    def _on_params_preview_changed(self, _values: dict) -> None:
+        """Debounced drag-tick handler — the continuous-drag fast-path.
+
+        realtime-variety-render-e2-s2 (CAND-8).  Triggered (at most once per
+        80 ms debounce window) while a slider or grid-dot is *still being
+        dragged*.  The speed-routing decision lives HERE — not in the panels —
+        because `self._current_surface` (and therefore its `typical_ms`) is
+        only known to `MainWindow`.
+
+        `should_render_on_drag` is a pure predicate: it returns True only for
+        a surface with a measured `0 < typical_ms <= 80` (the 3 Hanson
+        parametric figures).  Fast surfaces get a real render on every drag
+        tick; slow (implicit, `typical_ms == 0`) surfaces ignore the preview
+        entirely and stay release-only, exactly as before this epic.
+
+        The render flows through the normal `_render_current` path, so it is
+        covered by the e1 `_computing` + `_pending_render` queue-latest guard.
+        AI-9: a drag-tick fires at most once per 80 ms; a Hanson generate
+        round-trip is ~11-39 ms.  If a tick lands while a render is in flight
+        (`_computing` True) it sets `_pending_render` and the `finally` block
+        schedules one `QTimer.singleShot(0, ...)` catch-up that re-reads the
+        LATEST values — so a fast burst coalesces to "render, then one
+        catch-up", never an unbounded re-entrant stack.
+
+        AI-6: a Hanson surface is parametric (`_grid_to_polydata` /
+        `_concat_polydata`) — it already skips marching cubes and Taubin.
+        The fast-path here only changes *when* `surface.generate()` is
+        called, never *how*.  When e4 adds CAND-3's coarse-LOD path, that
+        path's drag-tick branch MUST guard on `should_render_on_drag(surface)`
+        / `surface.typical_ms > 0` and skip Hanson — routing a parametric
+        surface through a coarse marching-cubes grid would violate AI-6.
+        """
+        if should_render_on_drag(self._current_surface):
+            self._render_current(reset_camera=False)
+        # else: slow / unmeasured surface — drag-tick is a no-op; the release
+        # path (`_on_params_changed`) remains its sole render trigger.
 
     def _on_domain_changed(self) -> None:
         # Domain shape/radius/overlay-toggle changed — re-clip the cached raw

@@ -35,9 +35,48 @@ class Surface:
     label: str
     generate: Callable[..., pv.PolyData]
     params: list[ParamSpec] = field(default_factory=list)
+    # realtime-variety-render-e2-s1 (CAND-8): measured typical generation
+    # time in ms at the surface's default parameters.  0 means "unmeasured /
+    # not fast" — every implicit (marching-cubes) generator keeps this default.
+    # The three Hanson parametric generators carry their measured values so
+    # `app.py`'s continuous-drag fast-path (see `should_render_on_drag`) can
+    # speed-route them: a surface with 0 < typical_ms <= 80 renders at every
+    # debounced drag tick; everything else stays release-only.  Defaulted
+    # field placed after `params` so the dataclass contract stays clean
+    # (AI-8 — the dataclass is not frozen; a trailing defaulted field is safe).
+    typical_ms: int = 0
 
     def defaults(self) -> dict[str, float]:
         return {p.name: p.default for p in self.params}
+
+
+# realtime-variety-render-e2-s2 (CAND-8): the continuous-drag fast-path
+# threshold, in ms.  A surface whose measured `typical_ms` falls in
+# (0, FAST_RENDER_THRESHOLD_MS] is "fast enough" to regenerate at every
+# debounced drag tick (~80 ms cadence) without the GUI feeling sluggish;
+# anything slower stays release-only until the e4 coarse-LOD path lands.
+FAST_RENDER_THRESHOLD_MS = 80
+
+
+def should_render_on_drag(surface: "Surface | None") -> bool:
+    """Pure speed-routing predicate for the continuous-drag fast-path.
+
+    Returns ``True`` when *surface* is fast enough to regenerate on every
+    debounced drag tick — i.e. it carries a measured ``typical_ms`` in the
+    half-open range ``(0, FAST_RENDER_THRESHOLD_MS]``.  Returns ``False`` for
+    ``None`` and for any surface with ``typical_ms == 0`` (unmeasured /
+    implicit marching-cubes generators), which therefore stay release-only
+    exactly as before this epic.
+
+    Extracted as a free function (no Qt, no ``QApplication``) so the routing
+    decision is unit-testable under the Qt-free AI-2 suite.  ``MainWindow``
+    calls this from its drag-tick handler; the panels do not — they have no
+    visibility into the current surface's ``typical_ms``.
+    """
+    return (
+        surface is not None
+        and 0 < surface.typical_ms <= FAST_RENDER_THRESHOLD_MS
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -970,17 +1009,25 @@ VARIETIES: dict[str, dict[str, Surface]] = {
         ),
     },
     "Calabi–Yau 3-fold": {
+        # realtime-variety-render-e2-s1 (CAND-8): typical_ms values measured
+        # off-screen on the dev machine (pv.OFF_SCREEN=True, time.perf_counter,
+        # median of 7 runs at the ParamSpec default parameters): quintic ~39 ms,
+        # cubic torus ~11 ms, asymmetric ~18 ms.  All well under the 80 ms
+        # fast-path threshold, so all three render continuously during drag.
         "Hanson quintic  [Fig. 1]": Surface(
             "Hanson quintic CY cross-section (n=5)",
             calabi_yau_quintic, CALABI_YAU_QUINTIC_PARAMS,
+            typical_ms=39,
         ),
         "Hanson cubic torus  [Fig. 2]": Surface(
             "Hanson cross-section (n=3, torus)",
             calabi_yau_cubic, CALABI_YAU_CUBIC_PARAMS,
+            typical_ms=11,
         ),
         "Hanson asymmetric (5,3)  [Fig. 3]": Surface(
             "Hanson cross-section (n₁=5, n₂=3)",
             calabi_yau_asymmetric, CALABI_YAU_ASYMMETRIC_PARAMS,
+            typical_ms=18,
         ),
         "Dwork pencil  [Fig. 4]": Surface(
             "Dwork pencil real slice (ψ-family)",

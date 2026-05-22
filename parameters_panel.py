@@ -34,7 +34,17 @@ from ui_helpers import Debouncer, build_slider_row
 
 
 class ParametersPanel(QWidget):
+    # Emitted on a slider RELEASE (or Reset) — the full-render trigger for
+    # every surface, fast or slow.  Unchanged since before e2 (INT-2).
     params_changed = Signal(dict)
+    # realtime-variety-render-e2-s2 (CAND-8): emitted on a DEBOUNCED drag tick
+    # (at most once per 80 ms during a continuous drag), carrying the live
+    # {name: value} dict.  A distinct signal — not a second `params_changed`
+    # emit — so a consumer can tell a drag-tick from a release: `app.py`
+    # speed-routes drag ticks (fast surfaces render, slow surfaces ignore)
+    # while releases always render.  e4's coarse-LOD work will also key off
+    # this drag/release distinction (coarse mesh on preview, full on release).
+    params_preview_changed = Signal(dict)
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -89,6 +99,12 @@ class ParametersPanel(QWidget):
         # Grid panel — created once, shown only while the toggle is checked.
         self._grid_panel = ParameterGridPanel()
         self._grid_panel.grid_params_changed.connect(self._on_grid_params_changed)
+        # e2-s2 (CAND-8): relay the grid's debounced drag preview into this
+        # panel's `params_preview_changed` so a grid dot-drag on a Hanson
+        # surface gets the same speed-routed continuous render as a slider.
+        self._grid_panel.grid_params_preview_changed.connect(
+            self._on_grid_params_preview_changed
+        )
         self._grid_panel.hide()
         self._root.addWidget(self._grid_panel)
 
@@ -242,16 +258,18 @@ class ParametersPanel(QWidget):
         self._debouncer.request()
 
     def _on_debounced_tick(self) -> None:
-        """Debounced drag-tick callback (CAND-6, e1-s4) — DORMANT.
+        """Debounced drag-tick callback (CAND-6 e1-s4, activated e2-s2).
 
-        Fires at most once per debounce interval during a continuous drag.
-        In e1 it is intentionally a no-op render-wise: render-on-drag is
-        gated to e2/e4.  Kept as a named hook (not an inline lambda) so e2's
-        `typical_ms` fast-path can route a real render here for fast
-        surfaces without touching the panel's signal plumbing again.
+        Fires at most once per debounce interval (80 ms) during a continuous
+        slider drag.  e2-s2 (CAND-8): it now emits `params_preview_changed`
+        with the live values.  The panel deliberately does NOT decide whether
+        a render happens — it has no visibility into the current surface's
+        `typical_ms`.  `app.py` connects this signal to a speed-routed
+        handler (`should_render_on_drag`): fast surfaces (Hanson) render at
+        every tick, slow surfaces ignore the preview and stay release-only.
+        The release path (`params_changed`) is unchanged for all surfaces.
         """
-        # Intentionally no render in e1.  See class-level note above.
-        return
+        self.params_preview_changed.emit(self.values())
 
     def _on_slider_released(self) -> None:
         # CAND-6 (e1-s4): cancel any pending debounced drag callback so it
@@ -326,6 +344,19 @@ class ParametersPanel(QWidget):
         """
         self._sync_sliders_to(values)
         self.params_changed.emit(dict(values))
+
+    def _on_grid_params_preview_changed(self, values: dict) -> None:
+        """Relay a grid debounced drag-tick into ``params_preview_changed``.
+
+        e2-s2 (CAND-8): the grid's continuous-drag preview funnels through the
+        same drag-tick signal as the slider stack, so app.py's speed-routed
+        handler sees one signal regardless of which view emitted it.  The
+        hidden slider stack is kept in sync so toggling back mid-session
+        starts coherent — `_sync_sliders_to` blocks slider signals, so this
+        relay never feeds back into the debouncer.
+        """
+        self._sync_sliders_to(values)
+        self.params_preview_changed.emit(dict(values))
 
     # ----- value <-> tick conversion (slider stores integer ticks) ----
     #

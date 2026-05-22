@@ -131,6 +131,12 @@ class ParameterGridPanel(QWidget):
     # Emitted once on dot-release or residual-slider release, carrying the
     # full {name: value} dict. ParametersPanel relays it into params_changed.
     grid_params_changed = Signal(dict)
+    # realtime-variety-render-e2-s2 (CAND-8): emitted on a DEBOUNCED drag tick
+    # during a continuous dot-drag (or residual-slider drag), carrying the
+    # live {name: value} dict.  ParametersPanel relays it into
+    # `params_preview_changed`; `app.py` speed-routes it.  Distinct from
+    # `grid_params_changed` so a drag-tick is never mistaken for a release.
+    grid_params_preview_changed = Signal(dict)
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -570,16 +576,20 @@ class ParameterGridPanel(QWidget):
         self._debouncer.request()
 
     def _on_debounced_tick(self) -> None:
-        """Debounced drag-tick callback (CAND-6, e1-s4) — DORMANT.
+        """Debounced drag-tick callback (CAND-6 e1-s4, activated e2-s2).
 
-        Fires at most once per debounce interval during a continuous dot
-        drag.  In e1 it is intentionally a no-op render-wise (render-on-drag
-        is gated to e2/e4).  Kept as a named hook so e2's `typical_ms`
-        fast-path can route a real render here without re-touching the
-        drag-event plumbing.
+        Fires at most once per debounce interval (80 ms) during a continuous
+        dot drag or residual-slider drag.  e2-s2 (CAND-8): it now emits
+        `grid_params_preview_changed` with the live collected values.
+        `ParametersPanel` relays it into `params_preview_changed`, which
+        `app.py` speed-routes — Hanson surfaces render at every tick, slow
+        surfaces ignore it.  The dot/residual release paths
+        (`grid_params_changed`) are unchanged for all surfaces.
+
+        `_collect_values()` is used (not bare `self._values`) so a debounced
+        residual-slider drag also reflects the latest residual values.
         """
-        # Intentionally no render in e1.  See `_debouncer` note in __init__.
-        return
+        self.grid_params_preview_changed.emit(self._collect_values())
 
     def _on_drag_release(self, pos: QPointF) -> None:
         self._dragging = False
@@ -599,14 +609,23 @@ class ParameterGridPanel(QWidget):
     # ------------------------------------------------------------------
 
     def _on_residual_value_changed(self, spec: ParamSpec) -> None:
-        # Live readout only, no render — same two-phase discipline as sliders.
+        # Live readout only — same two-phase discipline as the main sliders.
         tick = self._residual_sliders[spec.name].value()
         v = pg.tick_to_value(tick, spec)
         self._values[spec.name] = v
         self._residual_value_labels[spec.name].setText(pg.format_value(v, spec))
         self._refresh_readout()
+        # CAND-6 (e1-s4) / e2-s2 (CAND-8): register the residual-slider drag
+        # tick with the shared debounce so a Hanson surface with residual
+        # sliders also updates continuously on a residual drag (the debounced
+        # callback emits `grid_params_preview_changed`; app.py speed-routes).
+        self._debouncer.request()
 
     def _on_residual_released(self) -> None:
+        # CAND-6 (e1-s4): cancel any pending debounced drag preview so it
+        # cannot fire after — and shadow — this release emit.  Mirrors
+        # `_on_drag_release` and `ParametersPanel._on_slider_released`.
+        self._debouncer.cancel()
         self._values = self._collect_values()
         self.grid_params_changed.emit(dict(self._values))
 
