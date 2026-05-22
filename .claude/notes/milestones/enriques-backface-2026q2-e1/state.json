@@ -1,8 +1,8 @@
 {
   "id": "enriques-backface-2026q2-e1",
   "created_at": "2026-05-22T02:11:11Z",
-  "updated_at": "2026-05-22T14:13:41Z",
-  "phase": "rectify-running",
+  "updated_at": "2026-05-22T14:14:17Z",
+  "phase": "complete",
   "phase_history": [
     {
       "phase": "init",
@@ -35,6 +35,10 @@
     {
       "phase": "rectify-running",
       "at": "2026-05-22T14:10:17Z"
+    },
+    {
+      "phase": "complete",
+      "at": "2026-05-22T14:14:17Z"
     }
   ],
   "milestone_brief": "Close UPL-7 (Enriques backface culling) from the 2026q2-graph-and-window frontend-uplift final report. RICE 6.0, challenger-NONE. 2-brief triangulation: visual-scout H-1 (sawtooth tear artifacts along singularity node lines in the Enriques canonical sextic) + current-state-critic H-3 (white zipper seams at the double curves remain unaddressed). Source: .claude/notes/frontend-uplifts/2026q2-graph-and-window/artifacts/final-report.md UPL-7 + final-report.md \u00a74.3 Tier C #1. Both critics flagged this HIGH originally; the original challenger rated the candidate NONE (clean implementation path).\n\nBackground: the Enriques canonical sextic at default c=0 has near-degenerate triangles at its double-curve singularities. Phong lighting then renders alternating front/back faces as visible white sawtooth seams along the internal node loci. Researchers reading the math-correct singular locus as a renderer bug erodes the app's math-honesty identity (AI-15 spirit).\n\nV0 scope (hardcoded default \u2014 synthesis-validated as the simpler path over the UI-toggle alternative):\n\n1. app.py \u2014 _apply_domain_and_render: add backface_culling=True to the primary plotter.add_mesh(clipped, ...) call. This is the post-UPL-9 call site (smooth_shading=True + specular=0.3 + specular_power=15 + ambient=0.15 + diffuse=0.85 \u2014 the new kwarg sits alongside these). Do NOT touch the early-return wireframe overlay add_mesh(overlay, ...) call \u2014 that path already uses lighting=False and renders only edges; backface_culling on an overlay would hide the back edges of the bounding box which we want visible.\n\n2. Off-screen render verification: per CONTEXT.md \u00a710, render the Enriques canonical sextic at default parameters BEFORE and AFTER the change (the simplest path is a small inline /tmp/check-*.png comparison in the implementation session, then Read each PNG to visually confirm the sawtooth seams disappear in the after-PNG). Also render K3/Fermat + K3/Kummer + CY3/Hanson at defaults to confirm no regression \u2014 backface_culling=True can occasionally hide important geometry on surfaces with thin sheets or open boundaries.\n\n3. tests/ \u2014 no regression-guard test needed; backface_culling is a single PyVista kwarg whose semantics PyVista's own tests cover. Document the manual off-screen verification step in the commit body per CONTEXT.md \u00a710.\n\n4. CONTEXT.md \u2014 brief mention in \u00a74.3 (Render pipeline) alongside the existing UPL-9 lighting note, OR add a new \u00a78 entry if backface culling has any subtlety worth documenting (e.g., that it specifically benefits the Enriques family because that's the only one in the gallery with genuine double curves \u2014 verifying via the per-variety rendering survey would close any future maintainer's question 'why is this only for Enriques?').\n\nOut of scope (UPL-7 v1, separate future milestone): exposing back-face culling as a Display group QCheckBox in the Appearance dock for pedagogical override (e.g., a researcher who wants to see the sheet structure of the singular locus can toggle it off). The synthesis-listed v1 (+15 LOC) is correct but defers cleanly \u2014 V0 ships the right default; UI toggle waits for actual user demand.\n\nAI invariants:\n- AI-1: backface_culling is a PyVista native kwarg, no renderer swap.\n- AI-6 / AI-7: implicit surface pipeline unchanged; Hanson cell-normals discipline unchanged (the overlay path is untouched).\n- AI-9: synchronous render path unchanged.\n- AI-15: math-honesty win \u2014 the Enriques surface's singular locus is now rendered as the math feature it is, not as visual noise.\n\nValidation:\n- .venv/bin/python -m pytest tests/ -q passes (no regressions; existing 200 tests stay green).\n- Off-screen renders of Enriques canonical sextic at default parameters: before-PNG shows white sawtooth seams at internal ridges (visible in 2x); after-PNG shows clean concave faces. Surveyed across K3 Fermat / K3 Kummer / CY3 Hanson at defaults: no visible regression (no parts of those surfaces should be hidden by back-face culling \u2014 they're all closed or sufficiently thick).",
@@ -63,7 +67,7 @@
     "medium": 3,
     "low": 5
   },
-  "rectification_commit": null,
+  "rectification_commit": "01bf14d054cd736044addda83320d6ac6d173f02",
   "fixed_findings": [
     "adv_M1",
     "front_M1",
