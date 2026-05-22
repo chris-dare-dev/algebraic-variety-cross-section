@@ -60,7 +60,7 @@ fixed sequence: zero-crossing pre-check -> VTK Flying Edges
 (`pv.ImageData(...).contour([level], method="flying_edges")`, F-order
 ravel) -> 0-point re-check -> `smooth_taubin(n_iter=20, pass_band=0.1)` ->
 `compute_normals()`.  There is deliberately **no `clean()`** pass — it
-regresses shading (CONTEXT.md section 8.15).  Skipping any of the kept
+regresses shading (CONTEXT.md section 8.17).  Skipping any of the kept
 steps breaks parity with the existing K3/Enriques/Dwork generators.  Use
 `grep -n "_marching_cubes_to_polydata\|\.contour(" surfaces.py` -- the bare
 contour call should only appear inside the helper.

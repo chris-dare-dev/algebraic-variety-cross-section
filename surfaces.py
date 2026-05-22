@@ -396,7 +396,7 @@ KUMMER_PARAMS = [
 def enriques_figure_1(
     c: float = 1.0,
     n: int = 240,
-    bounds: float = 1.8,
+    bounds: float = 1.89,
 ) -> pv.PolyData:
     """**Figure 1** — Canonical Enriques sextic (Wikipedia / MathWorld form).
 
@@ -434,7 +434,7 @@ def enriques_figure_2(
     lam3: float = 2.0,
     c: float = 1.0,
     n: int = 240,
-    bounds: float = 1.8,
+    bounds: float = 1.89,
 ) -> pv.PolyData:
     """**Figure 2** — Diagonal Enriques sextic (Dolgachev λ-family).
 
@@ -479,7 +479,7 @@ ENRIQUES_FIGURE_2_PARAMS = [
 def enriques_figure_3(
     k: float = 16.0,
     n: int = 240,
-    bounds: float = 2.5,
+    bounds: float = 2.625,
 ) -> pv.PolyData:
     """**Figure 3** — Cayley quartic symmetroid (Reye-cover model).
 
@@ -516,7 +516,7 @@ ENRIQUES_FIGURE_3_PARAMS = [
 def enriques_figure_4(
     tau: float = 0.18,
     n: int = 220,
-    bounds: float = 1.5,
+    bounds: float = 1.575,
 ) -> pv.PolyData:
     """**Figure 4** — Endrass-normalized icosahedral sextic (Barth-dial variant).
 

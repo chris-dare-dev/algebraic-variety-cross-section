@@ -268,13 +268,16 @@ class MainWindow(QMainWindow):
         # qtawesome-icons-2026q2-e1 (UPL-4): apply icons AFTER widget
         # construction completes — qta.icon() requires a live QApplication
         # and panel _build_ui() methods run before MainWindow.__init__ is
-        # ready.  Both panels expose a `refresh_icons(theme)` method that
-        # MainWindow re-invokes from _on_theme_changed / _apply_system_theme
-        # whenever the active theme swaps.  The lazy import of `qtawesome`
-        # inside `icons.py` ensures the ~150-200ms font-load cost fires here
-        # (during window setup, not module import).
+        # ready.  All three icon-bearing panels expose a `refresh_icons(theme)`
+        # method that MainWindow re-invokes from _on_theme_changed /
+        # _apply_system_theme whenever the active theme swaps.  The lazy
+        # import of `qtawesome` inside `icons.py` ensures the ~150-200ms
+        # font-load cost fires here (during window setup, not module import).
+        # qtawesome-icons-2026q2-e2 (UPL-4 v1) added the appearance_panel
+        # third call for the Wireframe + Show-edges display toggles.
         self.view_panel.refresh_icons(self._active_theme)
         self.parameters_panel.refresh_icons(self._active_theme)
+        self.appearance_panel.refresh_icons(self._active_theme)
 
         # --- Keyboard shortcuts ----------------------------------------------
         self._setup_shortcuts()
@@ -597,7 +600,7 @@ class MainWindow(QMainWindow):
             # — a stale delivery must never leave the pipeline frozen.  With
             # the `_computing` single-flight guard the generation always
             # matches, so this is idempotency insurance, not a hot path; see
-            # CONTEXT.md §8.16.
+            # CONTEXT.md §8.18.
             if is_stale_result(result.generation, self._generation):
                 return
             # VTK #18782: retain the mesh on the GUI thread before the
@@ -644,16 +647,34 @@ class MainWindow(QMainWindow):
                 )
                 if params else ""
             )
-            # Spatial extent readout — researchers want to see the bounding
-            # box of the mathematical surface (not the domain-clipped slice).
-            # `self._raw_mesh.bounds` returns (xmin, xmax, ymin, ymax, zmin, zmax);
-            # indices [1]/[3]/[5] are the positive max-extents.  The ±max display
-            # is exact for the 11 implicit-surface generators (symmetric
-            # np.linspace(-bounds, bounds, n) sampling) and an honest
-            # over-approximation for the 3 Hanson parametric generators at
-            # default α=π/4 — see CONTEXT.md §4.3 (status-bar-bbox-2026q2-e1).
+            # Spatial bbox readout — researchers want to see the
+            # axis-aligned bounding-box extent of the mathematical surface
+            # (not the domain-clipped slice).  `self._raw_mesh.bounds`
+            # returns (xmin, xmax, ymin, ymax, zmin, zmax); the full
+            # extent along each axis is `bounds[2i+1] - bounds[2i]`.
+            # This is exact for ALL 14 generators in the live registry —
+            # including the 3 Hanson parametric generators whose theta
+            # sweeps [0, π/2] produce non-symmetric bounds.
+            #
+            # The previous ±max format (status-bar-bbox-2026q2-e1) was an
+            # honest over-approximation for Hanson at default α=π/4;
+            # status-bar-bbox-2026q2-e2 switched to full-extent which is
+            # honest for all generators by construction.  The label
+            # "bbox:" (not "size:") is preserved across both milestones
+            # because peer tools all qualify the measurement type
+            # explicitly: MeshLab `dim_x()` is documented as "the X size
+            # of the Bounding Box"; ParaView's Information panel uses
+            # `Bounds` / `X Range:`; Blender uses `Dimensions:`.  A bare
+            # "size:" label would be ambiguous for algebraic surfaces
+            # since "size" could legitimately mean surface area, volume,
+            # or true geometric diameter — all distinct from the AABB
+            # extent reported here.  Precision .3f avoids false
+            # equalities at sub-1.0 extents.  See CONTEXT.md §4.3
+            # (status-bar-bbox-2026q2-e1 + -e2, UPL-13).
             _b = self._raw_mesh.bounds
-            bbox_suffix = f"bbox ±{_b[1]:.2f} × ±{_b[3]:.2f} × ±{_b[5]:.2f}"
+            bbox_suffix = (
+                f"bbox: {_b[1]-_b[0]:.3f} × {_b[3]-_b[2]:.3f} × {_b[5]-_b[4]:.3f}"
+            )
             # CAND-12 (realtime-variety-render-e1): append the measured
             # generate() time as a trailing "NNN ms" token after the bbox.
             base_msg = (
@@ -664,11 +685,11 @@ class MainWindow(QMainWindow):
             if result.warning_text:
                 # Warning path: the Dwork conifold RuntimeWarning text alone
                 # is ~175 chars; combined with base_msg the full string can
-                # exceed QStatusBar's ~120-char clip width.  Hoist bbox right
+                # exceed QStatusBar's ~120-char clip width.  Hoist size right
                 # after the warning so the spatial extent stays visible even
                 # when the trailing `{label} verts, faces` content clips
                 # silently — see CONTEXT.md §4.3 warning-path note.  This is
-                # the one render path where researchers most need bbox: the
+                # the one render path where researchers most need size: the
                 # conifold mesh is geometrically unusual and verts/faces is
                 # less informative.
                 self.statusBar().showMessage(
@@ -904,11 +925,14 @@ class MainWindow(QMainWindow):
             APP_STYLESHEET if self._active_theme == "light" else APP_STYLESHEET_DARK
         )
 
-        # qtawesome-icons-2026q2-e1 (UPL-4): re-render icons with the new
-        # theme's TEXT_VALUE color so the button glyphs match the new chrome.
-        # Synchronous; AI-9 safe (no processEvents involved).
+        # qtawesome-icons-2026q2-e1 (UPL-4) + e2 (v1): re-render icons with
+        # the new theme's TEXT_VALUE color so all button glyphs match the
+        # new chrome.  Synchronous; AI-9 safe (no processEvents involved).
+        # appearance_panel added in v1 for the Wireframe + Show-edges
+        # display-toggle icons.
         self.view_panel.refresh_icons(self._active_theme)
         self.parameters_panel.refresh_icons(self._active_theme)
+        self.appearance_panel.refresh_icons(self._active_theme)
 
         # Re-seed the appearance panel's variety-default color from the active
         # theme's dict — without this, switching theme while a variety is
@@ -944,11 +968,13 @@ class MainWindow(QMainWindow):
         QApplication.instance().setStyleSheet(
             APP_STYLESHEET if resolved == "light" else APP_STYLESHEET_DARK
         )
-        # qtawesome-icons-2026q2-e1 (UPL-4): mirror the refresh_icons call
-        # from _on_theme_changed so OS-driven theme changes also re-render
-        # icons.  Synchronous; AI-9 safe.
+        # qtawesome-icons-2026q2-e1 (UPL-4) + e2 (v1): mirror the
+        # refresh_icons calls from _on_theme_changed so OS-driven theme
+        # changes also re-render icons across all three icon-bearing
+        # panels.  Synchronous; AI-9 safe.
         self.view_panel.refresh_icons(resolved)
         self.parameters_panel.refresh_icons(resolved)
+        self.appearance_panel.refresh_icons(resolved)
         current_variety = self.variety_combo.currentText()
         if current_variety in VARIETIES:
             self.appearance_panel.set_default_color(

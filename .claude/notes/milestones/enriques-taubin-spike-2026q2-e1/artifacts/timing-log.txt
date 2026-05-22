@@ -1,0 +1,27 @@
+=== Enriques Taubin Spike Results ===
+
+Milestone: enriques-taubin-spike-2026q2-e1
+Date:      2026-05-22
+Runs/case: 7 (median used for decision)
+Surface:   surfaces.enriques_figure_1(c=1.0), n=240
+Budget:    500.0 ms (generate-only)
+
+Single-pass (production, bounds=1.8 — pre-Path-B default at measurement time):
+  raw times (ms): [466.5, 469.8, 448.6, 441.3, 451.6, 449.3, 444.8]
+  median:         449.3 ms
+
+  Note: this run captured the pre-spike production state.  After Path B
+  shipped, the default became bounds=1.89 — re-running the spike now
+  measures the SAME single-pass code against the slightly larger
+  sampling box; expected swing is ~1-3 ms (negligible vs the 87.5 ms
+  margin to the 500 ms budget, so the Path B conclusion stays).
+
+Double-pass (proposed, bounds=1.89):
+  raw times (ms): [584.7, 599.5, 596.4, 585.8, 586.4, 587.5, 587.6]
+  median:         587.5 ms
+
+Second-pass median overhead: +138.2 ms (+30.8%)
+Budget headroom (500 - double): -87.5 ms
+
+Outcome: PATH B (OVER BUDGET)
+Decision: Ship bounds*1.05 only; defer 2nd pass to HQ-toggle milestone

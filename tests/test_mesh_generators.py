@@ -118,6 +118,54 @@ def test_enriques_figure_4_defaults():
     _assert_nonempty(mesh)
 
 
+def test_enriques_figures_padded_bounds_spike_path_b() -> None:
+    """Regression guard for enriques-taubin-spike-2026q2-e1 Path B
+    (bounds-padding only; second Taubin pass deferred over-budget —
+    measured 587.5ms double-pass vs 500ms budget, 17.5% over).
+
+    All 4 Enriques generators must have their default ``bounds``
+    parameter set to the spike-decided padded value (1.05× the
+    original sampling box) to reduce wing-tip truncation at the
+    marching-cubes grid boundary.  See CONTEXT.md §8.16 for the
+    spike timing log and the per-figure padding rationale.
+
+    Asserts on the function defaults rather than the mesh extent
+    because mesh extent depends on the c/k/tau parameter values
+    (the surface shape changes) — the padding is the static
+    sampling-box change.
+    """
+    import inspect
+    import math
+    from surfaces import (
+        enriques_figure_1,
+        enriques_figure_2,
+        enriques_figure_3,
+        enriques_figure_4,
+    )
+
+    # Each tuple: (generator, expected bounds default, original bounds).
+    # Currently both sides are stored Python float literals so the
+    # comparison is exact (diff = 0).  The math.isclose(abs_tol=1e-9)
+    # is forward-protection: if a future refactor changes the surfaces.py
+    # default from a literal (e.g. 1.575) to a computed value
+    # (e.g. 1.5 * 1.05 = 1.5750000000000002), the floating-point
+    # representation noise no longer breaks the test.
+    cases = (
+        ("enriques_figure_1", enriques_figure_1, 1.89, 1.80),
+        ("enriques_figure_2", enriques_figure_2, 1.89, 1.80),
+        ("enriques_figure_3", enriques_figure_3, 2.625, 2.50),
+        ("enriques_figure_4", enriques_figure_4, 1.575, 1.50),
+    )
+    for name, fn, expected, original in cases:
+        sig = inspect.signature(fn)
+        actual = sig.parameters["bounds"].default
+        assert math.isclose(actual, expected, abs_tol=1e-9), (
+            f"{name} default bounds = {actual!r}; expected {expected!r} "
+            f"(= original {original} × 1.05).  See CONTEXT.md §8.16 "
+            f"(enriques-taubin-spike-2026q2-e1 Path B disposition)."
+        )
+
+
 # ---------------------------------------------------------------------------
 # Flying Edges winding / orientation regression guards (e6)
 # ---------------------------------------------------------------------------

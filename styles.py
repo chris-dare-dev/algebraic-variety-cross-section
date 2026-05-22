@@ -113,6 +113,19 @@ PALETTE_LIGHT: dict[str, str] = {
     "BORDER_CAMERA_BTN":        "#b0bec5",
     "BG_CAMERA_BTN_HOVER":      "#e8f0f5",
 
+    # === Display-toggle checkable button (Wireframe / Show-edges) ===
+    # display-toggles-checkable-button-2026q3-e1 (F-M2 closure): fill tint
+    # for the :checked pseudo-state of QPushButton[role="display-toggle"].
+    # The WCAG 1.4.11 indicator is the 2px FOCUS_RING outline:
+    #   FOCUS_RING vs BG_PANEL    = 3.56:1 (vs panel ground — PASS 3:1)
+    #   FOCUS_RING vs BG_TOGGLE_CHECKED = 3.17:1 (vs the fill the outline
+    #                                              sits on — also PASS 3:1)
+    # Both adjacent-surface contrasts clear the 3:1 floor, so the outline
+    # reads against EITHER the panel OR its own interior fill.  Fill-vs-
+    # hover is ~1.10:1 by design (state communicated by outline, not fill).
+    # Text on the fill clears 4.5:1: TEXT_VALUE #333333 vs #d4e6f5 = 9.89:1.
+    "BG_TOGGLE_CHECKED":        "#d4e6f5",   # light blue fill — decorative
+
     # === Domain-clip wireframe overlay (flows into PyVista add_mesh) ===
     "COLOR_WIREFRAME_OVERLAY":  "#888888",
 
@@ -260,6 +273,18 @@ PALETTE_DARK: dict[str, str] = {
     # === Reset-camera button (outlined variant) ===
     "BORDER_CAMERA_BTN":         "#6a8090",   # 3.72:1 vs BG_PANEL — non-text 3:1 PASS
     "BG_CAMERA_BTN_HOVER":       "#2a3a45",   # structural hover
+
+    # === Display-toggle checkable button (Wireframe / Show-edges) ===
+    # display-toggles-checkable-button-2026q3-e1 (F-M2 closure): per-theme
+    # value to match the dark panel.  WCAG 1.4.11 indicator is the 2px
+    # FOCUS_RING outline:
+    #   FOCUS_RING vs BG_PANEL_DARK    = 5.17:1 (vs panel ground — PASS 3:1)
+    #   FOCUS_RING vs BG_TOGGLE_CHECKED = 4.55:1 (vs the fill the outline
+    #                                              sits on — also PASS 3:1)
+    # Both adjacent-surface contrasts clear the 3:1 floor — symmetric with
+    # the light-theme treatment above.  Fill is decorative reinforcement.
+    # Text on this fill clears 4.5:1: TEXT_VALUE #e0e0e0 vs #1a3048 = 10.20:1.
+    "BG_TOGGLE_CHECKED":         "#1a3048",   # deep navy fill — decorative
 
     # === Domain-clip wireframe overlay (flows into PyVista add_mesh) ===
     "COLOR_WIREFRAME_OVERLAY":   "#888888",   # SHARED — 4.32:1 vs #252526
@@ -472,6 +497,58 @@ QPushButton#resetCameraBtn {{
 }}
 QPushButton#resetCameraBtn:hover {{
     background: {palette["BG_CAMERA_BTN_HOVER"]};
+}}
+
+/* --- Display-toggle checkable buttons (Appearance dock) ------------------ */
+/* display-toggles-checkable-button-2026q3-e1 (F-M2 closure + rect F-M1/F-L1):
+   QPushButton(checkable=True) replaces QCheckBox for Wireframe + Show-edges.
+   The icon is the primary affordance; the FOCUS_RING outline signals the
+   :checked state (WCAG 1.4.11 non-text contrast carried by the outline —
+   3.56:1 light / 5.17:1 dark vs BG_PANEL, already proven by
+   focus-ring-contrast-2026q2-e1).  Additionally FOCUS_RING vs
+   BG_TOGGLE_CHECKED fill = 3.17:1 light / 4.55:1 dark — also above the 3:1
+   floor, documenting that the active indicator reads against its own
+   interior fill (rect F-M3 annotation completeness).  BG_TOGGLE_CHECKED is
+   decorative fill reinforcement; its contrast vs hover is ~1.10:1 by design
+   (state is the OUTLINE, not the fill).
+   Industry-aligned with Blender N-panel viewport-shading + 3D Slicer
+   modules panel.  See CONTEXT.md §8.15 for the migration pattern.
+
+   Off-state has a visible 1px border (rect F-M1 discoverability fix):
+   transparent fill would render the buttons as plain icon+label strings
+   with no visible affordance at rest, which contradicts the
+   Blender/Slicer/ParaView convention that interactive controls are
+   visible BEFORE hover.  Using BORDER_CAMERA_BTN (the same structural
+   separator already in use for Reset Camera) keeps the visual weight
+   light without requiring a new token.
+
+   :checked uses `outline: 2px` rather than border-width changes (rect
+   F-L1 1px-jitter fix): outline renders outside the QPushButton box
+   model and does NOT shift content when the user toggles.  The 1px
+   border-width on the base rule remains BORDER_CAMERA_BTN throughout so
+   icon + text never move; only the outline appears/disappears. */
+QPushButton[role="display-toggle"] {{
+    padding: 3px 8px;
+    border-radius: 3px;
+    border: 1px solid {palette["BORDER_CAMERA_BTN"]};
+    background: transparent;
+    text-align: left;
+}}
+QPushButton[role="display-toggle"]:hover {{
+    background: {palette["BG_CAMERA_BTN_HOVER"]};
+    border: 1px solid {palette["BORDER_CAMERA_BTN"]};
+}}
+QPushButton[role="display-toggle"]:checked {{
+    background: {palette["BG_TOGGLE_CHECKED"]};
+    border: 1px solid {palette["BORDER_CAMERA_BTN"]};
+    outline: 2px solid {palette["FOCUS_RING"]};
+    outline-offset: -1px;
+}}
+QPushButton[role="display-toggle"]:checked:hover {{
+    background: {palette["BG_CAMERA_BTN_HOVER"]};
+    border: 1px solid {palette["BORDER_CAMERA_BTN"]};
+    outline: 2px solid {palette["FOCUS_RING"]};
+    outline-offset: -1px;
 }}
 
 /* --- Keyboard focus ring -- visible on all interactive widgets --------- */

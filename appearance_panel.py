@@ -15,7 +15,6 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (
     QButtonGroup,
-    QCheckBox,
     QColorDialog,
     QFrame,
     QGroupBox,
@@ -164,17 +163,40 @@ class AppearancePanel(QWidget):
         vl = QVBoxLayout(box)
         vl.setSpacing(4)
 
-        self._wireframe_cb = QCheckBox("Wireframe")
+        # display-toggles-checkable-button-2026q3-e1 (UPL-4 F-M2 closure):
+        # Both display toggles use `QPushButton(checkable=True)` rather than
+        # `QCheckBox`.  QCheckBox.setIcon() (inherited from QAbstractButton)
+        # renders the icon between the check-square indicator and the text
+        # label, producing a `[☐][icon][label]` triple-prefix that no peer
+        # scientific-viz app uses (Blender N-panel + 3D Slicer modules panel
+        # both use checkable QPushButton with icon; ParaView uses plain text
+        # checkboxes without icon).  The triple-prefix creates visual
+        # ambiguity — the user is unsure whether to click the check-square
+        # or the icon.  The checkable-QPushButton pattern makes the entire
+        # button the affordance; the QSS `:checked` pseudo-state (see
+        # `QPushButton[role="display-toggle"]:checked` in styles.py) draws
+        # a 2px FOCUS_RING border + BG_TOGGLE_CHECKED fill as the active-state
+        # indicator (WCAG 1.4.11 3:1 non-text contrast carried by the border,
+        # not the fill — see CONTEXT.md §8.15).  The attribute names
+        # `_wireframe_cb` and `_edges_cb` are preserved across the migration
+        # so `refresh_icons` and `apply_to_actor` need no update — both
+        # QCheckBox and QPushButton inherit setIcon/setIconSize/toggled
+        # from QAbstractButton.
+        self._wireframe_cb = QPushButton("Wireframe")
+        self._wireframe_cb.setCheckable(True)
         self._wireframe_cb.setChecked(self._wireframe)
         self._wireframe_cb.setToolTip("Show the surface as a wireframe mesh instead of a solid")
+        self._wireframe_cb.setProperty("role", "display-toggle")
         self._wireframe_cb.toggled.connect(self._on_wireframe_toggled)
         vl.addWidget(self._wireframe_cb)
 
-        self._edges_cb = QCheckBox("Show edges")
+        self._edges_cb = QPushButton("Show edges")
+        self._edges_cb.setCheckable(True)
         self._edges_cb.setChecked(self._show_edges)
         self._edges_cb.setToolTip(
             "Overlay mesh edges on the solid surface (inactive in wireframe mode)"
         )
+        self._edges_cb.setProperty("role", "display-toggle")
         self._edges_cb.toggled.connect(self._on_edges_toggled)
         vl.addWidget(self._edges_cb)
 
@@ -409,3 +431,48 @@ class AppearancePanel(QWidget):
         pass.  AI-9 safe (no ``processEvents``).
         """
         self._culling = value
+
+    def refresh_icons(self, theme: str = "dark") -> None:
+        """Re-apply qtawesome icons to the Wireframe + Show-edges display
+        toggles with the active theme's color
+        (qtawesome-icons-2026q2-e2 / UPL-4 v1).
+
+        Called by ``MainWindow.__init__`` (initial paint, after widget
+        construction so ``QApplication`` is alive) and by
+        ``MainWindow._on_theme_changed`` / ``_apply_system_theme`` (so
+        icons re-render with the new color on theme swap).  Must NOT be
+        called from ``_build_toggles_group()`` — at that point
+        ``QApplication`` is not yet fully active and ``qta.icon()``
+        silently returns an empty ``QIcon`` (CONTEXT.md §8.12 footgun).
+
+        Why these two checkboxes get icons:
+        - ``self._wireframe_cb`` (Wireframe) — ``mdi6.grid`` (open lattice)
+        - ``self._edges_cb`` (Show edges) — ``mdi6.border-outside``
+          (solid + outer border)
+
+        The two icons are intentionally chosen to be visually distinct at
+        16px since the two toggles produce visually similar VTK effects
+        — see ``icons.WIREFRAME_ICON_NAME`` / ``SHOW_EDGES_ICON_NAME``
+        and the ``test_wireframe_and_edges_icons_are_distinct_names``
+        regression guard.
+
+        ``QPushButton`` (checkable=True since display-toggles-checkable-button-2026q3-e1
+        / F-M2 closure) inherits ``setIcon()`` from ``QAbstractButton``;
+        the icon renders to the left of the button text label.  Sets a fixed
+        ``QSize(16, 16)`` to match the view-panel preset-button
+        convention so the Appearance dock's vertical rhythm aligns.
+        AI-9 safe (synchronous ``setIcon`` / ``setIconSize`` calls).
+
+        Note on widget-type history: prior to display-toggles-checkable-button-2026q3-e1
+        these were ``QCheckBox`` widgets — the migration to ``QPushButton(checkable=True)``
+        closed F-M2 from qtawesome-icons-2026q2-e2 (the ``[check-square][icon][label]``
+        triple-prefix that no peer scientific-viz app uses).  See CONTEXT.md §8.15.
+        """
+        import icons
+        from PySide6.QtCore import QSize
+
+        _ICON_SIZE = QSize(16, 16)
+        self._wireframe_cb.setIconSize(_ICON_SIZE)
+        self._wireframe_cb.setIcon(icons.wireframe_icon(theme))
+        self._edges_cb.setIconSize(_ICON_SIZE)
+        self._edges_cb.setIcon(icons.show_edges_icon(theme))

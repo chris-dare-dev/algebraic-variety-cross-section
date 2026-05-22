@@ -60,6 +60,16 @@ class ViewPanel(QWidget):
         self._bbox_actor = None   # vtkActor returned by add_bounding_box()
         self._grid_actor = None   # CubeAxesActor returned by show_grid()
 
+        # qtawesome-icons-2026q2-e2 (UPL-4 v1): camera-preset buttons stored
+        # as instance attrs so `refresh_icons(theme)` can re-apply icons on
+        # theme switch.  Previously the 6 ortho preset buttons + iso button
+        # were loop-locals in `_make_view_presets_group`, which made later
+        # icon attachment from outside the constructor impossible (same
+        # issue the v0 milestone fixed for `_reset_camera_btn`).  Keys are
+        # the button text labels ("+X", "-X", "+Y", "-Y", "+Z", "-Z").
+        self._preset_btns: dict[str, "QPushButton"] = {}
+        self._iso_btn: "QPushButton | None" = None
+
         self._build_ui()
 
     # ------------------------------------------------------------------
@@ -124,12 +134,14 @@ class ViewPanel(QWidget):
             btn.setToolTip(tip)
             btn.clicked.connect(self._make_view_callback(method))
             grid.addWidget(btn, row, col)
+            # qtawesome-icons-2026q2-e2 (UPL-4 v1): store for refresh_icons.
+            self._preset_btns[label] = btn
 
-        iso_btn = QPushButton("Isometric")
-        iso_btn.setFixedHeight(26)
-        iso_btn.setToolTip("Switch to a standard isometric (perspective) view")
-        iso_btn.clicked.connect(self._make_view_callback("view_isometric"))
-        grid.addWidget(iso_btn, 3, 0, 1, 2)
+        self._iso_btn = QPushButton("Isometric")
+        self._iso_btn.setFixedHeight(26)
+        self._iso_btn.setToolTip("Switch to a standard isometric (perspective) view")
+        self._iso_btn.clicked.connect(self._make_view_callback("view_isometric"))
+        grid.addWidget(self._iso_btn, 3, 0, 1, 2)
 
         return group
 
@@ -384,10 +396,38 @@ class ViewPanel(QWidget):
         from PySide6.QtCore import QSize
 
         _ICON_SIZE = QSize(16, 16)
+
+        # v0 (qtawesome-icons-2026q2-e1): Reset Camera + Screenshot
         self._reset_camera_btn.setIconSize(_ICON_SIZE)
         self._reset_camera_btn.setIcon(icons.reset_camera_icon(theme))
         self._shot_btn.setIconSize(_ICON_SIZE)
         self._shot_btn.setIcon(icons.screenshot_icon(theme))
+
+        # v1 (qtawesome-icons-2026q2-e2): 6 ortho preset buttons +
+        # isometric.  Map button label → factory function so the wiring
+        # is data-driven and matches the preset definitions in
+        # _make_view_presets_group.  Plain `setIcon` is synchronous (no
+        # event drain) so AI-9 is undisturbed.  Both `_preset_btns` and
+        # `_iso_btn` are populated unconditionally by `__init__` →
+        # `_build_ui` → `_make_view_presets_group`; direct indexing is
+        # correct (KeyError or AttributeError loudly signals a future
+        # refactor that broke the constructor invariant, vs a silent
+        # no-op that would hide the drift).  Axis-10 scope discipline
+        # per CONTEXT.md §12: trust internal code.
+        _PRESET_ICON_FACTORIES = {
+            "+X": icons.preset_plus_x_icon,
+            "-X": icons.preset_minus_x_icon,
+            "+Y": icons.preset_plus_y_icon,
+            "-Y": icons.preset_minus_y_icon,
+            "+Z": icons.preset_plus_z_icon,
+            "-Z": icons.preset_minus_z_icon,
+        }
+        for label, icon_fn in _PRESET_ICON_FACTORIES.items():
+            btn = self._preset_btns[label]
+            btn.setIconSize(_ICON_SIZE)
+            btn.setIcon(icon_fn(theme))
+        self._iso_btn.setIconSize(_ICON_SIZE)
+        self._iso_btn.setIcon(icons.preset_isometric_icon(theme))
 
     # ------------------------------------------------------------------
     # Public API — domain clipping
