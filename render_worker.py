@@ -33,7 +33,7 @@ from __future__ import annotations
 import time
 import warnings
 from dataclasses import dataclass
-from typing import Any, Callable
+from typing import Callable
 
 import pyvista as pv
 from PySide6.QtCore import QObject, QRunnable, Signal
@@ -78,12 +78,20 @@ class MeshResult:
                           (CAND-12 telemetry).
       warning_text      — first ``RuntimeWarning`` text raised during generate
                           (e.g. the Dwork conifold warning at ψ≈1); ``""`` if
-                          none.
-      error_message     — ``str(exc)`` when not ok; ``""`` otherwise.
+                          none. Captured on BOTH the success and failure
+                          paths — a generator may warn and then raise.
+      error_message     — ``str(exc)`` when not ok; ``""`` otherwise. Note
+                          this can be ``""`` even on a real failure (e.g. a
+                          bare ``MemoryError``) — the slot falls back to
+                          ``error_type`` so the status bar is never blank.
+      error_type        — ``type(exc).__name__`` when not ok; ``""`` otherwise.
       error_is_value_error — ``True`` when the failure was a ``ValueError``
                           (AI-14 "no real zero set" / parameter-range case),
                           ``False`` for any other exception. Lets the slot
                           reproduce the original status-bar message prefixes.
+                          (``_on_mesh_ready`` additionally substring-matches
+                          ``error_message`` for ``"No real zero set"`` — see
+                          that slot for the worker↔slot text contract.)
     """
 
     generation: int
@@ -92,6 +100,7 @@ class MeshResult:
     gen_ms: float = 0.0
     warning_text: str = ""
     error_message: str = ""
+    error_type: str = ""
     error_is_value_error: bool = False
 
 
@@ -120,7 +129,7 @@ class MeshWorker(QRunnable):
     def __init__(
         self,
         generate: Callable[..., pv.PolyData],
-        params: dict[str, Any],
+        params: dict[str, float],
         generation: int,
     ) -> None:
         super().__init__()
@@ -142,33 +151,47 @@ class MeshWorker(QRunnable):
         self.signals.finished.emit(result)
 
     def _compute(self) -> MeshResult:
-        """Run the generator and package the outcome as a :class:`MeshResult`."""
+        """Run the generator and package the outcome as a :class:`MeshResult`.
+
+        The ``warnings.catch_warnings`` block wraps the ``try``/``except`` so
+        the ``caught`` list is scanned on EVERY path — a generator can emit a
+        ``RuntimeWarning`` and then raise (e.g. a future generator that warns
+        about a degeneracy and then finds the field empty). Scanning only the
+        success path, as the pre-e4 synchronous code did, would silently drop
+        that warning.
+        """
         gen = self._generation
         t0 = time.perf_counter()
-        try:
-            # Capture RuntimeWarning (e.g. the Dwork conifold warning at ψ≈1)
-            # so the slot can surface it in the status bar rather than letting
-            # it vanish into stderr. catch_warnings is not thread-shared — it
-            # MUST wrap the generate() call here, on the worker thread.
-            with warnings.catch_warnings(record=True) as caught:
-                warnings.simplefilter("always")
+        mesh: pv.PolyData | None = None
+        error_message = ""
+        error_type = ""
+        error_is_value_error = False
+        # catch_warnings is not thread-shared — it MUST wrap the generate()
+        # call here, on the worker thread.
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            try:
                 mesh = self._generate(**self._params)
-        except ValueError as exc:
-            return MeshResult(
-                generation=gen, ok=False,
-                error_message=str(exc), error_is_value_error=True,
-            )
-        except Exception as exc:  # noqa: BLE001 — surfaced to the status bar
-            return MeshResult(
-                generation=gen, ok=False,
-                error_message=str(exc), error_is_value_error=False,
-            )
+            except ValueError as exc:
+                error_message, error_type = str(exc), type(exc).__name__
+                error_is_value_error = True
+            except Exception as exc:  # noqa: BLE001 — surfaced to the status bar
+                error_message, error_type = str(exc), type(exc).__name__
         gen_ms = (time.perf_counter() - t0) * 1000.0
+        # Scan for a RuntimeWarning regardless of success/failure (e.g. the
+        # Dwork conifold warning at ψ≈1) so the slot can surface it.
         warning_text = ""
         for w in caught:
             if issubclass(w.category, RuntimeWarning):
                 warning_text = str(w.message)
                 break
+        if mesh is None and error_type:
+            return MeshResult(
+                generation=gen, ok=False,
+                gen_ms=gen_ms, warning_text=warning_text,
+                error_message=error_message, error_type=error_type,
+                error_is_value_error=error_is_value_error,
+            )
         return MeshResult(
             generation=gen, ok=True, mesh=mesh,
             gen_ms=gen_ms, warning_text=warning_text,

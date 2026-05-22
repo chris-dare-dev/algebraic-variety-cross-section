@@ -2,3 +2,7 @@
 2026-05-22T17:52:31Z | milestone-researcher | agent-b | dispatched
 2026-05-22T17:56:52Z | milestone-researcher | agent-a | returned
 2026-05-22T17:56:52Z | milestone-researcher | agent-b | returned
+2026-05-22T18:39:53Z | milestone-adversary-critic | adversary | dispatched
+2026-05-22T18:39:53Z | milestone-frontend-ux-critic | frontend-ux | dispatched
+2026-05-22T18:43:49Z | milestone-adversary-critic | adversary | returned
+2026-05-22T18:43:49Z | milestone-frontend-ux-critic | frontend-ux | returned

@@ -1,8 +1,8 @@
 {
   "id": "realtime-variety-render-e4",
   "created_at": "2026-05-22T17:48:59Z",
-  "updated_at": "2026-05-22T18:01:05Z",
-  "phase": "implement-running",
+  "updated_at": "2026-05-22T18:51:42Z",
+  "phase": "rectify-running",
   "phase_history": [
     {
       "phase": "init",
@@ -19,6 +19,22 @@
     {
       "phase": "implement-running",
       "at": "2026-05-22T17:57:47Z"
+    },
+    {
+      "phase": "implement-complete",
+      "at": "2026-05-22T18:39:24Z"
+    },
+    {
+      "phase": "critique-running",
+      "at": "2026-05-22T18:39:32Z"
+    },
+    {
+      "phase": "critique-complete",
+      "at": "2026-05-22T18:44:59Z"
+    },
+    {
+      "phase": "rectify-running",
+      "at": "2026-05-22T18:45:06Z"
     }
   ],
   "milestone_brief": "Implement roadmap epic realtime-variety-render-e4 -- SPLIT SCOPE: CAND-4 (background-thread worker) ONLY. CAND-3 (coarse-preview LOD) is deferred to a follow-up milestone (e4b) per the user scope decision and roadmap section 6.3. Move surface.generate() off the Qt GUI thread onto a QThread/QRunnable worker. Worker dispatch replaces the direct surface.generate() call in app.py; the _computing re-entrancy guard semantics change from blocking to worker-in-flight; the QApplication.processEvents() workaround is removed; _apply_domain_and_render receives the worker result via a Qt.QueuedConnection signal. VTK GitLab #18782 mitigation (mandatory, from the e3 spike report): the worker retains an explicit Python ref to the output mesh (self._result = mesh) before emitting; the main-thread slot retains the ref immediately on receipt. The e1 queue-latest semantics (_computing guard + _pending_render) must be extended to cover the worker-in-flight state for the rapid cancel-and-resubmit / supersede path. All VTK GL operations (add_mesh, render, plotter.*) stay on the GUI thread -- never in the worker. NO coarse-LOD, NO coarse_n floor table, NO AI-15 Preview badge in this milestone (those are CAND-3 / e4b). Hard constraints: AI-1 (PySide6+PyVista+pyvistaqt only; no PySide6 pin change -- pyvistaqt 0.11.4 already has the #793 fix), AI-2 (Qt-free tests -- the worker lifecycle / cancel-resubmit has a known coverage gap, document it in CONTEXT.md section 9), AI-3 (pv.OFF_SCREEN headless verification, never MainWindow under offscreen), AI-9 (re-entrancy re-analysis for the worker dispatch path). Predecessor e3 spike (.claude/notes/roadmaps/realtime-variety-render/spike-cand4-thread-safety.md) verdict: e4 cleared to proceed. The macOS on-device verification checklist (spike section 7) is a documented pre-ship manual gate -- it cannot run on this Windows dev machine; implementation proceeds on Windows per the spike guidance.",
@@ -32,19 +48,37 @@
   "implementation_path": "inline",
   "implementation_plan": ".claude/notes/milestones/realtime-variety-render-e4/artifacts/implementation-plan.md",
   "implementation_base": "67d69de73a8605f70083a4b92fbe321453a1e51b",
-  "implementation_commit_range": null,
-  "implementation_commits": [],
+  "implementation_commit_range": "67d69de..5eb22d6",
+  "implementation_commits": [
+    "5eb22d64d748548432485da1621e8c9ae55173d5"
+  ],
   "implementation_branch": null,
-  "critique_path": null,
-  "critics_run": [],
+  "critique_path": ".claude/notes/milestones/realtime-variety-render-e4/artifacts/adversary-critique.md",
+  "critics_run": [
+    "adversary",
+    "frontend-ux"
+  ],
   "critique_finding_counts": {
     "critical": 0,
-    "high": 0,
-    "medium": 0,
-    "low": 0
+    "high": 2,
+    "medium": 5,
+    "low": 5
   },
   "rectification_commit": null,
-  "fixed_findings": [],
+  "fixed_findings": [
+    "H1",
+    "H2",
+    "M1",
+    "M2",
+    "M3",
+    "M4",
+    "M5",
+    "L1",
+    "L2",
+    "L3",
+    "L4",
+    "L5"
+  ],
   "deferred_findings": [],
   "invalidated_findings": [],
   "regression_tests_added": []

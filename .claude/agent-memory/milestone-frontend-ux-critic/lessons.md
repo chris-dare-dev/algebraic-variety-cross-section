@@ -164,3 +164,24 @@
 
 ### Negative test as machine-readable design intent
 - The docstring-only deterrent ("do NOT widen this assertion set") is a recurring pattern risk. Whenever a test has a "don't add X" docstring caveat, the stronger fix is a complementary NEGATIVE test (assert < threshold) that makes the intent machine-readable. Flag any "do not include" docstring caveat on a test as LOW and suggest a companion negative-assertion test.
+
+## realtime-variety-render-e4 (CAND-4 background-thread mesh worker) — 2026-05-22
+
+### Token-discipline near-misses
+- No short-hex, no shorthand-enum, no color token in this diff at all. The two new Qt enums (`Qt.ConnectionType.QueuedConnection`, `Qt.CursorShape.WaitCursor`) were already fully qualified. Fast check held: a threading-only diff adds no QColor / no Qt.AlignmentFlag — dispose AI-12/AI-13 in one sentence, only check AI-11 on the new connection/cursor enums.
+
+### The "early return before the try/finally" trap — a recurring pattern to flag fast
+- When a slot acquires a resource (override cursor, a `_computing`/in-flight flag) at *dispatch* time and releases it in a `finally` at *result* time, any `return` placed ABOVE the `try:` skips the release. In e4, `_on_mesh_ready`'s `is_stale_result` guard is a bare `return` before the `try` — on the stale path the wait cursor leaks (setOverrideCursor stack never popped) and `_computing` stays True forever → permanent soft-freeze. It is dead code TODAY under the single-flight guard, but the worker module's own docstring anticipates the guard being lifted. Flag this as MEDIUM (latent hard-failure, not reachable yet). Fast check for any async-slot milestone: trace every `return` in the result slot and confirm it is INSIDE the `try` whose `finally` does the cleanup.
+
+### Status-bar feedback under re-entrancy — the "label binding" axis
+- A `Computing {surface.label}…` message set at *dispatch* time is bound to the DISPATCHED surface, not the user's current selection. If the user switches surface while a worker is in flight (subtype combo → `_render_current` hits the `_computing` busy branch and returns without touching the status bar), the status bar advertises the OLD surface name for the full remaining flight. Flag as MEDIUM. The fix is to refresh the status bar to `_current_surface.label` in the busy early-return branch. 3D Slicer's per-job status widget (bound to the job, never lagging the selection) is the peer model — quote it.
+- Empty-message exceptions (`MemoryError`, arg-less `KeyError`) make `f"Error: {str(exc)}"` render as a content-free `Error: `. Pre-existing pattern carried over from the synchronous code, but a worker-result refactor is the natural fix point — capture `type(exc).__name__` into the result payload and fall back to it. Flag MEDIUM whenever a status-bar error path interpolates a bare `str(exc)`.
+
+### Industry-comparison note (concrete recommendations generated)
+- **ParaView**: long compute → determinate status-bar progress bar (`pqProgressManager`) + Abort button, not just a busy cursor. AVC e4 ships the non-blocking half; progress + cancellation are the v1 follow-ons. Note: `QThreadPool` does NOT cancel a running `QRunnable` — cancellation needs a cooperative flag checked inside `surface.generate()`. Quote "ParaView status-bar progress + Abort" when text-only `Computing…` feedback is questioned.
+- **3D Slicer**: CLI logic state machine (Idle→Scheduled→Running→Completed) in a per-module status widget, bound to the job not the UI selection — the model for fixing lagging-label bugs.
+- **VisIt** (separate MPI compute engine) and **Mathematica `Manipulate`** (async re-eval + "computing" shimmer) are the other two valid peers for the "compute off the UI thread" axis.
+
+### Scope discipline
+- `render_worker.py` is NEW but is NOT a Qt-panel critique surface: it defines `QRunnable`/`QObject` carrier classes + a dataclass + a pure free function — no `QWidget`, no panel, no user-visible chrome. Dispose it (and `tests/test_render_worker.py`) as out-of-panel-scope. Keep this fast: a file with QObject/QRunnable but zero QWidget subclass is worker/plumbing, not panel surface.
+- A pure threading refactor legitimately produces an all-MEDIUM-or-below critique. Axes 1-4,6-9,11 each dispose in one line. Do not manufacture findings to fill CRITICAL/HIGH — 0 CRITICAL / 0 HIGH / 3 MEDIUM is the honest calibration here.

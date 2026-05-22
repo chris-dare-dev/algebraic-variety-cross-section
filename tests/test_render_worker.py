@@ -19,12 +19,13 @@ from __future__ import annotations
 
 import os
 import sys
+import warnings
 
 import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from render_worker import MeshResult, is_stale_result
+from render_worker import MeshResult, MeshWorker, is_stale_result
 
 
 # ---------------------------------------------------------------------------
@@ -103,3 +104,87 @@ def test_mesh_result_carries_warning_text():
         warning_text="conifold singularity at psi approximately 1",
     )
     assert "conifold" in r.warning_text
+
+
+# ---------------------------------------------------------------------------
+# MeshWorker._compute — the off-thread compute body
+#
+# These call `_compute()` directly (NOT `run()`, which emits a Qt signal).
+# `_compute` is pure Python — it runs the supplied generator, captures
+# warnings, and packages a MeshResult. Constructing a MeshWorker creates a
+# WorkerSignals QObject, which is allowed without a QApplication (QObjects,
+# unlike QWidgets, do not require one). No event loop, no GL — AI-2 safe.
+# ---------------------------------------------------------------------------
+
+def _compute(generate, params=None):
+    """Run MeshWorker._compute with a stand-in generator."""
+    return MeshWorker(generate, params or {}, generation=1)._compute()
+
+
+def test_compute_success_returns_mesh():
+    """A generator that returns a mesh yields ok=True with gen_ms timed."""
+    sentinel = object()  # _compute does not inspect the mesh object
+    r = _compute(lambda: sentinel)
+    assert r.ok is True
+    assert r.mesh is sentinel
+    assert r.gen_ms >= 0.0
+    assert r.error_message == "" and r.error_type == ""
+
+
+def test_compute_captures_warning_on_success():
+    """A RuntimeWarning emitted during a successful generate is captured."""
+    def gen():
+        warnings.warn("conifold-ish degeneracy", RuntimeWarning)
+        return object()
+    r = _compute(gen)
+    assert r.ok is True
+    assert "conifold-ish degeneracy" in r.warning_text
+
+
+def test_compute_captures_warning_emitted_before_raise():
+    """Regression guard for realtime-variety-render-e4 adversary HIGH-2:
+    a generator that emits a RuntimeWarning and THEN raises must still have
+    its warning captured — the catch_warnings scan runs on every path, not
+    just the success fall-through."""
+    def gen():
+        warnings.warn("degeneracy detected", RuntimeWarning)
+        raise ValueError("No real zero set in the sampling box")
+    r = _compute(gen)
+    assert r.ok is False
+    assert r.error_is_value_error is True
+    assert "degeneracy detected" in r.warning_text, (
+        "a warning emitted before the raise must not be dropped"
+    )
+
+
+def test_compute_value_error_payload():
+    """A ValueError flags error_is_value_error and records the type name."""
+    def gen():
+        raise ValueError("mu² must be > 1/3")
+    r = _compute(gen)
+    assert r.ok is False and r.mesh is None
+    assert r.error_is_value_error is True
+    assert r.error_type == "ValueError"
+    assert "mu²" in r.error_message
+
+
+def test_compute_generic_exception_not_flagged_value_error():
+    """A non-ValueError failure leaves error_is_value_error False."""
+    def gen():
+        raise RuntimeError("unexpected")
+    r = _compute(gen)
+    assert r.ok is False
+    assert r.error_is_value_error is False
+    assert r.error_type == "RuntimeError"
+
+
+def test_compute_captures_error_type_on_empty_message():
+    """Regression guard for the empty-message status-bar finding: an
+    exception whose str() is empty must still yield a nameable error_type so
+    the slot can render 'Error: <Type>' instead of a content-free 'Error:'."""
+    def gen():
+        raise MemoryError()  # str(MemoryError()) == ""
+    r = _compute(gen)
+    assert r.ok is False
+    assert r.error_message == ""
+    assert r.error_type == "MemoryError"

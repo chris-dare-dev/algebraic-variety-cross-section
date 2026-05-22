@@ -32,7 +32,7 @@ from pyvistaqt import QtInteractor
 
 from appearance_panel import AppearancePanel
 from parameters_panel import ParametersPanel
-from render_worker import MeshWorker, is_stale_result
+from render_worker import MeshResult, MeshWorker, is_stale_result
 from styles import (
     APP_STYLESHEET,
     APP_STYLESHEET_DARK,
@@ -174,6 +174,10 @@ class MainWindow(QMainWindow):
         # ref — VTK #18782) cannot be GC'd before the result slot has retained
         # the mesh.  Cleared in `_on_mesh_ready`, never at dispatch.
         self._active_worker = None
+        # A dedicated QThreadPool for mesh workers — NOT the process-global
+        # `QThreadPool.globalInstance()`.  Isolates `closeEvent`'s drain to
+        # *this app's* render workers and keeps the worker accounting local.
+        self._render_pool = QThreadPool()
         # The surface / params / reset_camera captured at dispatch time.  The
         # result slot uses THESE, not `_current_surface` / a fresh
         # `parameters_panel.values()` — the user may have changed the selection
@@ -532,7 +536,16 @@ class MainWindow(QMainWindow):
             # The result slot fires the catch-up, which re-reads the current
             # parameter values, so the slider's final resting position wins.
             self._pending_render = True
-            self._pending_reset_camera = reset_camera
+            # OR the reset flag so a queued `reset_camera=True` request (e.g. a
+            # subtype switch) is never silently downgraded by a later
+            # `reset_camera=False` slider tick landing in the same window.
+            self._pending_reset_camera = self._pending_reset_camera or reset_camera
+            # Keep the status-bar label tracking the user's LATEST intent — a
+            # mid-flight surface switch would otherwise leave the bar naming
+            # the superseded surface for the rest of the first worker's flight.
+            self.statusBar().showMessage(
+                f"Computing {self._current_surface.label}…"
+            )
             return
 
         surface = self._current_surface
@@ -553,17 +566,21 @@ class MainWindow(QMainWindow):
         QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
         self.statusBar().showMessage(f"Computing {surface.label}…")
 
-        worker = MeshWorker(surface.generate, params, self._generation)
+        # Hand the worker its OWN copy of the params dict — it reads it on the
+        # worker thread, so it must not alias a dict the GUI thread could
+        # mutate.  `parameters_panel.values()` returns a fresh dict today, so
+        # this is defensive, but it makes the thread boundary explicit.
+        worker = MeshWorker(surface.generate, dict(params), self._generation)
         worker.signals.finished.connect(
             self._on_mesh_ready, Qt.ConnectionType.QueuedConnection
         )
         # Hold the worker ref for the whole flight (VTK #18782 — keeps the
         # worker's `_result` mesh ref alive until the slot has retained it).
         self._active_worker = worker
-        QThreadPool.globalInstance().start(worker)
+        self._render_pool.start(worker)
 
     @Slot(object)
-    def _on_mesh_ready(self, result) -> None:
+    def _on_mesh_ready(self, result: MeshResult) -> None:
         """Receive a worker result on the GUI thread and render it.
 
         ``QueuedConnection`` guarantees this slot runs on the GUI thread, so
@@ -571,22 +588,29 @@ class MainWindow(QMainWindow):
         main-thread — the e3 spike's hard rule.  It is also serialized with
         all other GUI events, so it cannot re-enter itself (AI-9).
         """
-        # VTK #18782: retain the mesh on the GUI thread as the FIRST action,
-        # before the worker's `_result` ref can be dropped.
-        mesh = result.mesh
-        # Defensive supersede guard (see render_worker.is_stale_result): with
-        # the `_computing` single-flight guard the generation always matches,
-        # so this is idempotency insurance, not a hot path.
-        if is_stale_result(result.generation, self._generation):
-            return
-
         surface = self._inflight_surface
         params = self._inflight_params
         try:
+            # Defensive supersede guard (see render_worker.is_stale_result).
+            # It lives INSIDE the `try` so the `finally` cleanup (cursor
+            # restore, `_computing` clear, catch-up) runs even on this branch
+            # — a stale delivery must never leave the pipeline frozen.  With
+            # the `_computing` single-flight guard the generation always
+            # matches, so this is idempotency insurance, not a hot path; see
+            # CONTEXT.md §8.16.
+            if is_stale_result(result.generation, self._generation):
+                return
+            # VTK #18782: retain the mesh on the GUI thread before the
+            # worker's `_result` ref can drop.  (`result` itself holds `.mesh`
+            # for the whole slot; this named local just makes it explicit.)
+            mesh = result.mesh
             if not result.ok:
                 self._raw_mesh = None  # don't let a stale mesh be domain-clipped
                 self._invalidate_clipped_mesh()
-                msg = result.error_message
+                # Fall back to the exception type name so the status bar is
+                # never the content-free "Error: " (a bare MemoryError, an
+                # arg-less exception, etc. give an empty str(exc)).
+                msg = result.error_message or result.error_type
                 if result.error_is_value_error:
                     # "No real zero set" means the parameter *combination*
                     # produces an empty field — not that any single slider is
@@ -955,10 +979,11 @@ class MainWindow(QMainWindow):
         # realtime-variety-render-e4 (CAND-4): drain any in-flight mesh worker
         # before the VTK render window is torn down.  A worker still building
         # a `pv.PolyData` while `plotter.close()` destroys the VTK context is
-        # the exact cross-thread teardown hazard the e3 spike flagged — wait
-        # for the pool (bounded: a single `surface.generate()` is ≲1.5 s; the
-        # 30 s cap is a safety net, not an expected wait).
-        QThreadPool.globalInstance().waitForDone(30000)
+        # the exact cross-thread teardown hazard the e3 spike flagged.  This
+        # drains `_render_pool` (this app's dedicated pool — not the global
+        # instance), bounded: a single `surface.generate()` is ≲1.5 s; the
+        # 30 s cap is a safety net, not an expected wait.
+        self._render_pool.waitForDone(30000)
         self.plotter.close()
         super().closeEvent(event)
 
