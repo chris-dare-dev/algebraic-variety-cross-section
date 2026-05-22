@@ -566,32 +566,40 @@ class MainWindow(QMainWindow):
                 )
                 if params else ""
             )
-            # Spatial size readout — researchers want to see the spatial
-            # extent of the mathematical surface (not the domain-clipped
-            # slice).  `self._raw_mesh.bounds` returns
-            # (xmin, xmax, ymin, ymax, zmin, zmax); the full extent along
-            # each axis is `bounds[2i+1] - bounds[2i]`.  This is exact for
-            # ALL 14 generators in the live registry — including the 3
-            # Hanson parametric generators whose theta sweeps [0, π/2]
-            # produce non-symmetric bounds.  The previous ±max format
-            # (status-bar-bbox-2026q2-e1) was an honest over-approximation
-            # for Hanson at default α=π/4; this milestone switches to
-            # full-extent (status-bar-bbox-2026q2-e2) which is honest for
-            # all generators by construction.  Aligned with peer
-            # scientific-viz tools (ParaView per-axis ranges, MeshLab
-            # full-extent X:/Y:/Z:, Blender Dimensions:).  Precision .3f
-            # avoids false equalities at sub-1.0 extents — see CONTEXT.md
-            # §4.3 (status-bar-bbox-2026q2-e1 + -e2, UPL-13).
+            # Spatial bbox readout — researchers want to see the
+            # axis-aligned bounding-box extent of the mathematical surface
+            # (not the domain-clipped slice).  `self._raw_mesh.bounds`
+            # returns (xmin, xmax, ymin, ymax, zmin, zmax); the full
+            # extent along each axis is `bounds[2i+1] - bounds[2i]`.
+            # This is exact for ALL 14 generators in the live registry —
+            # including the 3 Hanson parametric generators whose theta
+            # sweeps [0, π/2] produce non-symmetric bounds.
+            #
+            # The previous ±max format (status-bar-bbox-2026q2-e1) was an
+            # honest over-approximation for Hanson at default α=π/4;
+            # status-bar-bbox-2026q2-e2 switched to full-extent which is
+            # honest for all generators by construction.  The label
+            # "bbox:" (not "size:") is preserved across both milestones
+            # because peer tools all qualify the measurement type
+            # explicitly: MeshLab `dim_x()` is documented as "the X size
+            # of the Bounding Box"; ParaView's Information panel uses
+            # `Bounds` / `X Range:`; Blender uses `Dimensions:`.  A bare
+            # "size:" label would be ambiguous for algebraic surfaces
+            # since "size" could legitimately mean surface area, volume,
+            # or true geometric diameter — all distinct from the AABB
+            # extent reported here.  Precision .3f avoids false
+            # equalities at sub-1.0 extents.  See CONTEXT.md §4.3
+            # (status-bar-bbox-2026q2-e1 + -e2, UPL-13).
             _b = self._raw_mesh.bounds
-            size_suffix = (
-                f"size: {_b[1]-_b[0]:.3f} × {_b[3]-_b[2]:.3f} × {_b[5]-_b[4]:.3f}"
+            bbox_suffix = (
+                f"bbox: {_b[1]-_b[0]:.3f} × {_b[3]-_b[2]:.3f} × {_b[5]-_b[4]:.3f}"
             )
             # CAND-12 (realtime-variety-render-e1): append the measured
-            # generate() time as a trailing "NNN ms" token after the size.
+            # generate() time as a trailing "NNN ms" token after the bbox.
             base_msg = (
                 f"{surface.label}  ·  {self._raw_mesh.n_points:,} verts, "
                 f"{self._raw_mesh.n_cells:,} faces{param_str}"
-                f"  ·  {size_suffix}  ·  {_gen_ms:.0f} ms"
+                f"  ·  {bbox_suffix}  ·  {_gen_ms:.0f} ms"
             )
             if _surface_warning:
                 # Warning path: the Dwork conifold RuntimeWarning text alone
@@ -604,7 +612,7 @@ class MainWindow(QMainWindow):
                 # conifold mesh is geometrically unusual and verts/faces is
                 # less informative.
                 self.statusBar().showMessage(
-                    f"⚠ {_surface_warning}  ·  {size_suffix}"
+                    f"⚠ {_surface_warning}  ·  {bbox_suffix}"
                     f"  |  {surface.label}  ·  {self._raw_mesh.n_points:,} verts, "
                     f"{self._raw_mesh.n_cells:,} faces{param_str}  ·  {_gen_ms:.0f} ms"
                 )
