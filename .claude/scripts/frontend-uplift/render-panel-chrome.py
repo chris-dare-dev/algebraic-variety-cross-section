@@ -294,6 +294,14 @@ def main(argv: list[str]) -> int:
             get_actor=lambda: None,
             get_plotter=lambda: MagicMock(),
         )
+        # qtawesome-icons-2026q2-e2 (UPL-4 v1) rect M1: load the qtawesome
+        # icons (Wireframe + Show-edges checkboxes) so the captured PNGs
+        # reflect the live app's panel chrome.  Without this call the
+        # capture shows iconless checkboxes (qta.icon returns the
+        # default-constructed QIcon because refresh_icons was never
+        # called).  Symmetric with the view_panel and parameters_panel
+        # equivalents below.
+        appearance_empty.refresh_icons(theme_name)
         _grab_in_dock(
             appearance_empty,
             "Appearance",
@@ -326,6 +334,9 @@ def main(argv: list[str]) -> int:
         appearance_populated._opacity_slider.setValue(72)
         appearance_populated._wireframe_cb.setChecked(True)
         appearance_populated._edges_cb.setChecked(True)
+        # qtawesome-icons-2026q2-e2 (UPL-4 v1) rect M1: same refresh_icons
+        # call as the empty-state instance above.
+        appearance_populated.refresh_icons(theme_name)
         _grab_in_dock(
             appearance_populated,
             "Appearance",

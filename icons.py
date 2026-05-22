@@ -1,4 +1,4 @@
-"""Icon factory for Algebraic Variety Viewer (qtawesome-icons-2026q2-e1, UPL-4).
+"""Icon factory for Algebraic Variety Viewer (qtawesome-icons-2026q2-e1/e2, UPL-4 v0/v1).
 
 Single source of truth for the application's `QIcon`s.  Adopting qtawesome
 gives the toolbar buttons (Reset Camera / Screenshot / Reset Defaults)
@@ -203,6 +203,20 @@ def preset_minus_x_icon(theme: str = "dark") -> QIcon:
     Same glyph as +X but mirrored — points in the -X direction.  MDI6
     does not ship a separate ``axis-x-arrow-left``; ``rotated=180`` is
     the canonical approach per qtawesome 1.4.x docs.
+
+    Known legibility caveat at 16px (qtawesome-icons-2026q2-e2 frontend-ux
+    F-M1, accepted): the ``axis-{x,y,z}-arrow`` family embeds the axis
+    label as part of the glyph; rotated 180° the X stays recognizable
+    (~axis-symmetric), but Y reads as λ and Z reads as S at 16px.  The
+    button text label ("-X", "-Y", "-Z") carries the unambiguous
+    disambiguation, and the grid layout positions +/- pairs adjacent for
+    direct visual comparison.  ParaView uses cube-face glyphs with the
+    facing surface highlighted; Blender uses distinct per-direction SVGs
+    — both avoid rotation.  A future migration to one of those patterns
+    is a polish-pass scope; the axis-arrow family was preferred over
+    generic ``mdi6.arrow-*`` because it carries the axis label embedded,
+    which is more semantically informative even at the cost of rotation
+    legibility for Y/Z.
     """
     return _get_qta().icon("mdi6.axis-x-arrow", color=_icon_color(theme), rotated=180)
 

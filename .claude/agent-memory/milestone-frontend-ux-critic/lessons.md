@@ -164,3 +164,17 @@
 
 ### Negative test as machine-readable design intent
 - The docstring-only deterrent ("do NOT widen this assertion set") is a recurring pattern risk. Whenever a test has a "don't add X" docstring caveat, the stronger fix is a complementary NEGATIVE test (assert < threshold) that makes the intent machine-readable. Flag any "do not include" docstring caveat on a test as LOW and suggest a companion negative-assertion test.
+
+## qtawesome-icons-2026q2-e2 (UPL-4 v1 camera presets + display toggles) — 2026-05-22
+
+### Token-discipline near-misses
+- No short-hex or shorthand-enum slip in this diff. `QSize(16, 16)` is a data class — not a Qt enum — so AI-11 does not apply. Make this check fast: ask "is this a Qt.* / QSizePolicy.*  enum call or a plain constructor?" `QSize(w, h)` is always the latter.
+- Icon color (`_icon_color(theme)`) returns `PALETTE_LIGHT/DARK["TEXT_VALUE"]` — already 6-digit, already tested. The color does NOT flow to PyVista (AI-13 does not apply). The fast gate from qtawesome-icons-2026q2-e1 still applies: "does this color reach pv.Plotter.add_mesh?" — if not, AI-13 is clear.
+
+### Industry-comparison surprises (concrete findings generated)
+- **ParaView uses separate-glyph icons for plus/minus axis directions — NOT rotated copies.** This is the MEDIUM-1 finding: MDI6 `rotated=180` on an axis-arrow glyph produces an upside-down embedded letter ("Z" → looks like "S"; "Y" → looks like "λ") at 16 px. Quote this as the "ParaView separate-glyph convention" whenever evaluating minus-direction camera preset icons.
+- **Blender + 3D Slicer use checkable QPushButton for display toggles, NOT QCheckBox+setIcon.** `QCheckBox.setIcon()` in PySide6 renders `[check-indicator][icon][label]` — a three-element prefix that is visually ambiguous (which element is the affordance?). The peer convention is `QPushButton(checkable=True)` which renders `[icon][label]` with the button depression signaling state. Flag any `QCheckBox.setIcon()` as MEDIUM when the control is a display-mode toggle (not a preference or binary option).
+
+### First-launch / section-9 regressions
+- No first-launch regression. `refresh_icons` is visual-chrome-only — no dropdown, no `_render_current`, no actor creation. Fast check: does `refresh_icons` call anything other than `setIcon` / `setIconSize` on existing widgets? If not, section-9.3 is clean. This check takes under 5 seconds on a visual scan of the method body.
+- Pattern-A architecture (icons applied after construction, re-applied on theme swap at THREE call sites: `__init__`, `_on_theme_changed`, `_apply_system_theme`) is the established correct pattern. When a new panel gains a `refresh_icons` method, verify all three call sites are symmetric — missing one call site is the class of bug that produces "icons don't update on theme swap."

@@ -407,7 +407,13 @@ class ViewPanel(QWidget):
         # isometric.  Map button label → factory function so the wiring
         # is data-driven and matches the preset definitions in
         # _make_view_presets_group.  Plain `setIcon` is synchronous (no
-        # event drain) so AI-9 is undisturbed.
+        # event drain) so AI-9 is undisturbed.  Both `_preset_btns` and
+        # `_iso_btn` are populated unconditionally by `__init__` →
+        # `_build_ui` → `_make_view_presets_group`; direct indexing is
+        # correct (KeyError or AttributeError loudly signals a future
+        # refactor that broke the constructor invariant, vs a silent
+        # no-op that would hide the drift).  Axis-10 scope discipline
+        # per CONTEXT.md §12: trust internal code.
         _PRESET_ICON_FACTORIES = {
             "+X": icons.preset_plus_x_icon,
             "-X": icons.preset_minus_x_icon,
@@ -417,13 +423,11 @@ class ViewPanel(QWidget):
             "-Z": icons.preset_minus_z_icon,
         }
         for label, icon_fn in _PRESET_ICON_FACTORIES.items():
-            btn = self._preset_btns.get(label)
-            if btn is not None:
-                btn.setIconSize(_ICON_SIZE)
-                btn.setIcon(icon_fn(theme))
-        if self._iso_btn is not None:
-            self._iso_btn.setIconSize(_ICON_SIZE)
-            self._iso_btn.setIcon(icons.preset_isometric_icon(theme))
+            btn = self._preset_btns[label]
+            btn.setIconSize(_ICON_SIZE)
+            btn.setIcon(icon_fn(theme))
+        self._iso_btn.setIconSize(_ICON_SIZE)
+        self._iso_btn.setIcon(icons.preset_isometric_icon(theme))
 
     # ------------------------------------------------------------------
     # Public API — domain clipping
