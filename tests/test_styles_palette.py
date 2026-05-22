@@ -680,6 +680,10 @@ def test_dark_stylesheet_includes_role_selectors() -> None:
         'QLabel[role="range-label"]',
         # display-toggles-checkable-button-2026q3-e1 (F-M2 closure):
         'QPushButton[role="display-toggle"]',
+        # appearance-panel-layout-pass-2026q3-e2 (F-M2 closure):
+        # text-align: left rule for the Colors-group color-picker
+        # buttons — closes the cross-group alignment fracture.
+        'QPushButton[role="colors-button"]',
     )
     for sel in required_selectors:
         assert sel in styles.APP_STYLESHEET_DARK, (
@@ -701,6 +705,28 @@ def test_dark_stylesheet_includes_role_selectors() -> None:
             f"{name} missing the :checked pseudo-state rule for the "
             f"display-toggle role — without it, Wireframe + Show-edges "
             f"buttons have no visual indication of their active state."
+        )
+        # appearance-panel-layout-pass-2026q3-e2 rect M3: verify the
+        # `colors-button` rule actually carries `text-align: left` and
+        # `background: transparent` in its rule body — not just that
+        # the selector exists in the stylesheet.  A future refactor
+        # could hollow out the rule (delete the body declarations while
+        # keeping the selector) and the basic presence check would not
+        # catch it.  Substring scan starting at the selector index
+        # captures the rule body up to the closing brace (~150 chars
+        # is enough for our 4-declaration rule).
+        sel_idx = qss.index('QPushButton[role="colors-button"]')
+        rule_body = qss[sel_idx:sel_idx + 200]
+        assert 'text-align: left' in rule_body, (
+            f"{name}: QPushButton[role='colors-button'] rule body is "
+            f"missing `text-align: left` — the functional payload of "
+            f"the F-M2 alignment fix.  Selector alone is not enough."
+        )
+        assert 'background: transparent' in rule_body, (
+            f"{name}: QPushButton[role='colors-button'] rule body is "
+            f"missing `background: transparent` — the macOS Aqua paint-"
+            f"mode trigger (rect F-M1).  Without it the alignment is a "
+            f"silent no-op on Aqua-style platforms."
         )
 
 
@@ -762,6 +788,84 @@ def test_bg_toggle_checked_value_appears_in_both_stylesheets() -> None:
         f"PALETTE_DARK['BG_TOGGLE_CHECKED'] "
         f"({styles.PALETTE_DARK['BG_TOGGLE_CHECKED']}) — the new token "
         f"is declared but not consumed by any QSS rule."
+    )
+
+
+def test_appearance_panel_colors_buttons_have_colors_button_role() -> None:
+    """appearance-panel-layout-pass-2026q3-e2 (F-M2 closure): the
+    Surface… and Background… color-picker buttons in `_build_color_group`
+    must each carry ``setProperty("role", "colors-button")`` so the QSS
+    rule `QPushButton[role="colors-button"] { text-align: left; ... }`
+    picks them up.  Without the role tag the buttons fall back to Qt's
+    platform-default center-alignment, re-introducing the cross-group
+    vertical-rhythm fracture between the Colors and Render Mode groups
+    that this milestone closed.
+
+    Source-text grep (AI-2 compliant — testing the alignment under a
+    real QApplication would require Qt, which AI-2 bans).
+    """
+    import pathlib
+    src = (
+        pathlib.Path(__file__).resolve().parent.parent / "appearance_panel.py"
+    ).read_text(encoding="utf-8")
+
+    # Must see exactly 2 occurrences — one for surf_btn, one for bg_btn.
+    # Count-based (not single `in`) so a half-migration regression where
+    # only one button carries the role fires loudly with a precise
+    # diagnostic (parallels the M1 lesson from
+    # display-toggles-checkable-button-2026q3-e1).
+    role_count = src.count('setProperty("role", "colors-button")')
+    assert role_count >= 2, (
+        f"appearance_panel.py contains fewer than 2 "
+        f"setProperty('role', 'colors-button') calls — both Surface… "
+        f"AND Background… color-picker buttons must carry the role.  "
+        f"Found {role_count}; expected >=2.  Check for a half-migration "
+        f"regression."
+    )
+
+    # Neither button should be checkable — they are action buttons that
+    # open a QColorDialog, not stateful toggles.  Guard against a future
+    # refactor accidentally adding setCheckable to them.
+    # (The Display group's setCheckable(True) calls are NOT counted here
+    # because they're on a different code block; this test only fires if
+    # someone explicitly writes `surf_btn.setCheckable(...)` or
+    # `bg_btn.setCheckable(...)`.)
+    for btn_name in ("surf_btn", "bg_btn"):
+        assert f"{btn_name}.setCheckable" not in src, (
+            f"appearance_panel.py contains {btn_name}.setCheckable(...) — "
+            f"the Colors group buttons are action buttons (open a "
+            f"QColorDialog) NOT toggles.  Adding setCheckable would "
+            f"change their semantics."
+        )
+
+
+def test_appearance_panel_render_mode_group_header() -> None:
+    """appearance-panel-layout-pass-2026q3-e2 (F-L2 closure): the
+    display-toggles group's QGroupBox header is "Render Mode" (the
+    MeshLab peer-tool convention for wireframe/solid/flat toggle
+    controls), NOT the generic "Display" label that
+    display-toggles-checkable-button-2026q3-e1 left in place.
+
+    Source-text grep (AI-2 compliant — verifying the QGroupBox label
+    under a real QApplication would require Qt, which AI-2 bans).
+    """
+    import pathlib
+    src = (
+        pathlib.Path(__file__).resolve().parent.parent / "appearance_panel.py"
+    ).read_text(encoding="utf-8")
+
+    assert 'QGroupBox("Render Mode")' in src, (
+        "appearance_panel.py is missing QGroupBox('Render Mode') — the "
+        "display-toggles-group header rename from the F-L2 milestone."
+    )
+    # The old generic "Display" header must NOT remain.  This catches the
+    # case where someone adds a Render Mode group elsewhere but leaves
+    # the original Display group in place by mistake.
+    assert 'QGroupBox("Display")' not in src, (
+        "appearance_panel.py still contains QGroupBox('Display') — the "
+        "F-L2 milestone renamed it to 'Render Mode'.  If a future group "
+        "genuinely needs to be called 'Display', pick a more specific "
+        "name (per the peer-tool audit in the milestone research brief)."
     )
 
 

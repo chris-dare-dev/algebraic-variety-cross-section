@@ -475,6 +475,49 @@ QPushButton {{
     border-radius: 3px;
 }}
 
+/* --- Color-picker buttons (Appearance dock Colors group) ------------------ */
+/* appearance-panel-layout-pass-2026q3-e2 (F-M2 closure):
+   The Surface… / Background… buttons sit in HBoxLayout rows with a small
+   color swatch to their LEFT.  Without text-align: left their label text
+   centers within the button's remaining width, which creates a visible
+   vertical-rhythm fracture against the Render Mode group below (whose
+   QPushButton[role="display-toggle"] toggles use text-align: left for
+   their icon+label layout).  Adding text-align: left here aligns both
+   groups uniformly.
+
+   The rule re-states `padding` + `border-radius` from the base
+   QPushButton rule above — NOT because the values differ, but because
+   QSS on macOS Fusion native QPushButton style ignores `text-align`
+   UNLESS at least one box-model property triggers `QStyleSheetStyle` to
+   take over widget painting.  Both rules carry the same values; the
+   restatement is mechanical, not visual.
+
+   `background: transparent` is the load-bearing macOS Aqua bypass
+   (rect F-M1).  Aqua (the DEFAULT style when `setStyle("Fusion")` is
+   NOT called in `main()` — confirmed: AVC does not opt into Fusion)
+   ignores ALL QSS text-alignment on QPushButton regardless of
+   box-model properties because Aqua's native button renderer draws
+   the label at a hardcoded position inside a pre-composited native
+   bead.  Setting `background:` to ANY value (transparent is visually
+   a no-op vs the base rule's missing background) forces full-QSS-
+   paint mode and bypasses the native Aqua renderer entirely.  The
+   existing `display-toggle` rule uses this technique; without it
+   here, the alignment fix is a silent no-op on the team's primary
+   development platform.
+
+   Scoped via [role="colors-button"] dynamic-property selector rather than
+   extending the global QPushButton text-align (which would cascade to
+   Reset Defaults / Reset Camera / view-preset buttons, all of which are
+   intentionally center-aligned because they have no icons).  Established
+   role-property pattern from dark-mode-2026q2-e1 rect H1.
+*/
+QPushButton[role="colors-button"] {{
+    text-align: left;
+    padding: 3px 8px;
+    border-radius: 3px;
+    background: transparent;
+}}
+
 /* --- Reset-to-defaults button -- visually distinct from primary actions */
 QPushButton#resetDefaultsBtn {{
     background-color: {palette["BG_RESET_BTN"]};

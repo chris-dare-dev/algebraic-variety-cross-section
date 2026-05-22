@@ -152,7 +152,14 @@ class AppearancePanel(QWidget):
     def _build_color_group(self) -> QGroupBox:
         box = QGroupBox("Colors")
         vl = QVBoxLayout(box)
-        vl.setSpacing(6)
+        # appearance-panel-layout-pass-2026q3-e2 rect F-L2: 6→4 to match
+        # the Render Mode group's intra-row spacing.  The 6px was a
+        # holdover from center-aligned buttons (extra spacing to
+        # compensate for sparse-text feel); after left-align the
+        # discontinuity vs the 4px Render Mode group below reads as a
+        # rhythm break across the group boundary.  Blender 4.x N-panel
+        # uses uniform 4px intra-row spacing across all sub-sections.
+        vl.setSpacing(4)
 
         # Surface color row
         surf_row = QHBoxLayout()
@@ -160,6 +167,13 @@ class AppearancePanel(QWidget):
         self._surf_swatch = _make_swatch(self._surface_color)
         surf_btn = QPushButton("Surface…")
         surf_btn.setToolTip("Choose the surface fill color")
+        # appearance-panel-layout-pass-2026q3-e2 (F-M2 closure): tag the
+        # color-picker buttons with the `colors-button` role so they pick
+        # up the `text-align: left` QSS rule and visually align with the
+        # display-toggle buttons in the Render Mode group below.  See
+        # CONTEXT.md §4.3b for the role-property pattern (NOT §4.3a —
+        # rect M1 citation fix).
+        surf_btn.setProperty("role", "colors-button")
         surf_btn.clicked.connect(self._pick_surface_color)
         surf_row.addWidget(self._surf_swatch)
         surf_row.addWidget(surf_btn, stretch=1)
@@ -171,6 +185,9 @@ class AppearancePanel(QWidget):
         self._bg_swatch = _make_swatch(self._bg_color)
         bg_btn = QPushButton("Background…")
         bg_btn.setToolTip("Choose the viewport background color")
+        # appearance-panel-layout-pass-2026q3-e2 (F-M2 closure): same as
+        # the Surface… button — left-align via colors-button role.
+        bg_btn.setProperty("role", "colors-button")
         bg_btn.clicked.connect(self._pick_bg_color)
         bg_row.addWidget(self._bg_swatch)
         bg_row.addWidget(bg_btn, stretch=1)
@@ -179,7 +196,16 @@ class AppearancePanel(QWidget):
         return box
 
     def _build_toggles_group(self) -> QGroupBox:
-        box = QGroupBox("Display")
+        # appearance-panel-layout-pass-2026q3-e2 (F-L2 closure):
+        # "Render Mode" replaces the generic "Display" header.  MeshLab
+        # uses this exact term for its wireframe/solid/flat toggle set,
+        # which is the closest peer to AVC's Wireframe / Show edges / HQ
+        # smoothing trio.  Blender uses "Viewport Overlays" / "Shading";
+        # ParaView uses "Representation"; 3D Slicer uses "Display Type"
+        # within a "Display" section.  "Render Mode" was the more
+        # specific option the prior milestone's frontend critic
+        # recommended (F-L2).
+        box = QGroupBox("Render Mode")
         vl = QVBoxLayout(box)
         vl.setSpacing(4)
 
@@ -243,12 +269,13 @@ class AppearancePanel(QWidget):
         self._hq_smoothing_cb.setToolTip(
             "Apply a second Taubin smoothing pass (n_iter=40, pass_band=0.05) "
             "to reduce the double-curve sawtooth-ridge artifact on Enriques "
-            "figs 1 and 2.  Adds roughly +31% generate time — about +140 ms "
-            "on a reference dev machine at default grid resolution; absolute "
-            "cost is hardware-dependent.  Disabled (greyed out) on other "
-            "surfaces — the second pass targets double-curve topology "
-            "specifically and gives no benefit on K3 / CY3 / Fano / Enriques "
-            "figs 3+4."
+            "figs 1 and 2.  Unlike Wireframe / Show edges (display-only "
+            "toggles), this triggers a full mesh regeneration — adds roughly "
+            "+31% generate time, about +140 ms on a reference dev machine at "
+            "default grid resolution; absolute cost is hardware-dependent.  "
+            "Disabled (greyed out) on other surfaces — the second pass "
+            "targets double-curve topology specifically and gives no benefit "
+            "on K3 / CY3 / Fano / Enriques figs 3+4."
         )
         self._hq_smoothing_cb.setProperty("role", "display-toggle")
         self._hq_smoothing_cb.toggled.connect(self._on_hq_smoothing_toggled)

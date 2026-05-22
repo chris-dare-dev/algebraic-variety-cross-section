@@ -194,3 +194,26 @@
 - Worker dispatch for a coarse-LOD-mode kwarg injection: mirror the e1's `hq_smoothing=True` injection at app.py:647-652 — the dispatch surface is unchanged, just one more kwarg sliding into `params` before `MeshWorker(surface.generate, dict(params), generation)`. No worker-API change.
 - `MeshResult` gains `is_coarse: bool = False` (trailing defaulted field, same dataclass-extension precedent as `typical_ms`/`coarse_n`). The slot reads `result.is_coarse` for branching — result self-describes, cleaner than reading the dispatch-time `_inflight_is_coarse`.
 - Status-bar bbox readout (`app.py:789-792` reads `_raw_mesh.bounds`) MUST be suppressed during coarse renders — the coarse bbox would have ~1% drift from full-res and reading 3-decimal-place "honest" numbers from a transient approximation is AI-15-dishonest. The Preview-format that omits bbox is the right answer.
+
+## appearance-panel-layout-pass-2026q3-e2 (2026-05-22)
+
+### Brief-extraction patterns
+- "Close deferred F-M2 + F-L2" briefs are pure QSS/widget-property milestones — the architecture decision (option 1 vs 2 vs 3) is always the central question, not math. Grep the original adversary critique for the finding text; it usually already names the options and signals a preferred direction.
+- "Layout consistency" briefs resolve to role-property narrowing (Option 2) when the broader fix (Option 1, global rule) has documented regression risk for named-rule buttons. The brief's explicit "could regress X" language is the strongest signal to prefer the targeted fix.
+
+### Prior-art discovery
+- `render-panel-chrome.py` captures are essential for layout milestones. Run it immediately and Read the PNG to confirm the alignment fracture is real before analyzing the code. For this milestone the fracture was immediately visible: Colors group center-aligned, Display group left-aligned.
+- For header rename milestones, the grep pattern `QGroupBox(` in `appearance_panel.py` (or the target panel) gives the current name in one search. Peer-tool terminology audit: MeshLab "Render Mode" was the exact match for wireframe+edges+quality toggle group.
+- When a QSS fix needs to force `QStyleSheetStyle` on macOS (for `text-align: left` to be honored), the rule MUST include at least one box-model property (padding, border, or background). This is a recurring macOS-QSS footgun — always check whether the new role rule includes a triggering property.
+
+### AI-N conflict heuristics
+- AI-11: `setProperty("role", "string-value")` is NEVER an AI-11 concern. AI-11 covers fully-qualified Qt enum forms (`Qt.AlignmentFlag`, etc.) only. Don't false-flag property string calls.
+- AI-13: text-align changes have zero PyVista color-flow impact. Only check AI-13 if new hex literals are introduced.
+- AI-2: New tests for QSS/role-property changes are always source-text grep tests (count the `setProperty` calls, grep the rendered stylesheet string). Never need `QApplication` for these. Use `count >= N` not `in` for multi-instance checks (the M1 finding from display-toggles captured this lesson already).
+
+## realtime-variety-render-e2 (2026-05-22)
+- **Pre-implementation detection pattern**: always check `git log --oneline --all | grep -i "e{N}"` BEFORE diving into a full research pass. Commit `42b6c17` `feat(realtime-variety-render-e2): ...` confirmed the milestone was already shipped before the research agent was dispatched. State.json was stuck at `research-running` — a pipeline state management artifact, not a signal that work remained.
+- **Milestone state divergence heuristic**: if `state.json.phase == "research-running"` but `tests/test_<milestone_keyword>.py` exists AND all its tests pass AND the relevant commit appears in `git log`, the milestone is complete and the research brief should say so explicitly rather than re-deriving the implementation.
+- **The CAND-8 / e2 dataclass pattern**: adding a trailing `typical_ms: int = 0` field to a non-frozen `@dataclass` is the clean pattern for surface-speed hints. The `should_render_on_drag` free-function predicate (not a method) is required by AI-2 (Qt-free tests) — always pull dispatch predicates into free functions when they need to be unit-tested without QApplication.
+- **Grep for `params_preview_changed` to find e2-class drag-tick wiring**: the e1-e2 debounce split is: `params_changed` (release, always renders) vs `params_preview_changed` (drag-tick, speed-routed). This split pattern is reusable for any future "fast surface" milestone.
+- **AI-9 analysis for async dispatch**: after e4 (background worker), the re-entrancy concern is now `_computing` single-flight + `_pending_render` queue-latest, NOT `processEvents`. Any milestone touching `_render_current` must verify the `_computing` guard is respected, not a `processEvents` guard.
