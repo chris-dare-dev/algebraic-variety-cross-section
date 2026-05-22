@@ -1,8 +1,8 @@
 {
   "id": "focus-ring-contrast-2026q2-e1",
   "created_at": "2026-05-22T14:59:48Z",
-  "updated_at": "2026-05-22T15:15:16Z",
-  "phase": "rectify-running",
+  "updated_at": "2026-05-22T15:15:49Z",
+  "phase": "complete",
   "phase_history": [
     {
       "phase": "init",
@@ -35,6 +35,10 @@
     {
       "phase": "rectify-running",
       "at": "2026-05-22T15:13:20Z"
+    },
+    {
+      "phase": "complete",
+      "at": "2026-05-22T15:15:49Z"
     }
   ],
   "milestone_brief": "Close the deferred M4 finding from variety-palette-2026q2-e1 / UPL-1: PALETTE_LIGHT['FOCUS_RING'] = '#5b9bd5' currently measures 2.60:1 against BG_PANEL '#f0f0f0' \u2014 below the WCAG 2.1 \u00a71.4.11 non-text 3:1 floor for focus indicators. Darken to a value that passes 3:1 on light AND keeps the existing 3:1 pass on PALETTE_DARK['BG_PANEL'] = '#252526' (currently 5.17:1 with #5b9bd5). Researcher's suggested candidate from the original M4 disposition: '#3c82c4' (~3.1:1 on light, ~5.5:1 on dark). Architecture decision: prefer Option A (single FOCUS_RING value shared by both palettes) for consistency with the existing 'key-identical palettes' pattern (BG_SURFACE_DEFAULT already shared); only fall back to per-theme values if no single hex clears 3:1 on both backgrounds simultaneously. Add a symmetric test_light_non_text_borders_meet_wcag_aa_on_bg_panel guard mirroring the existing dark non-text border test (tests/test_styles_palette.py:419 test_dark_non_text_borders_meet_wcag_aa_on_bg_panel_dark) so future regressions are caught on both themes. Update the styles.py:83-87 comment block noting the fix is shipped (was 'flagged for UPL-4 / accessibility pass'). AI invariants: AI-12 (target \u2014 the whole point of this milestone), AI-13 (6-digit hex), AI-2 (test stays Qt-free). No conflicts with dark-mode/qtawesome/enriques/status-bar-bbox/parameter-grid milestones \u2014 confirmed by file-touch audit.",
@@ -63,7 +67,7 @@
     "medium": 2,
     "low": 3
   },
-  "rectification_commit": null,
+  "rectification_commit": "bd9e4ce92d4b1c0a76ede939babe87ff311b4595",
   "fixed_findings": [
     "F-M1",
     "M1",
