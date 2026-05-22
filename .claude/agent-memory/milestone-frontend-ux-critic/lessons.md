@@ -178,3 +178,22 @@
 ### First-launch / section-9 regressions
 - No first-launch regression. `refresh_icons` is visual-chrome-only — no dropdown, no `_render_current`, no actor creation. Fast check: does `refresh_icons` call anything other than `setIcon` / `setIconSize` on existing widgets? If not, section-9.3 is clean. This check takes under 5 seconds on a visual scan of the method body.
 - Pattern-A architecture (icons applied after construction, re-applied on theme swap at THREE call sites: `__init__`, `_on_theme_changed`, `_apply_system_theme`) is the established correct pattern. When a new panel gains a `refresh_icons` method, verify all three call sites are symmetric — missing one call site is the class of bug that produces "icons don't update on theme swap."
+
+## display-toggles-checkable-button-2026q3-e1 (UPL-4 F-M2 closure) — 2026-05-22
+
+### Token-discipline near-misses
+- No short-hex or shorthand-enum in this diff. `BG_TOGGLE_CHECKED` is 6-digit hex in both palettes; no Qt enum usages introduced; no processEvents. All three axes disposed in one pass.
+- AI-13 fast gate confirmed again: `BG_TOGGLE_CHECKED` flows only into the QSS template, never into a PyVista kwarg. Ask "does this color arg reach pv.Plotter?" -- if not, AI-13 is clear.
+- Checked-state WCAG argument delegated to FOCUS_RING border (already proven). The fill token only needs text-on-fill contrast (9.89:1 / 10.20:1 -- far above 4.5:1 floor). Make this pattern fast: if the active-state indicator is a border, the fill need only clear text-on-fill, NOT fill-vs-ground as a non-text component.
+- The WCAG annotation documents fill-vs-hover (1.10:1) but not fill-vs-border (3.17:1 / 4.55:1). Both pairs should be documented. Pattern: whenever a fill token is described as "decorative reinforcement", also measure and annotate the indicator-border-vs-that-fill ratio to prove the border reads against its own interior surface.
+
+### Industry-comparison surprises (concrete findings generated)
+- **Ghost-button unchecked state is a web-UI convention, NOT a desktop scientific-viz convention.** Blender 4.x, 3D Slicer 5.x, and ParaView all give off-state display toggles visible chrome (Blender: darkened background fill; Slicer: raised border; ParaView: check-square indicator). The ghost pattern (transparent/borderless) is common in Material Design web apps but confuses mouse-first desktop users. Always check: does the peer app show button chrome in the off state? If yes, a transparent-unchecked implementation is a MEDIUM finding.
+- **text-align: left on icon-bearing buttons should be applied globally, not role-specifically.** When only the display-toggle buttons get `text-align: left` and the adjacent Colors-group buttons use Qt default (center), the panel has an alignment fracture at the group boundary. Blender left-aligns ALL icon+text controls uniformly within a panel. The fix is global (add to the QPushButton base rule) or at least section-wide.
+
+### First-launch / section-9 regressions
+- No regression: both toggles start `setChecked(False)` with transparent chrome. The migration is state-preserving relative to the prior QCheckBox defaults. Fast check: trace initial values of `self._wireframe` and `self._show_edges` in `__init__` -- both False, so `setChecked(False)` matches prior behavior.
+- Pattern confirmed: widget-type migrations that preserve attribute names (`_wireframe_cb`, `_edges_cb`) and the toggled signal signature require zero wiring changes downstream. The API-compatibility argument (both QCheckBox and QPushButton inherit from QAbstractButton) is the load-bearing reason this worked cleanly.
+
+### Border-width-change jitter -- a recurring LOW finding for toggle buttons
+- Changing `border-width` from 1px (unchecked) to 2px (checked) in QSS causes a 1px content shift in Qt's box model. This is the classic CSS active-state jitter. The fix is either (a) compensate padding by -1px when border grows, or (b) use `outline:` instead of `border-width:` for the checked indicator -- `outline` renders outside the box model and does not shift content. This is always LOW (subtle, HiDPI-visible) but easy to fix. Flag it on any QPushButton role that changes border-width between pseudo-states.

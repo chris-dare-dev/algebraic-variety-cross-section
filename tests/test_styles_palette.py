@@ -801,17 +801,24 @@ def test_appearance_panel_display_toggles_are_qpushbutton_not_qcheckbox() -> Non
         "CONTEXT.md §8.15."
     )
 
-    # Positive assertions: the new pattern is present.
-    assert "setCheckable(True)" in src, (
-        "appearance_panel.py is missing setCheckable(True) — the "
-        "QPushButton display toggles must explicitly opt into "
-        "checkable behavior."
+    # Positive assertions: count-based (NOT single-occurrence `in`) so a
+    # half-migration regression — where one of the two toggles reverts
+    # while the other retains the sentinel string — fails loudly instead
+    # of silently passing.  See the adversary critique M1 (rect pass):
+    # `in` would let a single surviving `setCheckable(True)` from the
+    # un-reverted button mask the regression on the other.
+    assert src.count("setCheckable(True)") >= 2, (
+        "appearance_panel.py contains fewer than 2 setCheckable(True) "
+        "calls — both Wireframe AND Show-edges display toggles must "
+        f"opt into checkable behavior.  Found {src.count('setCheckable(True)')}; "
+        f"expected >=2.  Check for a half-migration regression."
     )
-    assert 'setProperty("role", "display-toggle")' in src, (
-        "appearance_panel.py is missing setProperty('role', "
-        "'display-toggle') — without it the new QSS rules don't "
-        "target the toggles and the :checked state has no visual "
-        "indicator."
+    assert src.count('setProperty("role", "display-toggle")') >= 2, (
+        "appearance_panel.py contains fewer than 2 "
+        "setProperty('role', 'display-toggle') calls — both toggles "
+        "must carry the role so the QSS :checked rules target them.  "
+        f"Found {src.count('setProperty(\"role\", \"display-toggle\")')}; "
+        f"expected >=2.  Check for a half-migration regression."
     )
 
 
