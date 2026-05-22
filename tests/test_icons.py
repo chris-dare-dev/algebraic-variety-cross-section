@@ -174,6 +174,17 @@ def test_icons_return_valid_qicons_with_qapplication() -> None:
         (icons.reset_camera_icon, "reset_camera_icon"),
         (icons.screenshot_icon, "screenshot_icon"),
         (icons.reset_defaults_icon, "reset_defaults_icon"),
+        # qtawesome-icons-2026q2-e2 (UPL-4 v1) — camera presets
+        (icons.preset_plus_x_icon, "preset_plus_x_icon"),
+        (icons.preset_minus_x_icon, "preset_minus_x_icon"),
+        (icons.preset_plus_y_icon, "preset_plus_y_icon"),
+        (icons.preset_minus_y_icon, "preset_minus_y_icon"),
+        (icons.preset_plus_z_icon, "preset_plus_z_icon"),
+        (icons.preset_minus_z_icon, "preset_minus_z_icon"),
+        (icons.preset_isometric_icon, "preset_isometric_icon"),
+        # qtawesome-icons-2026q2-e2 (UPL-4 v1) — display toggles
+        (icons.wireframe_icon, "wireframe_icon"),
+        (icons.show_edges_icon, "show_edges_icon"),
     )
     for fn, name in targets:
         for theme in ("dark", "light"):
@@ -182,3 +193,136 @@ def test_icons_return_valid_qicons_with_qapplication() -> None:
                 f"{name}({theme!r}) returned a null QIcon — either the MDI 6 "
                 f"icon name is wrong or the qtawesome font failed to load."
             )
+
+
+# =============================================================================
+# qtawesome-icons-2026q2-e2 (UPL-4 v1) — camera presets + display toggles
+# =============================================================================
+
+
+def test_v0_icons_still_bind_correctly() -> None:
+    """Regression guard for the v0 icon factories (qtawesome-icons-2026q2-e1).
+
+    All three original v0 icons (Reset Camera, Screenshot, Reset Defaults)
+    must continue to call ``qta.icon()`` with the original MDI 6 icon names.
+    The v1 milestone (qtawesome-icons-2026q2-e2) extends ``icons.py`` with 9
+    additional factories — this test fails loudly if a v1 refactor renames,
+    re-routes, or accidentally removes any v0 icon binding.
+
+    Mocked at the qta boundary (AI-2 compliant).
+    """
+    from unittest.mock import MagicMock, patch
+    import icons
+
+    mock_qta = MagicMock()
+    mock_qta.icon.return_value = MagicMock(name="QIcon")
+
+    v0_bindings = (
+        # (factory, expected mdi6 name, expected color helper)
+        (icons.reset_camera_icon, "mdi6.fit-to-screen", "_icon_color"),
+        (icons.screenshot_icon, "mdi6.camera", "_icon_color"),
+        (icons.reset_defaults_icon, "mdi6.restore", "_reset_defaults_icon_color"),
+    )
+
+    with patch.object(icons, "_qta", mock_qta):
+        for factory, expected_name, color_helper_name in v0_bindings:
+            for theme in ("dark", "light"):
+                mock_qta.icon.reset_mock()
+                factory(theme)
+                expected_color = getattr(icons, color_helper_name)(theme)
+                mock_qta.icon.assert_called_with(expected_name, color=expected_color)
+
+
+def test_camera_preset_icons_correct_names_and_colors() -> None:
+    """v1: each of the 7 camera-preset factories calls ``qta.icon()`` with
+    the right ``mdi6.axis-*-arrow`` name, the right ``rotated=`` value
+    (0/absent for + directions, 180 for - directions), and the TEXT_VALUE
+    color routed through ``_icon_color(theme)``.  Covers BOTH themes.
+
+    Mocked (AI-2 compliant).
+    """
+    from unittest.mock import MagicMock, patch
+    import icons
+
+    mock_qta = MagicMock()
+    mock_qta.icon.return_value = MagicMock(name="QIcon")
+
+    # (factory, expected mdi6 name, expected rotated kwarg or None)
+    preset_bindings = (
+        (icons.preset_plus_x_icon,    "mdi6.axis-x-arrow", None),
+        (icons.preset_minus_x_icon,   "mdi6.axis-x-arrow", 180),
+        (icons.preset_plus_y_icon,    "mdi6.axis-y-arrow", None),
+        (icons.preset_minus_y_icon,   "mdi6.axis-y-arrow", 180),
+        (icons.preset_plus_z_icon,    "mdi6.axis-z-arrow", None),
+        (icons.preset_minus_z_icon,   "mdi6.axis-z-arrow", 180),
+        (icons.preset_isometric_icon, "mdi6.axis-arrow",   None),
+    )
+
+    with patch.object(icons, "_qta", mock_qta):
+        for factory, expected_name, expected_rotated in preset_bindings:
+            for theme in ("dark", "light"):
+                mock_qta.icon.reset_mock()
+                factory(theme)
+                expected_color = icons._icon_color(theme)
+                if expected_rotated is None:
+                    mock_qta.icon.assert_called_with(expected_name, color=expected_color)
+                else:
+                    mock_qta.icon.assert_called_with(
+                        expected_name, color=expected_color, rotated=expected_rotated
+                    )
+
+
+def test_display_toggle_icons_correct_names_and_colors() -> None:
+    """v1: ``wireframe_icon`` uses ``mdi6.grid`` and ``show_edges_icon`` uses
+    ``mdi6.border-outside``, both with the TEXT_VALUE color (NOT
+    TEXT_RESET_BTN — these are standard display toggles, not the
+    destructive-action Reset Defaults variant).  Both themes covered.
+
+    Mocked (AI-2 compliant).
+    """
+    from unittest.mock import MagicMock, patch
+    import icons
+
+    mock_qta = MagicMock()
+    mock_qta.icon.return_value = MagicMock(name="QIcon")
+
+    toggle_bindings = (
+        (icons.wireframe_icon,  "mdi6.grid"),
+        (icons.show_edges_icon, "mdi6.border-outside"),
+    )
+
+    with patch.object(icons, "_qta", mock_qta):
+        for factory, expected_name in toggle_bindings:
+            for theme in ("dark", "light"):
+                mock_qta.icon.reset_mock()
+                factory(theme)
+                expected_color = icons._icon_color(theme)
+                mock_qta.icon.assert_called_with(expected_name, color=expected_color)
+
+
+def test_wireframe_and_edges_icons_are_distinct_names() -> None:
+    """v1: the Wireframe and Show-edges toggles produce visually similar
+    effects in the VTK viewport (both relate to surface edges); their icons
+    MUST use different ``mdi6.*`` names so users can distinguish the two
+    toggles at a glance.  This guards against a copy-paste error during
+    future palette / icon refreshes.
+
+    Asserts on the module-level ``WIREFRAME_ICON_NAME`` /
+    ``SHOW_EDGES_ICON_NAME`` constants exposed for this purpose (rather
+    than docstring scraping).
+    """
+    import icons
+
+    assert icons.WIREFRAME_ICON_NAME != icons.SHOW_EDGES_ICON_NAME, (
+        f"WIREFRAME_ICON_NAME ({icons.WIREFRAME_ICON_NAME!r}) and "
+        f"SHOW_EDGES_ICON_NAME ({icons.SHOW_EDGES_ICON_NAME!r}) must use "
+        f"different MDI 6 glyphs so the two display toggles are visually "
+        f"distinct at 16px."
+    )
+    # Both must be non-empty mdi6.* strings (lightweight format guard).
+    assert icons.WIREFRAME_ICON_NAME.startswith("mdi6."), (
+        f"WIREFRAME_ICON_NAME ({icons.WIREFRAME_ICON_NAME!r}) is not mdi6.*"
+    )
+    assert icons.SHOW_EDGES_ICON_NAME.startswith("mdi6."), (
+        f"SHOW_EDGES_ICON_NAME ({icons.SHOW_EDGES_ICON_NAME!r}) is not mdi6.*"
+    )

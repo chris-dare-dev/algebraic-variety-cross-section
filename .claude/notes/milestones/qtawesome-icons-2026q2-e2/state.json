@@ -1,0 +1,50 @@
+{
+  "id": "qtawesome-icons-2026q2-e2",
+  "created_at": "2026-05-22T15:21:14Z",
+  "updated_at": "2026-05-22T15:31:40Z",
+  "phase": "implement-running",
+  "phase_history": [
+    {
+      "phase": "init",
+      "at": "2026-05-22T15:21:14Z"
+    },
+    {
+      "phase": "research-running",
+      "at": "2026-05-22T15:21:29Z"
+    },
+    {
+      "phase": "research-complete",
+      "at": "2026-05-22T15:30:24Z"
+    },
+    {
+      "phase": "implement-running",
+      "at": "2026-05-22T15:30:43Z"
+    }
+  ],
+  "milestone_brief": "Extend qtawesome icon coverage to the v1 scope deferred from qtawesome-icons-2026q2-e1 (UPL-4 v0). The v0 milestone covered 3 toolbar/dialog buttons (Reset Camera, Screenshot, Reset Defaults) and explicitly deferred: (a) the 7 camera-preset buttons in the View panel (+X, -X, +Y, -Y, +Z, -Z, Isometric), (b) the Wireframe and Show-edges display-toggle checkboxes in the Appearance panel, and (c) a render-spinner icon shown during mesh generation (~0.5s window). This milestone closes (a) and (b); the spinner (c) is the riskiest because it touches re-entrancy (AI-9 _computing guard) and may need its own follow-up \u2014 research should flag if spinner integration crosses any AI-9 risk lines or requires extending into the timer/QMovie surface. Reuse the established Pattern-A architecture from qtawesome-icons-2026q2-e1: panel stores theme + qta state, MainWindow calls refresh_icons(theme) on theme change. Icon color routes through _icon_color(theme) returning palette['TEXT_VALUE']. Lazy-import qtawesome via _get_qta() in icons.py to defer the 150-200ms font-cache cost. AI invariants: AI-1 (PySide6 stack), AI-2 (tests stay Qt-free \u2014 mock qta module for icon tests), AI-9 (no processEvents added; theme-change is synchronous), AI-11 (any new Qt enum references use fully-qualified form), AI-13 (6-digit hex from palette tokens only). Look at the established icons.py / refresh_icons() patterns from e1 and extend without breaking existing v0 icons. Each panel that gains icons must wire refresh_icons through MainWindow._on_theme_changed and _apply_system_theme. Test coverage: extend tests/test_icons.py with theme-aware tests for each new icon + a regression guard that all existing v0 icons still bind correctly. CONTEXT.md \u00a73 deferred-scope bullet should be updated to reflect what v1 closes (camera presets + display toggles) and what remains deferred (spinner \u2014 if still deferred after research). The brief is fully specified; researcher should verify the icon names (mdi6.* or fa5s.*) for camera-preset arrow semantics and display-toggle wireframe/edge icons that are visually distinct, theme-readable at small button sizes, and license-compatible.",
+  "research_mode": "single",
+  "oss_scout_requested": false,
+  "research_briefs": [
+    ".claude/notes/milestones/qtawesome-icons-2026q2-e2/research/agent-solo-brief.md"
+  ],
+  "research_synthesis": "9 new icon factories in icons.py (7 camera presets via mdi6.axis-{x,y,z}-arrow with rotated=180 for minus; mdi6.axis-arrow for Isometric; mdi6.grid for Wireframe; mdi6.border-outside for Show-edges). Promote view_panel preset btn locals to self._preset_btns dict + self._iso_btn. Add appearance_panel.refresh_icons. Wire from app.py at 3 attach points (init, _on_theme_changed, _apply_system_theme). Spinner deferred to v2 \u2014 AI-9 risk with QMovie.updated during processEvents. ~169 LOC.",
+  "implementation_path": "inline",
+  "implementation_plan": ".claude/notes/milestones/qtawesome-icons-2026q2-e2/artifacts/implementation-plan.md",
+  "implementation_base": "930392e3f18890859c3cf5f851b846a2077191ec",
+  "implementation_commit_range": null,
+  "implementation_commits": [],
+  "implementation_branch": null,
+  "critique_path": null,
+  "critics_run": [],
+  "critique_finding_counts": {
+    "critical": 0,
+    "high": 0,
+    "medium": 0,
+    "low": 0
+  },
+  "rectification_commit": null,
+  "fixed_findings": [],
+  "deferred_findings": [],
+  "invalidated_findings": [],
+  "regression_tests_added": []
+}

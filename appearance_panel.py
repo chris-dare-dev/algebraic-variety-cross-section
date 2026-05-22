@@ -409,3 +409,43 @@ class AppearancePanel(QWidget):
         pass.  AI-9 safe (no ``processEvents``).
         """
         self._culling = value
+
+    def refresh_icons(self, theme: str = "dark") -> None:
+        """Re-apply qtawesome icons to the Wireframe + Show-edges display
+        toggles with the active theme's color
+        (qtawesome-icons-2026q2-e2 / UPL-4 v1).
+
+        Called by ``MainWindow.__init__`` (initial paint, after widget
+        construction so ``QApplication`` is alive) and by
+        ``MainWindow._on_theme_changed`` / ``_apply_system_theme`` (so
+        icons re-render with the new color on theme swap).  Must NOT be
+        called from ``_build_toggles_group()`` — at that point
+        ``QApplication`` is not yet fully active and ``qta.icon()``
+        silently returns an empty ``QIcon`` (CONTEXT.md §8.12 footgun).
+
+        Why these two checkboxes get icons:
+        - ``self._wireframe_cb`` (Wireframe) — ``mdi6.grid`` (open lattice)
+        - ``self._edges_cb`` (Show edges) — ``mdi6.border-outside``
+          (solid + outer border)
+
+        The two icons are intentionally chosen to be visually distinct at
+        16px since the two toggles produce visually similar VTK effects
+        — see ``icons.WIREFRAME_ICON_NAME`` / ``SHOW_EDGES_ICON_NAME``
+        and the ``test_wireframe_and_edges_icons_are_distinct_names``
+        regression guard.
+
+        ``QCheckBox`` inherits ``setIcon()`` from ``QAbstractButton``;
+        the icon renders between the check-square indicator and the
+        text label.  No QToolButton migration required.  Sets a fixed
+        ``QSize(16, 16)`` to match the view-panel preset-button
+        convention so the Appearance dock's vertical rhythm aligns.
+        AI-9 safe (synchronous ``setIcon`` / ``setIconSize`` calls).
+        """
+        import icons
+        from PySide6.QtCore import QSize
+
+        _ICON_SIZE = QSize(16, 16)
+        self._wireframe_cb.setIconSize(_ICON_SIZE)
+        self._wireframe_cb.setIcon(icons.wireframe_icon(theme))
+        self._edges_cb.setIconSize(_ICON_SIZE)
+        self._edges_cb.setIcon(icons.show_edges_icon(theme))
