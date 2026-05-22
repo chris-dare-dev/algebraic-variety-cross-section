@@ -1,8 +1,8 @@
 {
   "id": "enriques-hq-smoothing-2026q3-e1",
   "created_at": "2026-05-22T20:33:10Z",
-  "updated_at": "2026-05-22T20:40:42Z",
-  "phase": "implement-running",
+  "updated_at": "2026-05-22T21:08:32Z",
+  "phase": "rectify-running",
   "phase_history": [
     {
       "phase": "init",
@@ -19,6 +19,22 @@
     {
       "phase": "implement-running",
       "at": "2026-05-22T20:39:44Z"
+    },
+    {
+      "phase": "implement-complete",
+      "at": "2026-05-22T20:50:30Z"
+    },
+    {
+      "phase": "critique-running",
+      "at": "2026-05-22T20:50:42Z"
+    },
+    {
+      "phase": "critique-complete",
+      "at": "2026-05-22T21:02:56Z"
+    },
+    {
+      "phase": "rectify-running",
+      "at": "2026-05-22T21:02:56Z"
     }
   ],
   "milestone_brief": "Close the deferred work from enriques-taubin-spike-2026q2-e1 Path B: expose the second Taubin pass (n_iter=40, pass_band=0.05) as an OPT-IN slider for Enriques figs 1+2 (double-curve topology). Spike measured median +138ms (+30.8%) overhead \u2014 587.5ms total vs 500ms budget \u2014 so it cannot be the default but is valuable for screenshot/publication-quality renders. Architecture decision space the researcher must resolve: (1) Where does the toggle live? Options: (a) per-figure ParamSpec on figs 1+2 (boolean param 'hq_smoothing' that adds to the existing c slider and the lam0/lam3 sliders); (b) global app-level setting via a 'HQ smoothing' checkbox in the Appearance panel that applies to whatever variety is active; (c) global Tools or Settings menu entry. Researcher should evaluate against AI-8 (Surface dataclass frozen \u2014 adding a ParamSpec is the established extension point; adding a global app-level setting is a new surface), Pattern-A precedent (enriques-backface-2026q2-e1 used MainWindow gating, not ParamSpec), and discoverability (a panel checkbox is the most user-facing but adds Qt-panel surface; a ParamSpec slider is the lowest-friction code path but less discoverable). (2) Granularity: boolean on/off OR a slider for n_iter? The spike used n_iter=40. (3) Scope: does it apply only when active variety is 'Enriques surface' AND active subtype is fig 1 or fig 2, OR is it a universal 'extra smoothing' lever that any implicit-surface generator could honor? (4) Default state: confirmed OFF at launch to preserve the 449ms baseline. (5) Persistence: out of scope (QSettings is CONTEXT.md \u00a79 non-goal); the toggle resets per-session. Implementation must NOT change the default behavior of enriques_figure_1/2 \u2014 they STILL run single-pass at bounds=1.89 by default. The second pass only fires when the new opt-in is True. Test surface: add tests/test_enriques_hq_smoothing.py with (a) generator returns valid mesh when opt-in is True, (b) opt-in=True mesh has lower vertex-normal variance than opt-in=False (quantitative quality guard), (c) opt-in default is False (regression guard against accidentally enabling). AI invariants: AI-6 (smoothing STACKS on existing first pass; do NOT replace), AI-8 (no Surface dataclass field change \u2014 use ParamSpec OR Pattern-A state-on-panel), AI-9 (no processEvents \u2014 generator-time only), AI-14 (generator contract preserved), AI-2 (Qt-free tests). The realtime-variety-render-e1/e2 clipped-mesh cache helps slider-release responsiveness but NOT initial generate-time; toggling HQ smoothing forces a fresh generate (cache invalidation). Surface the cache-invalidation requirement to the researcher so they propose the right wire-up. Recommended researcher mode: --single (Sonnet). The brief is detailed enough for a single research pass to resolve the architecture question and produce a buildable plan.",
@@ -31,20 +47,38 @@
   "implementation_path": "inline",
   "implementation_plan": ".claude/notes/milestones/enriques-hq-smoothing-2026q3-e1/artifacts/implementation-plan.md",
   "implementation_base": "105c4ba1a274c88a2b6b8acb782641f266f7e2f5",
-  "implementation_commit_range": null,
-  "implementation_commits": [],
+  "implementation_commit_range": "105c4ba1a274c88a2b6b8acb782641f266f7e2f5..ad17cbe99733eb6e7aa0bb7a4424c26f63fa311a",
+  "implementation_commits": [
+    "ad17cbe99733eb6e7aa0bb7a4424c26f63fa311a"
+  ],
   "implementation_branch": null,
-  "critique_path": null,
-  "critics_run": [],
+  "critique_path": ".claude/notes/milestones/enriques-hq-smoothing-2026q3-e1/artifacts/adversary-critique.md",
+  "critics_run": [
+    "adversary",
+    "frontend-ux"
+  ],
   "critique_finding_counts": {
     "critical": 0,
-    "high": 0,
-    "medium": 0,
-    "low": 0
+    "high": 1,
+    "medium": 2,
+    "low": 2
   },
   "rectification_commit": null,
-  "fixed_findings": [],
-  "deferred_findings": [],
+  "fixed_findings": [
+    "M1",
+    "M2",
+    "F-HIGH",
+    "F-M1",
+    "F-M2",
+    "F-M3",
+    "L1",
+    "L2"
+  ],
+  "deferred_findings": [
+    "F-L1",
+    "F-L2",
+    "H1"
+  ],
   "invalidated_findings": [],
   "regression_tests_added": []
 }

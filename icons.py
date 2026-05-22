@@ -185,6 +185,7 @@ def reset_defaults_icon(theme: str = "dark") -> QIcon:
 # disambiguating direction, so they don't need analogous constants.
 WIREFRAME_ICON_NAME = "mdi6.grid"
 SHOW_EDGES_ICON_NAME = "mdi6.border-outside"
+HQ_SMOOTHING_ICON_NAME = "mdi6.auto-fix"
 
 
 def preset_plus_x_icon(theme: str = "dark") -> QIcon:
@@ -272,3 +273,21 @@ def show_edges_icon(theme: str = "dark") -> QIcon:
     confusion at 16px.
     """
     return _get_qta().icon(SHOW_EDGES_ICON_NAME, color=_icon_color(theme))
+
+
+def hq_smoothing_icon(theme: str = "dark") -> QIcon:
+    """HQ smoothing display-toggle (``mdi6.auto-fix``).
+
+    Magic-wand-with-sparkles glyph — semantically "applies an extra
+    pass that polishes the surface" (matches the +138 ms second
+    Taubin pass's role in the rendering pipeline).  Distinct from
+    ``wireframe_icon`` (open lattice) and ``show_edges_icon`` (filled
+    border) at 16px — three visually orthogonal icons across the
+    Display group.
+
+    Added in enriques-hq-smoothing-2026q3-e1 (rect F-M3): restores
+    the Display group's icon-cadence visual rhythm that the initial
+    feat commit broke by leaving the HQ button icon-less while
+    Wireframe + Show-edges both carried icons.
+    """
+    return _get_qta().icon(HQ_SMOOTHING_ICON_NAME, color=_icon_color(theme))

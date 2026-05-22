@@ -1135,6 +1135,17 @@ class MainWindow(QMainWindow):
 
 def main() -> int:
     QApplication.setAttribute(Qt.AA_ShareOpenGLContexts, True)
+    # enriques-hq-smoothing-2026q3-e1 (rect F-M1): show tooltips on
+    # disabled widgets too.  Qt's default behavior on macOS is to
+    # suppress QHelpEvent for disabled widgets — which means our
+    # greyed-out HQ-smoothing button (and any future disabled-state
+    # control) hides its informative tooltip from users.  Enabling
+    # this attribute restores tooltip dispatch for disabled widgets
+    # app-wide, which is the canonical Qt fix for the
+    # disabled-widget-no-tooltip discoverability problem.
+    QApplication.setAttribute(
+        Qt.ApplicationAttribute.AA_EnableToolTipsOnDisabledWidgets, True
+    )
     app = QApplication(sys.argv)
     # dark-mode-2026q2-e1 (UPL-1): dark is the launch default because the
     # VTK viewport is always #2f2f2f.  Users can toggle to Light or Follow

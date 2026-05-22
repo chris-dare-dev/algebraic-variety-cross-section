@@ -130,3 +130,25 @@
 
 ### First-launch / section-9 regressions
 - No regression possible from a text-only status-bar label change. `size_suffix` is only emitted in the success branch of `_render_current`, unreachable from `-- Select --`.
+
+---
+
+## enriques-hq-smoothing-2026q3-e1 — 2026-05-22
+
+### Token-discipline near-misses
+- No short-hex, no shorthand-enum, no processEvents outside the existing guard. Fast dispose in one sentence: no QColor literals added, no Qt.Align* usages, `Signal(bool)` from PySide6.QtCore correctly qualified.
+- `extra_kwargs: dict = {}` / `extra_kwargs["hq_smoothing"] = True` — not a color literal; AI-13 gate: "does this reach PyVista color=?" No — it is a bool kwarg to the generator. Clear.
+
+### Industry-comparison concrete findings
+- **Qt macOS disabled-widget tooltip gap:** `QApplication.setAttribute(Qt.ApplicationAttribute.AA_EnableToolTipsOnDisabledWidgets, True)` in `main()` is the one-line fix for "tooltip invisible on greyed button on macOS." Quote this whenever a button is `setEnabled(False)` with a populated `setToolTip()` — the combination silently breaks on macOS without the attribute set.
+- **ParaView OSPRay "OSPRay rendering..." status label** is the canonical model for attributing render-time overhead to an active quality toggle in the status bar. Whenever a milestone adds a user-toggled quality mode that changes generation time, flag the absence of a mode indicator in the computing/success status message as MEDIUM.
+- **Blender 4.x icon uniformity in a group:** all controls in the same group carry the same icon-size footprint — icon on ALL or NONE. A plain-text button between two icon+text buttons in the same QGroupBox is flagged as alignment fracture. Fast check: scan `_build_toggles_group`-equivalent methods for `setIcon` / `refresh_icons` coverage vs button count.
+
+### Performance-disclosure precision pattern
+- **Relative overhead (%) is hardware-independent; absolute (ms) is hardware-specific.** Always flag absolute-ms performance claims in tooltips as HIGH if the measurement is dev-machine-only. The fix: cite both "+N% / hardware-dependent" (relative, universally true) AND "(measured ~Xms on a reference machine at Y resolution)" (absolute, with explicit caveat). This pattern recurs whenever a milestone introduces an opt-in quality mode backed by a spike measurement from a single test machine.
+
+### First-launch / section-9 regressions
+- No regression: `set_hq_smoothing_eligible` does not call `_render_current` or touch `variety_combo`. `_on_hq_smoothing_changed` is a no-op when `_raw_mesh is None`. Fast verify: trace the new public methods — if none touch `_render_current` or the combo boxes, section-9.3 is clean.
+
+### State-reset-on-navigate UX
+- Unconditional `setChecked(False)` on `set_hq_smoothing_eligible(False)` is the "clear" pattern. This is defensible (avoids dangling-enabled bugs) but is the minority peer pattern (ParaView / SageMath both preserve per-object state). Flag as LOW when the state-clear has no status-bar feedback — the user cannot observe the reset happened.

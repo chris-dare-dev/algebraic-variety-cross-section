@@ -243,10 +243,12 @@ class AppearancePanel(QWidget):
         self._hq_smoothing_cb.setToolTip(
             "Apply a second Taubin smoothing pass (n_iter=40, pass_band=0.05) "
             "to reduce the double-curve sawtooth-ridge artifact on Enriques "
-            "figs 1 and 2.  Adds ~140 ms to mesh generation time.  "
-            "Disabled (greyed out) on other surfaces — the second pass "
-            "targets double-curve topology specifically and gives no benefit "
-            "on K3 / CY3 / Fano / Enriques figs 3+4."
+            "figs 1 and 2.  Adds roughly +31% generate time — about +140 ms "
+            "on a reference dev machine at default grid resolution; absolute "
+            "cost is hardware-dependent.  Disabled (greyed out) on other "
+            "surfaces — the second pass targets double-curve topology "
+            "specifically and gives no benefit on K3 / CY3 / Fano / Enriques "
+            "figs 3+4."
         )
         self._hq_smoothing_cb.setProperty("role", "display-toggle")
         self._hq_smoothing_cb.toggled.connect(self._on_hq_smoothing_toggled)
@@ -530,20 +532,33 @@ class AppearancePanel(QWidget):
         — switching away from a double-curve subtype with HQ enabled
         does NOT persist the setting across the move.
 
-        Setting checked to False emits ``toggled(False)`` which fires
-        ``_on_hq_smoothing_toggled`` and re-emits
-        ``hq_smoothing_changed`` — but MainWindow's handler is a
-        no-op on the resulting render since the same subtype change
-        already triggered ``_render_current`` upstream.  Idempotent.
+        **Programmatic reset MUST NOT emit the signal.**  We block
+        signals around the `setChecked(False)` call so that
+        `hq_smoothing_changed` does NOT fire on a variety/subtype
+        switch — the adversary critic caught a double-render bug
+        (M1, rect pass) where the signal would fire WHILE
+        `self._raw_mesh` was still the old surface and
+        `self._current_surface` was still the old surface, causing
+        `_render_current` to run a redundant ~449 ms render of the
+        surface the user just navigated away from before the new
+        surface's first render even started.  The signal exists
+        ONLY for direct user interaction with the toggle — never for
+        programmatic state resets.
         """
         self._hq_smoothing_cb.setEnabled(eligible)
         if not eligible:
-            # Clear stored state so a future re-enable starts unchecked.
-            # setChecked(False) emits toggled(False) when transitioning
-            # from True; harmless because MainWindow's handler is
-            # idempotent and the _render_current chain is already
-            # active during subtype switches.
-            self._hq_smoothing_cb.setChecked(False)
+            # Block signals so setChecked(False) does NOT emit
+            # `toggled(False)` → `_on_hq_smoothing_toggled` →
+            # `hq_smoothing_changed.emit(False)` → MainWindow.
+            # The variety/subtype switch is the authoritative re-render
+            # trigger; this method is just clearing UI state in
+            # preparation for it.  Without blockSignals the rendering
+            # double-fires (M1 from rect pass).
+            self._hq_smoothing_cb.blockSignals(True)
+            try:
+                self._hq_smoothing_cb.setChecked(False)
+            finally:
+                self._hq_smoothing_cb.blockSignals(False)
             self._hq_smoothing = False
 
     def refresh_icons(self, theme: str = "dark") -> None:
@@ -590,3 +605,10 @@ class AppearancePanel(QWidget):
         self._wireframe_cb.setIcon(icons.wireframe_icon(theme))
         self._edges_cb.setIconSize(_ICON_SIZE)
         self._edges_cb.setIcon(icons.show_edges_icon(theme))
+        # enriques-hq-smoothing-2026q3-e1 (rect F-M3): restore Display group
+        # icon cadence — without this the HQ button is a plain-text outlier
+        # next to two icon-bearing siblings (alignment fracture).  Uses
+        # mdi6.auto-fix (magic-wand sparkle) semantically distinct from
+        # mdi6.grid (wireframe) and mdi6.border-outside (show edges).
+        self._hq_smoothing_cb.setIconSize(_ICON_SIZE)
+        self._hq_smoothing_cb.setIcon(icons.hq_smoothing_icon(theme))

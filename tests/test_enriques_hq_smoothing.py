@@ -191,6 +191,125 @@ def test_hq_smoothing_toggle_is_checkable_qpushbutton_in_appearance_panel() -> N
     )
 
 
+def test_hq_smoothing_frozensets_stay_in_sync_with_varieties_registry() -> None:
+    """The two frozensets in app.py (`_HQ_SMOOTHING_ELIGIBLE_SUBTYPES`
+    and `_HQ_SMOOTHING_ELIGIBLE_GENERATORS`) must stay in 1-to-1
+    correspondence with the VARIETIES registry entries they gate.
+    Without this guard, a developer adding "Enriques Fig. 5" to one
+    frozenset but forgetting the other gets no test feedback — the
+    button silently breaks for the new subtype.
+
+    Asserts:
+      (a) every subtype string in `_HQ_SMOOTHING_ELIGIBLE_SUBTYPES`
+          exists as a key in `VARIETIES["Enriques surface"]`, AND
+      (b) for each such key, the registered surface's `generate`
+          callable is exactly the corresponding member of
+          `_HQ_SMOOTHING_ELIGIBLE_GENERATORS`.
+
+    Added in enriques-hq-smoothing-2026q3-e1 rect (adversary M2):
+    closes the frozenset-sync maintenance trap.
+    """
+    # Import the constants from app.py without instantiating MainWindow
+    # (which would require QApplication and violate AI-2).  Module-level
+    # `_HQ_SMOOTHING_*` constants are evaluated at import time.
+    import importlib
+    app_module = importlib.import_module("app")
+    eligible_subtypes = app_module._HQ_SMOOTHING_ELIGIBLE_SUBTYPES
+    eligible_generators = app_module._HQ_SMOOTHING_ELIGIBLE_GENERATORS
+
+    from surfaces import VARIETIES
+
+    enriques_subtypes = VARIETIES["Enriques surface"]
+
+    # (a) Every eligible subtype string exists in the registry.
+    for subtype_name in eligible_subtypes:
+        assert subtype_name in enriques_subtypes, (
+            f"_HQ_SMOOTHING_ELIGIBLE_SUBTYPES contains {subtype_name!r} but "
+            f"VARIETIES['Enriques surface'] has no such key.  Either fix "
+            f"the string typo or add the missing subtype to the registry."
+        )
+        # (b) The registered surface's generate is in the eligible-generators set.
+        registered_generator = enriques_subtypes[subtype_name].generate
+        assert registered_generator in eligible_generators, (
+            f"VARIETIES['Enriques surface'][{subtype_name!r}].generate "
+            f"({registered_generator.__name__}) is NOT in "
+            f"_HQ_SMOOTHING_ELIGIBLE_GENERATORS — the two frozensets drifted. "
+            f"Both must enumerate the same set of (subtype-name, generator) "
+            f"pairs for the per-subtype UI gate to align with the kwarg-"
+            f"injection runtime gate."
+        )
+
+    # Symmetric check: every generator in the eligible-generators set has at
+    # least one corresponding subtype string in the eligible-subtypes set
+    # (catches the "added a generator but forgot the dropdown string" case).
+    generators_with_subtype = {
+        enriques_subtypes[n].generate for n in eligible_subtypes
+    }
+    drifted_generators = eligible_generators - generators_with_subtype
+    assert not drifted_generators, (
+        f"_HQ_SMOOTHING_ELIGIBLE_GENERATORS contains "
+        f"{[g.__name__ for g in drifted_generators]!r} that has no "
+        f"corresponding subtype string in _HQ_SMOOTHING_ELIGIBLE_SUBTYPES. "
+        f"The UI gate would never enable HQ for those generators."
+    )
+
+
+def test_set_hq_smoothing_eligible_blocks_signals_around_setchecked() -> None:
+    """Regression guard for the M1 double-render bug
+    (adversary rect, enriques-hq-smoothing-2026q3-e1):
+    `set_hq_smoothing_eligible(False)` must `blockSignals(True)`
+    around `setChecked(False)` so programmatic state resets do NOT
+    fire `hq_smoothing_changed` → MainWindow → `_render_current` on
+    the stale (pre-variety-switch) mesh.
+
+    Without the signal-block, switching variety while HQ was enabled
+    triggered a redundant ~449 ms render of the OLD surface before
+    the new variety's render even started.  The blockSignals pattern
+    cleanly separates "programmatic clear" (silent) from "direct user
+    interaction" (emits the signal).
+
+    Source-text grep (AI-2 compliant — testing the signal-blocking
+    behavior would require a live QApplication + connected slot).
+    """
+    import pathlib
+    src = (
+        pathlib.Path(__file__).resolve().parent.parent / "appearance_panel.py"
+    ).read_text(encoding="utf-8")
+
+    # Find the set_hq_smoothing_eligible method body.
+    method_idx = src.find("def set_hq_smoothing_eligible")
+    assert method_idx > 0, (
+        "appearance_panel.py is missing set_hq_smoothing_eligible method"
+    )
+    # Slice up to the next top-level `def ` (next method) or end-of-file.
+    # The docstring + body together can exceed 2000 chars after the M1
+    # rectification expanded the docstring; using next-def as the
+    # boundary is robust to future docstring growth.
+    after_def = src[method_idx + len("def set_hq_smoothing_eligible"):]
+    next_def_offset = after_def.find("\n    def ")
+    if next_def_offset > 0:
+        method_body = src[method_idx:method_idx + len("def set_hq_smoothing_eligible") + next_def_offset]
+    else:
+        method_body = src[method_idx:]
+
+    # The blockSignals(True)/blockSignals(False) pair MUST be present in
+    # this method body — without it the signal chain fires on
+    # programmatic setChecked(False) calls during variety/subtype switches.
+    assert "blockSignals(True)" in method_body, (
+        "set_hq_smoothing_eligible is missing blockSignals(True) — without "
+        "it, programmatic setChecked(False) emits the toggled signal which "
+        "fires hq_smoothing_changed → MainWindow → _render_current on the "
+        "stale mesh.  Double-render regression from rect M1; see "
+        "CONTEXT.md §4.3a for the architecture rationale."
+    )
+    assert "blockSignals(False)" in method_body, (
+        "set_hq_smoothing_eligible has blockSignals(True) but no matching "
+        "blockSignals(False) — signals would stay blocked forever after "
+        "the first ineligible call, suppressing all subsequent legitimate "
+        "user-driven toggle events."
+    )
+
+
 def test_hq_smoothing_disabled_by_default_in_appearance_panel() -> None:
     """The HQ-smoothing button must initialize with `setEnabled(False)`
     so the toggle is greyed out at launch (before any subtype is
