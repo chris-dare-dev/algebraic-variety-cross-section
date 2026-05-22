@@ -1,0 +1,72 @@
+{
+  "id": "realtime-variety-render-e2",
+  "created_at": "2026-05-22T23:20:21Z",
+  "updated_at": "2026-05-22T23:41:11Z",
+  "phase": "complete",
+  "phase_history": [
+    {
+      "phase": "init",
+      "at": "2026-05-22T23:20:21Z"
+    },
+    {
+      "phase": "research-running",
+      "at": "2026-05-22T23:21:12Z"
+    },
+    {
+      "phase": "research-complete",
+      "at": "2026-05-22T23:40:35Z"
+    },
+    {
+      "phase": "implement-running",
+      "at": "2026-05-22T23:40:52Z"
+    },
+    {
+      "phase": "implement-complete",
+      "at": "2026-05-22T23:40:52Z"
+    },
+    {
+      "phase": "critique-running",
+      "at": "2026-05-22T23:41:11Z"
+    },
+    {
+      "phase": "critique-complete",
+      "at": "2026-05-22T23:41:11Z"
+    },
+    {
+      "phase": "rectify-running",
+      "at": "2026-05-22T23:41:11Z"
+    },
+    {
+      "phase": "complete",
+      "at": "2026-05-22T23:41:11Z"
+    }
+  ],
+  "milestone_brief": "Wire the Calabi-Yau Hanson family's 27-38 ms generation time directly to a continuous-drag render path \u2014 adding a typical_ms: int = 0 field to the Surface dataclass and routing fast surfaces through the debounce's direct-fire channel \u2014 so that a researcher dragging any Hanson-family slider sees the surface update at every tick without releasing the control, with a measured round-trip <=80 ms on the dev machine. Slice: surfaces.py (Surface dataclass field + 3 Hanson generators set typical_ms; others default 0); app.py (render-dispatch checks surface.typical_ms > 0 and <=threshold to bypass coarse-LOD direct-fire \u2014 coarse-LOD path from e4 must explicitly skip Hanson per AI-6); tests/ (pure-Python dataclass test no Qt). Specialist hints: AI-6 (parametric pipeline \u2014 Hanson skips marching cubes + Taubin; coarse-LOD must NOT enable for these); AI-8 (Surface dataclass not frozen \u2014 clean field add). Predecessor: e1. Acceptance: CAND-8 live drag <=80 ms; typical_ms field present; off-screen render at non-default Hanson params produces non-empty PolyData (AI-7: cell_normals=True, consistent_normals=False, auto_orient_normals=False).",
+  "research_mode": "single",
+  "oss_scout_requested": false,
+  "research_briefs": [
+    ".claude/notes/milestones/realtime-variety-render-e2/research/agent-solo-brief.md"
+  ],
+  "research_synthesis": "Researcher discovered the milestone was already shipped on main 28 commits ago in 42b6c17 (304 lines across 5 files; 10 new tests in tests/test_typical_ms.py): Surface.typical_ms field at surfaces.py:68, FAST_RENDER_THRESHOLD_MS=80 + should_render_on_drag predicate at surfaces.py:79-99, Hanson typical_ms=39/11/18 at surfaces.py:1196/1201/1206, dispatch guard in app.py._on_params_preview_changed:529. All acceptance signals met. User elected to close as already-shipped per Phase-2 gate.",
+  "implementation_path": "already-shipped",
+  "implementation_plan": null,
+  "implementation_base": "42b6c17^",
+  "implementation_commit_range": "42b6c17^..42b6c17",
+  "implementation_commits": [
+    "42b6c1712603de1032e930dcdb615e44d58d7def"
+  ],
+  "implementation_branch": null,
+  "critique_path": null,
+  "critics_run": [],
+  "critique_finding_counts": {
+    "critical": 0,
+    "high": 0,
+    "medium": 0,
+    "low": 0
+  },
+  "rectification_commit": "42b6c17",
+  "fixed_findings": [],
+  "deferred_findings": [],
+  "invalidated_findings": [],
+  "regression_tests_added": []
+}
