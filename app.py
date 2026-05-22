@@ -249,8 +249,15 @@ class MainWindow(QMainWindow):
             #     would hide whole patches as the camera rotates.
             #   - K3 / Fermat is closed and unaffected either way; we still
             #     clear culling for consistency.
-            # Variety-level gate (not per-subtype) — all 4 Enriques figures
-            # share the double-curve topology.  See CONTEXT.md §8.13.
+            # Variety-level gate (not per-subtype) — culling is harmless on
+            # all 4 Enriques figures and beneficial on 3 of 4.  Specifically:
+            # Figs. 1+2 have double-curve singularities (culling kills the
+            # zipper); Fig. 3 (Cayley quartic symmetroid) has ordinary A₁
+            # nodes — culling is a verified no-op; Fig. 4 (icosahedral sextic)
+            # has A₁ nodes but the marching-cubes resolution surfaces some
+            # alternating triangles so culling still helps empirically.  See
+            # CONTEXT.md §8.13 for the per-figure topology audit and the
+            # forward-maintenance rule for adding new Enriques figures.
             self.appearance_panel.set_culling(
                 "back" if name == "Enriques surface" else None
             )
@@ -279,6 +286,17 @@ class MainWindow(QMainWindow):
                     "projective coordinates. There is no established visualization "
                     "tradition — these are novel renderings."
                 )
+            elif name == "Enriques surface":
+                # UPL-7 (enriques-backface-2026q2-e1) rect MEDIUM-1: signal
+                # that back-face culling is active so an expert user inspecting
+                # the canonical sextic's double-curve singularity knows WHY
+                # the seam reads clean (vs the pre-fix white zipper noise).
+                # Mirrors the CY3 / Fano pattern of variety-specific context.
+                self.statusBar().showMessage(
+                    "Enriques surface — back-face culling active to suppress "
+                    "the double-curve zipper seam.  Now choose a model."
+                )
+                self.parameters_panel.set_context_hint("")
             else:
                 self.statusBar().showMessage(f"Variety: {name}. Now choose a model.")
                 self.parameters_panel.set_context_hint("")

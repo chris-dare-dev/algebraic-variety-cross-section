@@ -403,7 +403,17 @@ The same setting **breaks** every other variety family in the catalog:
 - **K3 Kummer surface** (moderate): the 16 A₁ nodes are point-conical (not double-curve).  The inner cone faces are visible through the node hollows; culling hides them.
 - **K3 Fermat quartic** (no effect): closed convex topology with all normals outward; culling is safe-but-pointless.
 
-The fix is therefore **variety-level gated**, not universal.  `AppearancePanel.set_culling(value)` is the storage point; `MainWindow._on_variety_changed` sets it to `"back"` only when the active variety is `"Enriques surface"`, `None` otherwise (clears any stale Enriques state when switching families).  All four Enriques subtypes (canonical sextic, λ-family, Cayley symmetroid, icosahedral sextic) share the double-curve topology so the variety-level gate is correct without per-subtype branching.  **If you add a new Enriques figure, you get culling for free.  If you add a new K3 / CY3 / Fano figure, do NOT add a variety-level culling branch — the topology guard is the only reason this works.**
+The fix is therefore **variety-level gated**, not universal.  `AppearancePanel.set_culling(value)` is the storage point; `MainWindow._on_variety_changed` sets it to `"back"` only when the active variety is `"Enriques surface"`, `None` otherwise (clears any stale Enriques state when switching families).
+
+The four Enriques subtypes do NOT all share double-curve topology — be precise:
+
+- **Fig. 1 (canonical sextic)** + **Fig. 2 (Diagonal λ-family)** — degree-6 surfaces with genuine double-curve singularities along the coordinate-tetrahedron edges.  Culling is **beneficial**: removes the white zipper noise from alternating front/back triangles at the near-degenerate ridge (verified: Fig. 1 96627B → 82864B; Fig. 2 46020B → 41433B in off-screen renders).
+- **Fig. 3 (Cayley quartic symmetroid)** — a degree-4 surface with up to 10 ordinary A₁ nodes (ordinary double points, ODPs), NOT double curves.  Culling is a **no-op** here (verified: 40222B → 40222B — pixel-identical).
+- **Fig. 4 (Icosahedral sextic)** — sextic with point-conical A₁ nodes; the marching-cubes resolution is high enough that some alternating front/back triangles still appear at the nodes, so culling is empirically **beneficial** (98034B → 91398B).
+
+The variety-level gate is correct anyway because culling is **harmless across all 4 figures** and beneficial on 3 of 4.  Applying it at the variety level (`name == "Enriques surface"`) avoids per-subtype branching while producing the right result for every figure.  **If you add a new Enriques figure, verify its singularity type — culling is safe at the topology types in the catalog today (double curves + ordinary A₁ nodes), but a future figure with different singularities (e.g., cusp loci, non-isolated singularities) deserves a fresh render comparison before you trust the gate.  If you add a new K3 / CY3 / Fano figure, do NOT add a variety-level culling branch — the topology guard is the only reason this works.**
+
+Also note: the Enriques wing-tip truncation visible at the edge of the rendered viewport is a sampling-bounds artifact (surface extends past the marching-cubes grid), not a culling effect.  Culling is orthogonal to bounds-clipping.
 
 The user's `apply_to_actor` path pushes `actor.prop.culling = self._culling or "none"` so Wireframe / Show-edges / Flat-shading toggles in the Appearance dock don't fight the culling state (the cull persists across appearance changes within the same surface session).
 

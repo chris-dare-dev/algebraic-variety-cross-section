@@ -82,3 +82,48 @@
 
 ### Scope discipline
 - `tests/test_icons.py` and `requirements.txt` changed but have no Qt-panel UX surface. Disposed as not applicable. Keep this fast: files without a Qt widget class are not critique-surface even if they're in the diff.
+
+## enriques-backface-2026q2-e1 (UPL-7 per-variety back-face culling) — 2026-05-22
+
+### Token-discipline near-misses
+- No short-hex or shorthand-enum slip in this diff.  The change adds no colors
+  (no AI-13 surface), no Qt enums (no AI-11 surface), no processEvents (no AI-9
+  surface).  Make this check fast: if the diff adds no `QColor`, no
+  `Qt.AlignmentFlag`, and no `processEvents`, dispose all three axes in
+  one sentence.
+
+### Industry-comparison note (concrete recommendations generated)
+- **ParaView 5.13 backface culling is an explicit opt-in checkbox** (Properties >
+  Backface Styling, defaults OFF).  AVC's hardcoded-on-for-Enriques is bespoke
+  relative to this convention.  The concrete recommendation: even when culling
+  is technically required (double-curve seam), the user needs a status-bar
+  signal or dock indicator — both competitors expose it as user-visible state.
+  Quote the "ParaView opt-in checkbox vs AVC silent-on" contrast whenever
+  evaluating any "hidden knob" rendering setting.
+- **Mathematica `ContourPlot3D` mesh overlay is always two-sided.** Culling
+  does NOT propagate to wireframe/mesh display in Mathematica — the
+  mesh overlay is a topology display, not a shading surface.  This is the
+  concrete model for the wireframe+culling interaction: suppress culling when
+  wireframe mode is active.  Quote this as "Mathematica mesh-overlay
+  convention" when evaluating any future culling-or-style interaction.
+
+### First-launch / section-9 regressions
+- No first-launch regression: `set_culling` lives inside
+  `if name in VARIETIES:` in `_on_variety_changed`, never reachable from
+  `-- Select --`.  Fast check pattern: trace `set_culling` to its call
+  site; if it's guarded by `name in VARIETIES`, section-9.3 is clean.
+
+### Wireframe + culling interaction — a recurring pattern to flag fast
+- VTK culling applies at the face level regardless of `style="wireframe"`.
+  In wireframe mode, culling hides back-facing edges, not just back-facing
+  faces.  For any future milestone that adds per-variety culling, ALWAYS
+  check if the `apply_to_actor` code suppresses culling when wireframe is
+  active.  The fix is one line: `effective_culling = "none" if self._wireframe
+  else (self._culling or "none")`.  This is the MEDIUM-2 pattern.
+
+### Topology-claim precision for variety-level gates
+- When a variety-level gate (culling, smoothing, lighting) claims "all N
+  figures share topology X", verify per-figure.  The Cayley quartic symmetroid
+  has ODP singularities, not the double-curve topology claimed in the UPL-7
+  comment.  The gate is safe (harmless on Cayley), but the justification is
+  imprecise — flag as LOW whenever a comment over-asserts math.

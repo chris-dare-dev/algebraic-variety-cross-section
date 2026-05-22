@@ -328,13 +328,19 @@ class AppearancePanel(QWidget):
             actor.prop.show_edges = self._show_edges
         actor.prop.opacity = self._opacity / 100.0
         actor.prop.interpolation = self._shading
-        # enriques-backface-2026q2-e1 (UPL-7): apply per-variety culling.
-        # PyVista's `actor.prop.culling` accepts "back" / "front" / "none";
-        # we use "back" only for Enriques surfaces (set via set_culling
-        # from app.py:_on_variety_changed).  The Pattern-A architecture
-        # (panel stores state, MainWindow sets it on variety change)
-        # mirrors set_default_color / refresh_icons from earlier milestones.
-        actor.prop.culling = self._culling or "none"
+        # enriques-backface-2026q2-e1 (UPL-7) rect MEDIUM-2: apply per-variety
+        # culling, BUT suppress it in wireframe mode.  Culling is a shading
+        # concern (kills the white zipper at Enriques double curves under
+        # Phong lighting), not a topology-display concern — in wireframe mode
+        # the user is inspecting mesh edges and expects to see all of them,
+        # not have back-facing edges silently hidden as the camera rotates.
+        # Mathematica's ContourPlot3D follows the same convention: the
+        # Mesh -> True overlay is rendered two-sided regardless of the body
+        # shading mode.  The set_culling state (self._culling) is preserved
+        # across toggles — when the user turns wireframe back off, culling
+        # re-engages.
+        effective_culling = "none" if self._wireframe else (self._culling or "none")
+        actor.prop.culling = effective_culling
 
     def set_default_color(self, hex_str: str) -> None:
         """Seed the surface color from the variety-family default (UPL-2).
@@ -375,21 +381,27 @@ class AppearancePanel(QWidget):
         receive ``None`` to clear any stale Enriques setting.
 
         Why not universal: the Enriques family has double-curve
-        singularities where two sheets approach zero separation;
-        marching cubes produces alternating front/back triangles at
-        those ridges, and Phong lighting renders them as zipper noise.
-        Back-face culling removes the inward-facing half cleanly.  The
-        same setting BREAKS:
+        singularities (Figs. 1, 2 of the sextic family) where two sheets
+        approach zero separation; marching cubes produces alternating
+        front/back triangles at those ridges, and Phong lighting renders
+        them as zipper noise.  Back-face culling removes the
+        inward-facing half cleanly.  The same setting BREAKS:
           - Hanson CY3 — AI-7's ``consistent_normals=False`` patches
             have non-globally-oriented normals; culling hides whole
             patches as the camera rotates (catastrophic loss).
           - Kummer K3 — point-conical nodes have inner cone faces
             viewable through hollows; culling hides them (moderate).
-          - Enriques wing tips also get clipped at the marching-cubes
-            box, but the math-honest singular-locus rendering is the
-            net win.
 
-        See CONTEXT.md §8.13 for the topology rationale.
+        Note: Enriques wing-tip truncation at the viewport edge is a
+        sampling-bounds artifact (the surface extends past the
+        marching-cubes grid), NOT a culling effect.  Culling and bounds
+        clipping are orthogonal; removing culling would not restore the
+        wing tips.
+
+        See CONTEXT.md §8.13 for the per-figure topology audit (Figs. 1+2
+        have double curves; Fig. 3 / Cayley symmetroid has ordinary A₁
+        nodes — culling is a no-op there; Fig. 4 has A₁ nodes with
+        marching-cubes resolution high enough that culling still helps).
 
         Does NOT trigger a render — the caller flows into the existing
         ``_render_current`` → ``apply_to_actor`` chain, which reads

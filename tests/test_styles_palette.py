@@ -264,6 +264,48 @@ def test_set_default_color_updates_surface_color() -> None:
     assert color_arg.name() == "#8e9ed4"
 
 
+def test_set_culling_stores_back_value() -> None:
+    """enriques-backface-2026q2-e1 (UPL-7): set_culling('back') updates
+    AppearancePanel._culling.  Uses the unbound-method shim pattern
+    established by test_set_default_color — no QApplication, no PyVista,
+    AI-2 compliant.  Guards against a future rename of self._culling
+    breaking the variety-routing logic at app.py:_on_variety_changed
+    without touching the test suite.
+    """
+    import appearance_panel
+
+    class _Shim:
+        def __init__(self) -> None:
+            self._culling = None
+
+    shim = _Shim()
+    appearance_panel.AppearancePanel.set_culling(shim, "back")
+    assert shim._culling == "back", (
+        f"set_culling('back') should store 'back', got {shim._culling!r}"
+    )
+
+
+def test_set_culling_clears_to_none() -> None:
+    """enriques-backface-2026q2-e1 (UPL-7): set_culling(None) clears any
+    prior culling state.  This is the path the variety-switch gate uses
+    when leaving the Enriques family to clear the back-cull setting
+    before entering K3 / CY3 / Fano (where culling would BREAK the
+    render).  A regression that left _culling stuck at 'back' would
+    cause AI-7 conflicts the next time a Hanson surface renders.
+    """
+    import appearance_panel
+
+    class _Shim:
+        def __init__(self) -> None:
+            self._culling = "back"  # simulate prior Enriques state
+
+    shim = _Shim()
+    appearance_panel.AppearancePanel.set_culling(shim, None)
+    assert shim._culling is None, (
+        f"set_culling(None) should clear to None, got {shim._culling!r}"
+    )
+
+
 def test_set_default_color_ignores_invalid_hex() -> None:
     """Invalid hex strings (failed QColor.isValid()) silently preserve the
     existing color rather than corrupting _surface_color.
