@@ -234,6 +234,26 @@ class MainWindow(QMainWindow):
                     name, BG_SURFACE_DEFAULT
                 )
             )
+            # UPL-7 (enriques-backface-2026q2-e1): apply back-face culling
+            # ONLY for the Enriques family.  The Enriques canonical sextic
+            # and its siblings have double-curve singularities where two
+            # sheets approach zero separation; marching cubes produces
+            # alternating front/back triangles at those ridges, and Phong
+            # lighting renders them as white zipper noise.  Culling clears
+            # this for the math-honest singular-locus rendering.  Other
+            # families get None to clear any stale Enriques setting:
+            #   - K3 / Kummer: 16 point-conical nodes have inner cone
+            #     faces visible through hollows; culling hides them.
+            #   - CY3 / Hanson quintic: AI-7's consistent_normals=False
+            #     patches have non-globally-oriented normals; culling
+            #     would hide whole patches as the camera rotates.
+            #   - K3 / Fermat is closed and unaffected either way; we still
+            #     clear culling for consistency.
+            # Variety-level gate (not per-subtype) — all 4 Enriques figures
+            # share the double-curve topology.  See CONTEXT.md §8.13.
+            self.appearance_panel.set_culling(
+                "back" if name == "Enriques surface" else None
+            )
             # For CY3 and Fano, include a brief contextual note in the status
             # bar AND in the Parameters dock banner so first-time users
             # understand they are viewing 2D shadows/slices, not the full

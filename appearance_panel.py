@@ -89,6 +89,12 @@ class AppearancePanel(QWidget):
         self._show_edges = False
         self._opacity = 100          # 0-100 integer (maps to 0.0-1.0)
         self._shading = "Phong"      # "Phong" or "Flat"
+        # enriques-backface-2026q2-e1 (UPL-7): per-variety back-face culling.
+        # Defaults to None (no culling — the safe default for closed-topology
+        # K3, point-singular Kummer, and AI-7-disconnected Hanson surfaces).
+        # MainWindow sets it to "back" only for the Enriques family on variety
+        # switch — see set_culling() below + the per-variety gate in app.py.
+        self._culling: str | None = None
 
         self._build_ui()
 
@@ -322,6 +328,13 @@ class AppearancePanel(QWidget):
             actor.prop.show_edges = self._show_edges
         actor.prop.opacity = self._opacity / 100.0
         actor.prop.interpolation = self._shading
+        # enriques-backface-2026q2-e1 (UPL-7): apply per-variety culling.
+        # PyVista's `actor.prop.culling` accepts "back" / "front" / "none";
+        # we use "back" only for Enriques surfaces (set via set_culling
+        # from app.py:_on_variety_changed).  The Pattern-A architecture
+        # (panel stores state, MainWindow sets it on variety change)
+        # mirrors set_default_color / refresh_icons from earlier milestones.
+        actor.prop.culling = self._culling or "none"
 
     def set_default_color(self, hex_str: str) -> None:
         """Seed the surface color from the variety-family default (UPL-2).
@@ -350,3 +363,37 @@ class AppearancePanel(QWidget):
             return
         self._surface_color = color
         _apply_swatch_color(self._surf_swatch, color)
+
+    def set_culling(self, value: str | None) -> None:
+        """Set the back-face culling policy for the next actor render
+        (enriques-backface-2026q2-e1 / UPL-7).
+
+        Accepts ``"back"``, ``"front"``, ``"none"`` (or ``None`` for the
+        default no-culling state).  Called by ``MainWindow._on_variety_changed``
+        with ``"back"`` ONLY when the active variety is "Enriques surface"
+        — see the per-variety gate at that call site.  Other varieties
+        receive ``None`` to clear any stale Enriques setting.
+
+        Why not universal: the Enriques family has double-curve
+        singularities where two sheets approach zero separation;
+        marching cubes produces alternating front/back triangles at
+        those ridges, and Phong lighting renders them as zipper noise.
+        Back-face culling removes the inward-facing half cleanly.  The
+        same setting BREAKS:
+          - Hanson CY3 — AI-7's ``consistent_normals=False`` patches
+            have non-globally-oriented normals; culling hides whole
+            patches as the camera rotates (catastrophic loss).
+          - Kummer K3 — point-conical nodes have inner cone faces
+            viewable through hollows; culling hides them (moderate).
+          - Enriques wing tips also get clipped at the marching-cubes
+            box, but the math-honest singular-locus rendering is the
+            net win.
+
+        See CONTEXT.md §8.13 for the topology rationale.
+
+        Does NOT trigger a render — the caller flows into the existing
+        ``_render_current`` → ``apply_to_actor`` chain, which reads
+        ``self._culling`` and sets ``actor.prop.culling`` on the next
+        pass.  AI-9 safe (no ``processEvents``).
+        """
+        self._culling = value

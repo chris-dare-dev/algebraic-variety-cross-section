@@ -393,6 +393,20 @@ PySide6's `QDockWidget.setWidget(panel)` transfers C++ ownership of `panel` to t
 
 qtawesome's `qta.icon()` checks `if QApplication.instance() is not None` and falls back to an empty `QIcon` + `UserWarning` when no app is running.  Calling it from a panel's `_build_ui()` constructor — which runs during `MainWindow.__init__` before the QApplication has fully come up in some test contexts — produces invisible icons with no exception.  Fix: each panel exposes a public `refresh_icons(theme)` method (see [`view_panel.py:refresh_icons`](view_panel.py) / [`parameters_panel.py:refresh_icons`](parameters_panel.py)), and `MainWindow.__init__` calls them AFTER the panels are constructed — same call is repeated in `_on_theme_changed` and `_apply_system_theme` so theme swaps re-render with the new color.  The capture script `render-panel-chrome.py` mirrors this discipline (calls `refresh_icons` after each panel construction) so panel-chrome PNGs reflect the live app.  See [`icons.py`](icons.py) docstring + [qtawesome issue #144](https://github.com/spyder-ide/qtawesome/issues/144) for the canonical prior art on this footgun.
 
+### 8.13 Back-face culling helps the Enriques family but BREAKS K3 / CY3 — gate per-variety
+
+The Enriques canonical sextic (`x²y² + x²z² + y²z² + x²y²z² + c·xyz·(1+r²) = 0`) has **double-curve singularities** along the six edges of the coordinate tetrahedron: two sheets of the surface approach zero separation along these curves.  Marching cubes produces near-degenerate alternating front/back triangle pairs at those ridges; Phong lighting then renders them as white zipper-seam noise.  Setting `actor.prop.culling = "back"` cleanly hides the inward-facing half, leaving the math-honest singular crease visible (UPL-7 / `enriques-backface-2026q2-e1`).
+
+The same setting **breaks** every other variety family in the catalog:
+
+- **CY3 Hanson quintic** (catastrophic): AI-7 prescribes `cell_normals=True, consistent_normals=False, auto_orient_normals=False` for the 25 disconnected parametric patches.  Per-patch winding is locally consistent but NOT globally outward-pointing.  With `culling="back"`, patches whose normals happen to point away from the camera at the current angle become invisible — the iconic ball-of-spikes shape breaks down as the camera rotates.
+- **K3 Kummer surface** (moderate): the 16 A₁ nodes are point-conical (not double-curve).  The inner cone faces are visible through the node hollows; culling hides them.
+- **K3 Fermat quartic** (no effect): closed convex topology with all normals outward; culling is safe-but-pointless.
+
+The fix is therefore **variety-level gated**, not universal.  `AppearancePanel.set_culling(value)` is the storage point; `MainWindow._on_variety_changed` sets it to `"back"` only when the active variety is `"Enriques surface"`, `None` otherwise (clears any stale Enriques state when switching families).  All four Enriques subtypes (canonical sextic, λ-family, Cayley symmetroid, icosahedral sextic) share the double-curve topology so the variety-level gate is correct without per-subtype branching.  **If you add a new Enriques figure, you get culling for free.  If you add a new K3 / CY3 / Fano figure, do NOT add a variety-level culling branch — the topology guard is the only reason this works.**
+
+The user's `apply_to_actor` path pushes `actor.prop.culling = self._culling or "none"` so Wireframe / Show-edges / Flat-shading toggles in the Appearance dock don't fight the culling state (the cull persists across appearance changes within the same surface session).
+
 ---
 
 ## 9. Things explicitly NOT done (and why)
