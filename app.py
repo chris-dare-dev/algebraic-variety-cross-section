@@ -169,6 +169,17 @@ class MainWindow(QMainWindow):
         # plans/panel-refresh-2026q2-roadmap.md.
         self.appearance_panel.apply_background()
 
+        # qtawesome-icons-2026q2-e1 (UPL-4): apply icons AFTER widget
+        # construction completes — qta.icon() requires a live QApplication
+        # and panel _build_ui() methods run before MainWindow.__init__ is
+        # ready.  Both panels expose a `refresh_icons(theme)` method that
+        # MainWindow re-invokes from _on_theme_changed / _apply_system_theme
+        # whenever the active theme swaps.  The lazy import of `qtawesome`
+        # inside `icons.py` ensures the ~150-200ms font-load cost fires here
+        # (during window setup, not module import).
+        self.view_panel.refresh_icons(self._active_theme)
+        self.parameters_panel.refresh_icons(self._active_theme)
+
         # --- Keyboard shortcuts ----------------------------------------------
         self._setup_shortcuts()
 
@@ -571,6 +582,12 @@ class MainWindow(QMainWindow):
             APP_STYLESHEET if self._active_theme == "light" else APP_STYLESHEET_DARK
         )
 
+        # qtawesome-icons-2026q2-e1 (UPL-4): re-render icons with the new
+        # theme's TEXT_VALUE color so the button glyphs match the new chrome.
+        # Synchronous; AI-9 safe (no processEvents involved).
+        self.view_panel.refresh_icons(self._active_theme)
+        self.parameters_panel.refresh_icons(self._active_theme)
+
         # Re-seed the appearance panel's variety-default color from the active
         # theme's dict — without this, switching theme while a variety is
         # selected leaves the swatch on the old theme's default (visible
@@ -605,6 +622,11 @@ class MainWindow(QMainWindow):
         QApplication.instance().setStyleSheet(
             APP_STYLESHEET if resolved == "light" else APP_STYLESHEET_DARK
         )
+        # qtawesome-icons-2026q2-e1 (UPL-4): mirror the refresh_icons call
+        # from _on_theme_changed so OS-driven theme changes also re-render
+        # icons.  Synchronous; AI-9 safe.
+        self.view_panel.refresh_icons(resolved)
+        self.parameters_panel.refresh_icons(resolved)
         current_variety = self.variety_combo.currentText()
         if current_variety in VARIETIES:
             self.appearance_panel.set_default_color(

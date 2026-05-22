@@ -110,6 +110,18 @@ class ParametersPanel(QWidget):
     def values(self) -> dict[str, float]:
         return {spec.name: self._slider_to_value(spec) for spec in self._specs}
 
+    def refresh_icons(self, theme: str = "dark") -> None:
+        """Re-apply the qtawesome icon on the Reset Defaults button with
+        the active theme's color.  Called by ``MainWindow.__init__``
+        after panel construction and by ``MainWindow._on_theme_changed``
+        / ``_apply_system_theme`` on theme swap.  See ``icons.py`` for the
+        full QApplication-availability discipline this method respects
+        (qtawesome-icons-2026q2-e1 / UPL-4).
+        """
+        import icons
+
+        self._reset_btn.setIcon(icons.reset_defaults_icon(theme))
+
     # ------------------------------------------------------------------
     # Internals
     # ------------------------------------------------------------------

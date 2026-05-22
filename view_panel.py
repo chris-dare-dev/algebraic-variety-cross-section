@@ -136,12 +136,16 @@ class ViewPanel(QWidget):
         layout = QVBoxLayout(group)
         layout.setContentsMargins(6, 6, 6, 6)
 
-        reset_btn = QPushButton("Reset Camera")
+        # qtawesome-icons-2026q2-e1 (UPL-4): stored as instance attr so
+        # refresh_icons(theme) can re-apply the icon on theme switch.
+        # Previously a local variable, which made later icon attachment
+        # impossible from outside this method.
+        self._reset_camera_btn = QPushButton("Reset Camera")
         # Object name lets the app stylesheet give this button a distinct style
-        reset_btn.setObjectName("resetCameraBtn")
-        reset_btn.setToolTip("Fit the camera to the current surface (Ctrl+R)")
-        reset_btn.clicked.connect(self._on_reset_camera)
-        layout.addWidget(reset_btn)
+        self._reset_camera_btn.setObjectName("resetCameraBtn")
+        self._reset_camera_btn.setToolTip("Fit the camera to the current surface (Ctrl+R)")
+        self._reset_camera_btn.clicked.connect(self._on_reset_camera)
+        layout.addWidget(self._reset_camera_btn)
 
         return group
 
@@ -251,10 +255,12 @@ class ViewPanel(QWidget):
         layout = QVBoxLayout(group)
         layout.setContentsMargins(6, 6, 6, 6)
 
-        shot_btn = QPushButton("Screenshot…")
-        shot_btn.setToolTip("Save a PNG screenshot of the 3D viewport (Ctrl+Shift+S)")
-        shot_btn.clicked.connect(self._on_screenshot)
-        layout.addWidget(shot_btn)
+        # qtawesome-icons-2026q2-e1 (UPL-4): stored as instance attr so
+        # refresh_icons(theme) can re-apply the icon on theme switch.
+        self._shot_btn = QPushButton("Screenshot…")
+        self._shot_btn.setToolTip("Save a PNG screenshot of the 3D viewport (Ctrl+Shift+S)")
+        self._shot_btn.clicked.connect(self._on_screenshot)
+        layout.addWidget(self._shot_btn)
 
         return group
 
@@ -348,6 +354,28 @@ class ViewPanel(QWidget):
         except Exception as exc:
             logging.getLogger(__name__).warning("Could not remove bounds axes: %s", exc)
         self._grid_actor = None
+
+    # ------------------------------------------------------------------
+    # Public API — theme-aware icons (qtawesome-icons-2026q2-e1 / UPL-4)
+    # ------------------------------------------------------------------
+
+    def refresh_icons(self, theme: str = "dark") -> None:
+        """Re-apply qtawesome icons with the active theme's color.
+
+        Called by ``MainWindow.__init__`` (initial paint, after widget
+        construction so ``QApplication`` is alive) and by
+        ``MainWindow._on_theme_changed`` / ``_apply_system_theme`` (so
+        icons re-render with the new color on theme swap).  Must NOT be
+        called from ``_build_ui()`` — at that point ``QApplication`` is
+        not yet fully active and ``qta.icon()`` silently returns an empty
+        ``QIcon``.
+        """
+        # Lazy import — keeps `from view_panel import ViewPanel` cheap if
+        # the caller never invokes refresh_icons (e.g. headless tests).
+        import icons
+
+        self._reset_camera_btn.setIcon(icons.reset_camera_icon(theme))
+        self._shot_btn.setIcon(icons.screenshot_icon(theme))
 
     # ------------------------------------------------------------------
     # Public API — domain clipping

@@ -56,6 +56,7 @@ These choices were made early by an Opus research agent. Don't relitigate them w
 - **Adaptive bounds** for the Fermat quartic family — the box is computed from `c` and `γ` so axial arms always fit. Don't hard-code box sizes for new generators with wide parameter ranges.
 - **Taubin smoothing post-marching-cubes** — `mesh.smooth_taubin(n_iter=20, pass_band=0.1)` is volume-preserving; vanilla Laplacian shrinks geometry.
 - **Gradient-based normals from marching_cubes** — the analytic normals are far smoother than face-averaged ones near high-curvature regions. We attach them BEFORE Taubin smoothing as a seed, then `compute_normals()` rederives after smoothing.
+- **qtawesome for button icons** — MIT-licensed icon font wrapper (PySide6-compatible since v1.4.1). Lazy-imported via [`icons.py`](icons.py) so the ~150-200ms font-cache cold-boot fires at first icon paint, not at app launch. Icon color resolves from the active palette's `TEXT_VALUE` token so the same icon works in both themes. Added in qtawesome-icons-2026q2-e1 (UPL-4 from the 2026q2-graph-and-window uplift); covers Reset Camera / Screenshot / Reset Defaults at v0; the camera-preset grid + display toggles defer to a follow-up milestone.
 
 **Avoid:**
 - matplotlib mpl_toolkits.mplot3d — painter's-algorithm artifacts on self-intersecting surfaces, slow.
