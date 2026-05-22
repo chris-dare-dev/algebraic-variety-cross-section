@@ -1,8 +1,8 @@
 {
   "id": "realtime-variety-render-e6",
   "created_at": "2026-05-22T15:48:47Z",
-  "updated_at": "2026-05-22T16:33:09Z",
-  "phase": "rectify-running",
+  "updated_at": "2026-05-22T16:33:42Z",
+  "phase": "complete",
   "phase_history": [
     {
       "phase": "init",
@@ -35,6 +35,10 @@
     {
       "phase": "rectify-running",
       "at": "2026-05-22T16:29:03Z"
+    },
+    {
+      "phase": "complete",
+      "at": "2026-05-22T16:33:42Z"
     }
   ],
   "milestone_brief": "Implement roadmap epic realtime-variety-render-e6 -- VTK Flying Edges marching-cubes replacement (CAND-1). Replace skimage.measure.marching_cubes in surfaces.py:_marching_cubes_to_polydata with VTK vtkFlyingEdges3D via pv.ImageData(...).contour([level], method='flying_edges'). SMP-threaded, mathematically identical to MC, zero new deps. Implicit pipeline ONLY (Fermat, Kummer, Enriques x4, Dwork) -- Hanson parametric pipeline untouched (AI-6). Address challenger MINOR objections: (1) Flying Edges drops skimage analytic gradient normals -- derive via compute_normals() post-extraction; add off-screen visual comparison on Kummer + Enriques canonical sextic to confirm no shading regression on high-curvature surfaces; (2) measure real before/after speedup on this machine via the CAND-12 telemetry shipped in e1. Constraints: AI-1, AI-3, AI-6, AI-13, AI-14; tests/test_mesh_generators.py smoke tests guard regressions. Predecessor e1 (CAND-12 telemetry) shipped directly in commit 3e40ddf -- treat the e1 dependency as satisfied.",
