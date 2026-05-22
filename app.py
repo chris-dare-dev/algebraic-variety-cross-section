@@ -428,9 +428,19 @@ class MainWindow(QMainWindow):
                 )
                 if params else ""
             )
+            # Spatial extent readout — researchers want to see the bounding
+            # box of the mathematical surface (not the domain-clipped slice).
+            # `self._raw_mesh.bounds` returns (xmin, xmax, ymin, ymax, zmin, zmax);
+            # indices [1]/[3]/[5] are the positive max-extents.  The ±max display
+            # is exact for the 12 implicit-surface generators (symmetric
+            # np.linspace(-bounds, bounds, n) sampling) and an honest
+            # over-approximation for the Hanson parametric generator at
+            # default α=π/4 — see CONTEXT.md §4 (status-bar-bbox-2026q2-e1).
+            _b = self._raw_mesh.bounds
             base_msg = (
                 f"{surface.label}  ·  {self._raw_mesh.n_points:,} verts, "
                 f"{self._raw_mesh.n_cells:,} faces{param_str}"
+                f"  ·  bbox ±{_b[1]:.2f} × ±{_b[3]:.2f} × ±{_b[5]:.2f}"
             )
             if _surface_warning:
                 # Prepend a ⚠ marker so the warning stands out from the mesh stats.

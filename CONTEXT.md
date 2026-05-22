@@ -134,6 +134,8 @@ _on_subtype_changed  → _render_current(reset_camera=True)
 
 Critical: **the raw mesh is cached**. `_on_domain_changed` (sphere/cube clip slider release) calls `_apply_domain_and_render` directly without regenerating the mesh — only the clip is recomputed. This makes the radius slider snappy.
 
+**Status-bar bbox readout (status-bar-bbox-2026q2-e1, UPL-13).** After every successful render the status bar appends `bbox ±a × ±b × ±c` to the `{N_verts} verts, {N_faces} faces` line, where `a`/`b`/`c` are `self._raw_mesh.bounds[1]`/`[3]`/`[5]` — the positive max-extents along x/y/z. Read from `_raw_mesh` (not the domain-clipped copy) so researchers see the spatial extent of the mathematical surface, not the current viewport slice. The `±max` display is **exact** for the 12 implicit-surface generators in the live registry (all use symmetric `np.linspace(-bounds, bounds, n)` sampling boxes) and an **honest over-approximation** for the Hanson parametric generators (theta sweeps `[0, π/2]`; at default α=π/4 the Z-projection averages the two imaginary axes producing near-symmetric Z-bounds, typically <5% asymmetry at defaults). If a future generator uses a non-centered sampling domain (`np.linspace(a, b, n)` with `a ≠ -b`), extend the format to `xmin..xmax × ymin..ymax × zmin..zmax` by reading `bounds[0]`/`bounds[1]`/etc. directly. AI-10 safe — the read is inside the success branch of `_render_current` only; the `except ValueError` / `except Exception` paths set `_raw_mesh = None` and return before reaching the format line (AI-14). Format-contract guard: `tests/test_status_bar_bbox.py`.
+
 ### 4.3a AppearancePanel public API
 
 `AppearancePanel` exposes two outbound entry points:
