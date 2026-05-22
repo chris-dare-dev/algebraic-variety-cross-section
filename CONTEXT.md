@@ -26,17 +26,19 @@ The Calabi–Yau pass is the only one with a non-implicit pipeline — the three
 
 ```
 algebraic-variety-cross-section/
-├── app.py              MainWindow — dropdowns, three docks, plotter wiring (~415 LOC)
+├── app.py              MainWindow — dropdowns, three docks, plotter wiring, async render dispatch
+├── render_worker.py    Background-thread mesh worker (QThreadPool/QRunnable) — realtime-variety-render-e4
 ├── surfaces.py         All mesh generators + Surface/ParamSpec dataclasses + VARIETIES registry (~840 LOC)
 ├── parameters_panel.py Dynamic slider panel; rebuilds from each Surface's ParamSpec list (~220 LOC)
 ├── appearance_panel.py Color / wireframe / opacity / shading panel (right dock) (~300 LOC)
 ├── view_panel.py       View presets, camera, scene aids, domain clip, screenshot (left dock) (~420 LOC)
 ├── styles.py           Centralized stylesheet constants (palette, typography, dock-header CSS) (~140 LOC)
-├── tests/              pytest suite — 120 tests, ~4 s, pure NumPy/PyVista (no Qt fixtures)
+├── tests/              pytest suite — pure NumPy/PyVista, no Qt fixtures (AI-2)
 │   ├── test_mesh_generators.py     smoke tests for every generator + edge cases
 │   ├── test_parameters_panel.py    static slider tick↔value math
 │   ├── test_clip_domain.py         ViewPanel.clip_to_domain pure-function tests
 │   ├── test_marching_cubes_empty.py raises on empty fields
+│   ├── test_render_worker.py       is_stale_result + MeshResult (Qt-free worker units)
 │   └── test_grid_helpers.py         _grid_to_polydata + _concat_polydata
 ├── requirements.txt    Pinned dep ranges with upper bounds (PySide6 <7, pyvista <0.49, etc.)
 └── .venv/              Python 3.12 virtualenv — use `.venv/bin/python` and `.venv/bin/pytest`
@@ -169,7 +171,14 @@ WCAG verification is per-token, per-theme.  `tests/test_styles_palette.py` carri
 
 ### 4.4 Re-entrancy guard
 
-`_render_current` calls `QApplication.processEvents()` (to keep the status bar responsive during ~0.5 s mesh generation). This drains the Qt event queue, which can re-enter via slider release → `_on_params_changed` → `_render_current`. Guarded by `self._computing: bool` set at the top of `_render_current` and cleared in a `finally` block. **If you add another `processEvents` call elsewhere, audit re-entrancy.**
+**realtime-variety-render-e4 (CAND-4) rewrote this.** `surface.generate()` now runs on a `QThreadPool` worker (`render_worker.py`), so `_render_current` is *submit-only* and returns immediately. There is **no `QApplication.processEvents()` call anymore** — the old workaround (and its re-entrancy hazard, §8.5) is gone, because the event loop is naturally free while the worker computes off-thread.
+
+The async render path:
+1. `_render_current(reset_camera=...)` — if `self._computing` (a worker is in flight), records `_pending_render` + `_pending_reset_camera` and returns (the e1-s2 queue-latest guard, unchanged). Otherwise it sets `_computing = True`, increments the monotonic `_generation` id, captures `_inflight_surface` / `_inflight_params` / `_inflight_reset_camera`, pushes the wait cursor, builds a `MeshWorker`, holds it in `_active_worker`, and `QThreadPool.start()`s it.
+2. `MeshWorker.run()` (worker thread) runs `surface.generate()` inside the `warnings.catch_warnings` + `perf_counter` bracket, packages a `MeshResult`, retains `self._result = mesh` (VTK #18782), and emits `finished`.
+3. `_on_mesh_ready(result)` (`@Slot`, **`Qt.QueuedConnection` → GUI thread**) retains the mesh as its first statement, discards the result if `is_stale_result(result.generation, self._generation)`, then does the error/warning branching, `_apply_domain_and_render`, status-bar build, and — in its `finally` — restores the cursor, clears `_computing` / `_active_worker`, and fires the one `QTimer.singleShot(0, ...)` catch-up if `_pending_render` was set.
+
+Re-entrancy analysis (AI-9): `_on_mesh_ready` runs on the GUI thread via `QueuedConnection`, so it is serialized with every other GUI event — it cannot re-enter itself. The catch-up `singleShot(0)` runs on a later event-loop turn with `_computing` already `False`, so it enters `_render_current` cleanly. With the `_computing` single-flight guard at most one worker is in flight and at most one catch-up is queued; the `_generation` counter is *defensive* idempotency insurance on top. **All VTK GL calls (`add_mesh` / `render` / `reset_camera`) stay on the GUI thread — the worker only touches `surface.generate()` data construction.** If you add a code path that dispatches a worker outside `_render_current`, or lift the `_computing` guard, re-do this analysis.
 
 ### 4.5 Domain clipping (sphere / cube)
 
@@ -177,7 +186,7 @@ WCAG verification is per-token, per-theme.  `tests/test_styles_palette.py` carri
 
 ### 4.6 Warning surfacing
 
-`MainWindow._render_current` wraps `surface.generate()` in `warnings.catch_warnings(record=True)`. Any `RuntimeWarning` is extracted and prefixed with `⚠` in the status bar. Currently used by `calabi_yau_dwork` to flag `|ψ−1| < 0.01` (the conifold point, where marching cubes silently misses the singularity).
+`render_worker.MeshWorker` wraps `surface.generate()` in `warnings.catch_warnings(record=True)` **on the worker thread** (`catch_warnings` is not thread-shared — a main-thread context manager cannot see a worker-thread warning). Any `RuntimeWarning` text is captured into `MeshResult.warning_text`, shipped back across the `QueuedConnection` signal, and `_on_mesh_ready` prefixes it with `⚠` in the status bar. Currently used by `calabi_yau_dwork` to flag `|ψ−1| < 0.01` (the conifold point, where marching cubes silently misses the singularity).
 
 ---
 
@@ -360,7 +369,7 @@ PyVista's color parser requires either named colors, full 6-digit hex `#888888`,
 
 ### 8.5 Re-entrancy from QApplication.processEvents
 
-See section 4.4. Without a guard, `processEvents` during status-bar update can re-enter `_render_current` via slider-release events, leading to dangling actors and stale `_raw_mesh`.
+**Resolved by realtime-variety-render-e4 (CAND-4) — kept here as institutional memory.** The original synchronous `_render_current` called `QApplication.processEvents()` to keep the status bar repainting during the ~0.5 s blocking generate; that `processEvents` drained the Qt event queue and could re-enter `_render_current` via slider-release events, leading to dangling actors and stale `_raw_mesh`. It was guarded by the `self._computing` bool. e4 moved `surface.generate()` onto a `QThreadPool` worker — the GUI thread is now free during the compute, so the `processEvents` call was **removed entirely**. The `_computing` guard survives (now spanning the async worker round-trip — see §4.4). There is no `processEvents` call anywhere in the render path today; **do not reintroduce one** — if you need the GUI responsive during a long compute, dispatch a worker, do not pump the event queue.
 
 ### 8.6 marching_cubes raises cryptically on all-positive fields
 
@@ -443,7 +452,8 @@ Logged as adversarial findings in the most recent reviews but skipped. Future ma
 - **No confirmation dialog on Reset to Defaults.** The action is non-destructive (the surface re-renders with default sliders); a confirm dialog would interrupt flow.
 - **No keyboard navigation beyond the three shortcuts** (`Ctrl+R` reset camera, `Ctrl+Shift+S` screenshot, `Ctrl+D` reset defaults). Tab order is whatever PySide6 derives by default.
 - **No empty-clip overlay annotation.** When the domain radius is set so small that the surface vanishes, the status bar says "Domain is smaller than the surface — no geometry to display" but the canvas itself shows nothing. A VTK text overlay would be nicer but tightly couples to the render pipeline.
-- **No tests for app.py / MainWindow.** The 120 tests are all pure-NumPy / pure-PyVista / static-math tests. Adding `pytest-qt` would let us test the dropdown wiring and dock layout, but Qt+VTK segfaults under offscreen on macOS prevent end-to-end smoke tests in CI. Manual launch is the only true verification.
+- **No tests for app.py / MainWindow.** The test suite is all pure-NumPy / pure-PyVista / static-math tests. Adding `pytest-qt` would let us test the dropdown wiring and dock layout, but Qt+VTK segfaults under offscreen on macOS prevent end-to-end smoke tests in CI. Manual launch is the only true verification.
+- **No automated test for the background-thread worker lifecycle (realtime-variety-render-e4 / CAND-4).** The *pure* pieces of `render_worker.py` — the `is_stale_result` supersede predicate and the `MeshResult` payload — are covered Qt-free by `tests/test_render_worker.py`. The *live* path cannot be: the `QThreadPool` dispatch, the `QueuedConnection` signal delivery, the `_computing` worker-in-flight queue-latest coalescing, the rapid cancel-and-resubmit supersede, and `closeEvent` thread drain all need a running `QApplication` event loop, i.e. `pytest-qt` — an AI-2 BLOCKER. The substitute regression harness is the e3 spike script `.claude/notes/roadmaps/realtime-variety-render/spike-thread-test.py` (re-runnable on demand) plus the spike report's §7 **macOS on-device verification checklist** (`.claude/notes/roadmaps/realtime-variety-render/spike-cand4-thread-safety.md`) — a documented pre-ship manual gate that cannot run on the Windows dev machine.
 
 ---
 

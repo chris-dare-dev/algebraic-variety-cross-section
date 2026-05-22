@@ -8,10 +8,8 @@ mouse — no extra wiring required.
 from __future__ import annotations
 
 import sys
-import time
-import warnings
 
-from PySide6.QtCore import Qt, QTimer
+from PySide6.QtCore import Qt, QThreadPool, QTimer, Slot
 from PySide6.QtGui import (
     QAction,
     QActionGroup,
@@ -34,6 +32,7 @@ from pyvistaqt import QtInteractor
 
 from appearance_panel import AppearancePanel
 from parameters_panel import ParametersPanel
+from render_worker import MeshWorker, is_stale_result
 from styles import (
     APP_STYLESHEET,
     APP_STYLESHEET_DARK,
@@ -147,15 +146,42 @@ class MainWindow(QMainWindow):
         # slider change still reuses the cached `_raw_mesh`.
         self._clipped_mesh = None
         self._clipped_overlay = None
+        # realtime-variety-render-e4 (CAND-4): `surface.generate()` now runs on
+        # a `QThreadPool` worker (see render_worker.py).  `_computing` is no
+        # longer a synchronous in-method flag — it is the "worker in flight"
+        # state and spans event-loop iterations from `_render_current`
+        # (dispatch) to `_on_mesh_ready` (result slot).
         self._computing = False
         # realtime-variety-render-e1-s2 (CAND-5): queue-latest re-entrancy
         # semantics.  When a render is requested while one is in flight,
         # `_pending_render` is set True instead of the request being dropped;
-        # the `finally` block of `_render_current` schedules one catch-up
-        # render via `QTimer.singleShot(0, ...)`.  This fixes the CRITICAL
-        # correctness bug where a fast drag-and-release silently discarded
-        # the slider's final resting position.
+        # the result slot `_on_mesh_ready` schedules one catch-up render via
+        # `QTimer.singleShot(0, ...)`.  This fixes the CRITICAL correctness bug
+        # where a fast drag-and-release silently discarded the slider's final
+        # resting position.  e4: the catch-up scheduling moved from the old
+        # synchronous `finally` block into the worker-result slot, because
+        # "in flight" now ends when the worker signal arrives, not when the
+        # dispatch function returns.
         self._pending_render = False
+        # realtime-variety-render-e4 (CAND-4): monotonic job-generation id.
+        # Every worker dispatch increments it; `_on_mesh_ready` discards any
+        # result whose generation id is not current (`is_stale_result`).  With
+        # the `_computing` single-flight guard at most one worker is in flight,
+        # so this is defensive idempotency insurance — see render_worker.py.
+        self._generation = 0
+        # The worker currently in flight.  MainWindow holds this Python ref for
+        # the worker's whole flight so the worker (and its `self._result` mesh
+        # ref — VTK #18782) cannot be GC'd before the result slot has retained
+        # the mesh.  Cleared in `_on_mesh_ready`, never at dispatch.
+        self._active_worker = None
+        # The surface / params / reset_camera captured at dispatch time.  The
+        # result slot uses THESE, not `_current_surface` / a fresh
+        # `parameters_panel.values()` — the user may have changed the selection
+        # or dragged a slider further while the worker was in flight, and the
+        # slot must describe the surface that was actually generated.
+        self._inflight_surface: Surface | None = None
+        self._inflight_params: dict = {}
+        self._inflight_reset_camera = False
         # The reset_camera flag the catch-up render should use.  A catch-up
         # is always a parameter re-tune (reset_camera=False); recorded here
         # so the catch-up does not have to guess.
@@ -478,81 +504,112 @@ class MainWindow(QMainWindow):
             self._domain_overlay_actor = None
 
     def _render_current(self, *, reset_camera: bool) -> None:
+        """Dispatch a background-thread render of the current surface.
+
+        realtime-variety-render-e4 (CAND-4): this is now *submit-only*.
+        ``surface.generate()`` runs on a ``QThreadPool`` worker
+        (:class:`render_worker.MeshWorker`); the result is delivered back to
+        the GUI thread by :meth:`_on_mesh_ready` via a ``QueuedConnection``
+        signal.  The function returns immediately, so the GUI stays
+        responsive during the ~0.5-1.5 s implicit-surface compute — and the
+        old ``QApplication.processEvents()`` workaround (CONTEXT.md §8.5) is
+        gone, along with its AI-9 re-entrancy hazard.
+
+        Re-entrancy (AI-9): the e1 ``_computing`` / ``_pending_render``
+        queue-latest guard is preserved — ``_computing`` is now the
+        "worker in flight" state.  A render requested while a worker is in
+        flight records ``_pending_render`` and returns; the *result slot*
+        (not a ``finally`` here) schedules exactly one catch-up via
+        ``QTimer.singleShot(0, ...)`` once the worker reports back.  At most
+        one worker is ever in flight and at most one catch-up is queued, so a
+        fast drag burst coalesces to "render, then one catch-up" — never an
+        unbounded re-entrant stack.
+        """
         if self._current_surface is None:
             return
-        # Re-entrancy guard: QApplication.processEvents() below can cause a
-        # second call via slider release → _on_params_changed → _render_current.
-        #
-        # realtime-variety-render-e1-s2 (CAND-5): the guard is no longer a
-        # pure DROP.  When a render is requested while one is in flight we
-        # record `_pending_render = True` and return; the `finally` block
-        # below schedules exactly one catch-up via `QTimer.singleShot(0, ...)`
-        # once the current render completes.  The catch-up re-reads the LATEST
-        # parameter values inside its own `_render_current` invocation (it
-        # calls `self.parameters_panel.values()` fresh), so the slider's final
-        # resting position is rendered rather than silently dropped.
         if self._computing:
+            # A worker is in flight — record the LATEST request and return.
+            # The result slot fires the catch-up, which re-reads the current
+            # parameter values, so the slider's final resting position wins.
             self._pending_render = True
             self._pending_reset_camera = reset_camera
             return
-        self._computing = True
-        # Show busy cursor while the marching-cubes pipeline runs
-        QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
-        try:
-            surface = self._current_surface
-            params = self.parameters_panel.values() if surface.params else {}
 
-            self.statusBar().showMessage(f"Computing {surface.label}…")
-            QApplication.processEvents()
-            _surface_warning: str = ""
-            # realtime-variety-render-e1-s1 (CAND-12): perf_counter bracket
-            # around the surface.generate() call only.  Placed here, inside
-            # the `_computing` guard but AROUND the actual generate call, so
-            # it times every *completed* render (the guard's early-return is
-            # for concurrent re-entry, not a burst — a burst's final request
-            # still completes via the s2 catch-up and is timed here).
-            _gen_t0 = time.perf_counter()
-            try:
-                # Capture RuntimeWarning (e.g. the Dwork conifold warning at
-                # ψ≈1) so it appears in the status bar rather than vanishing
-                # into stderr.
-                with warnings.catch_warnings(record=True) as _caught:
-                    warnings.simplefilter("always")
-                    new_mesh = surface.generate(**params)
-                # CAND-11: a successful generate() invalidates the clipped
-                # cache — the raw mesh has changed.
-                self._raw_mesh = new_mesh
-                self._invalidate_clipped_mesh()
-                for _w in _caught:
-                    if issubclass(_w.category, RuntimeWarning):
-                        _surface_warning = str(_w.message)
-                        break
-            except ValueError as exc:
+        surface = self._current_surface
+        params = self.parameters_panel.values() if surface.params else {}
+
+        # Capture the job context on the instance.  The result slot uses THESE
+        # — not `_current_surface` / a fresh `parameters_panel.values()` —
+        # because the user may change the selection or drag a slider further
+        # while the worker is in flight, and the slot must describe the
+        # surface that was actually generated.
+        self._computing = True
+        self._generation += 1
+        self._inflight_surface = surface
+        self._inflight_params = params
+        self._inflight_reset_camera = reset_camera
+
+        # Busy cursor for the whole flight; restored in `_on_mesh_ready`.
+        QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+        self.statusBar().showMessage(f"Computing {surface.label}…")
+
+        worker = MeshWorker(surface.generate, params, self._generation)
+        worker.signals.finished.connect(
+            self._on_mesh_ready, Qt.ConnectionType.QueuedConnection
+        )
+        # Hold the worker ref for the whole flight (VTK #18782 — keeps the
+        # worker's `_result` mesh ref alive until the slot has retained it).
+        self._active_worker = worker
+        QThreadPool.globalInstance().start(worker)
+
+    @Slot(object)
+    def _on_mesh_ready(self, result) -> None:
+        """Receive a worker result on the GUI thread and render it.
+
+        ``QueuedConnection`` guarantees this slot runs on the GUI thread, so
+        every VTK GL call below (via ``_apply_domain_and_render``) is
+        main-thread — the e3 spike's hard rule.  It is also serialized with
+        all other GUI events, so it cannot re-enter itself (AI-9).
+        """
+        # VTK #18782: retain the mesh on the GUI thread as the FIRST action,
+        # before the worker's `_result` ref can be dropped.
+        mesh = result.mesh
+        # Defensive supersede guard (see render_worker.is_stale_result): with
+        # the `_computing` single-flight guard the generation always matches,
+        # so this is idempotency insurance, not a hot path.
+        if is_stale_result(result.generation, self._generation):
+            return
+
+        surface = self._inflight_surface
+        params = self._inflight_params
+        try:
+            if not result.ok:
                 self._raw_mesh = None  # don't let a stale mesh be domain-clipped
                 self._invalidate_clipped_mesh()
-                msg = str(exc)
-                # "No real zero set" means the parameter *combination* produces
-                # an empty field — not that any single slider is out of range.
-                # Give a more actionable prefix so the user knows what to do.
-                if "No real zero set" in msg:
-                    self.statusBar().showMessage(
-                        f"No surface to render — {msg}"
-                    )
+                msg = result.error_message
+                if result.error_is_value_error:
+                    # "No real zero set" means the parameter *combination*
+                    # produces an empty field — not that any single slider is
+                    # out of range.  Give a more actionable prefix.
+                    if "No real zero set" in msg:
+                        self.statusBar().showMessage(f"No surface to render — {msg}")
+                    else:
+                        self.statusBar().showMessage(
+                            f"Parameter out of range — {msg}"
+                        )
                 else:
-                    self.statusBar().showMessage(f"Parameter out of range — {msg}")
+                    self.statusBar().showMessage(f"Error: {msg}")
                 return
-            except Exception as exc:
-                self._raw_mesh = None
-                self._invalidate_clipped_mesh()
-                self.statusBar().showMessage(f"Error: {exc}")
-                return
-            _gen_ms = (time.perf_counter() - _gen_t0) * 1000.0
+
+            # CAND-11: a successful generate() invalidates the clipped cache —
+            # the raw mesh has changed.
+            self._raw_mesh = mesh
+            self._invalidate_clipped_mesh()
             # CAND-12: one stdout log line per completed generate().
-            print(f"[render] {surface.label}: {_gen_ms:.0f} ms")
+            print(f"[render] {surface.label}: {result.gen_ms:.0f} ms")
 
-            self._apply_domain_and_render(reset_camera=reset_camera)
+            self._apply_domain_and_render(reset_camera=self._inflight_reset_camera)
 
-            params = self.parameters_panel.values() if surface.params else {}
             param_str = (
                 "  ·  " + ", ".join(
                     # Format each param with a precision that matches the slider
@@ -578,9 +635,9 @@ class MainWindow(QMainWindow):
             base_msg = (
                 f"{surface.label}  ·  {self._raw_mesh.n_points:,} verts, "
                 f"{self._raw_mesh.n_cells:,} faces{param_str}"
-                f"  ·  {bbox_suffix}  ·  {_gen_ms:.0f} ms"
+                f"  ·  {bbox_suffix}  ·  {result.gen_ms:.0f} ms"
             )
-            if _surface_warning:
+            if result.warning_text:
                 # Warning path: the Dwork conifold RuntimeWarning text alone
                 # is ~175 chars; combined with base_msg the full string can
                 # exceed QStatusBar's ~120-char clip width.  Hoist bbox right
@@ -591,21 +648,23 @@ class MainWindow(QMainWindow):
                 # conifold mesh is geometrically unusual and verts/faces is
                 # less informative.
                 self.statusBar().showMessage(
-                    f"⚠ {_surface_warning}  ·  {bbox_suffix}"
+                    f"⚠ {result.warning_text}  ·  {bbox_suffix}"
                     f"  |  {surface.label}  ·  {self._raw_mesh.n_points:,} verts, "
-                    f"{self._raw_mesh.n_cells:,} faces{param_str}  ·  {_gen_ms:.0f} ms"
+                    f"{self._raw_mesh.n_cells:,} faces{param_str}"
+                    f"  ·  {result.gen_ms:.0f} ms"
                 )
             else:
                 self.statusBar().showMessage(base_msg)
         finally:
             QApplication.restoreOverrideCursor()
             self._computing = False
-            # CAND-5: if a render was requested while this one was in flight,
-            # schedule exactly one catch-up.  `QTimer.singleShot(0, ...)`
+            self._active_worker = None
+            # CAND-5: if a render was requested while this worker was in
+            # flight, schedule exactly one catch-up.  `QTimer.singleShot(0, ...)`
             # defers it to the next event-loop iteration — `_computing` is
             # already False here, so the catch-up enters `_render_current`
-            # cleanly (no re-entrancy).  The lambda re-reads nothing stale:
-            # `_render_current` itself fetches the current parameter values.
+            # cleanly (no re-entrancy).  `_render_current` re-reads the current
+            # parameter values, so the catch-up renders the LATEST state.
             if self._pending_render:
                 self._pending_render = False
                 _catch_up_reset = self._pending_reset_camera
@@ -893,6 +952,13 @@ class MainWindow(QMainWindow):
                 self._system_theme_connection
             )
             self._system_theme_connection = None
+        # realtime-variety-render-e4 (CAND-4): drain any in-flight mesh worker
+        # before the VTK render window is torn down.  A worker still building
+        # a `pv.PolyData` while `plotter.close()` destroys the VTK context is
+        # the exact cross-thread teardown hazard the e3 spike flagged — wait
+        # for the pool (bounded: a single `surface.generate()` is ≲1.5 s; the
+        # 30 s cap is a safety net, not an expected wait).
+        QThreadPool.globalInstance().waitForDone(30000)
         self.plotter.close()
         super().closeEvent(event)
 
