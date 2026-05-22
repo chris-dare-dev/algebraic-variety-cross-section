@@ -218,11 +218,15 @@ def fermat_quartic(
     bounds = max(2.5, 1.15 * float(np.sqrt(axial_x2)) + 0.3)
 
     # Adaptive resolution: hold per-unit sample density roughly constant so
-    # mesh quality doesn't degrade as the box grows. Cap at 260 to keep
+    # mesh quality doesn't degrade as the box grows. Cap at 220 to keep
     # marching cubes responsive on slider drag while producing a smooth
-    # triangulation (~17M voxels worst-case, ~1 s).
+    # triangulation.  realtime-variety-render-e1-s3 (CAND-13): the cap was
+    # lowered 260 -> 220 — the Fermat quartic field is smooth with no
+    # near-singularities, so n=220 (~10.6M voxels) is topologically identical
+    # to n=260 (~17.6M) at viewport zoom; the higher resolution is reserved
+    # for the screenshot/export path where latency does not matter.
     if n is None:
-        n = int(np.clip(round(220 * bounds / 2.5), 200, 260))
+        n = int(np.clip(round(220 * bounds / 2.5), 200, 220))
 
     g = np.linspace(-bounds, bounds, n)
     X, Y, Z = np.meshgrid(g, g, g, indexing="ij")
@@ -436,7 +440,7 @@ ENRIQUES_FIGURE_3_PARAMS = [
 
 def enriques_figure_4(
     tau: float = 0.18,
-    n: int = 260,
+    n: int = 220,
     bounds: float = 1.5,
 ) -> pv.PolyData:
     """**Figure 4** — Endrass-normalized icosahedral sextic (Barth-dial variant).

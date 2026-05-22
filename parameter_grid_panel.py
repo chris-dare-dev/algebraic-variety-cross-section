@@ -44,7 +44,7 @@ from styles import (
     SMALL_LABEL_STYLE,
 )
 from surfaces import ParamSpec
-from ui_helpers import build_slider_row
+from ui_helpers import Debouncer, build_slider_row
 
 # QColor wrappers around the palette tokens. QPen / QBrush want a QColor, not a
 # bare hex string; building these once here keeps the call sites clean and the
@@ -144,6 +144,16 @@ class ParameterGridPanel(QWidget):
 
         self._dot: _DraggableDot | None = None
         self._dragging = False
+
+        # realtime-variety-render-e1-s4 (CAND-6): shared QTimer debounce for
+        # grid-dot drag-move ticks, mirroring ParametersPanel.  DORMANT in
+        # e1 — `_on_drag_move` / `_on_residual_value_changed` register ticks
+        # via `request()` so the coalescing machinery is wired, but the
+        # deferred callback does not render.  Render-on-drag is e2/e4 work;
+        # the dot-release / residual-release paths stay the single render
+        # trigger (INT-NO-1) and call `_debouncer.cancel()` so a trailing
+        # debounced callback can never shadow the release emit.
+        self._debouncer = Debouncer(self._on_debounced_tick)
 
         self._axis_combos: list[QComboBox] = []
         self._residual_sliders: dict[str, QSlider] = {}
@@ -555,9 +565,27 @@ class ParameterGridPanel(QWidget):
         # Live-update readouts ONLY — no signal, no render (INT-NO-1 / AI-9).
         self._values = self._values_from_dot(pos)
         self._refresh_readout()
+        # CAND-6 (e1-s4): register the drag-move tick with the shared
+        # debounce.  Dormant in e1 — `_on_debounced_tick` does not render.
+        self._debouncer.request()
+
+    def _on_debounced_tick(self) -> None:
+        """Debounced drag-tick callback (CAND-6, e1-s4) — DORMANT.
+
+        Fires at most once per debounce interval during a continuous dot
+        drag.  In e1 it is intentionally a no-op render-wise (render-on-drag
+        is gated to e2/e4).  Kept as a named hook so e2's `typical_ms`
+        fast-path can route a real render here without re-touching the
+        drag-event plumbing.
+        """
+        # Intentionally no render in e1.  See `_debouncer` note in __init__.
+        return
 
     def _on_drag_release(self, pos: QPointF) -> None:
         self._dragging = False
+        # CAND-6 (e1-s4): cancel any pending debounced drag callback so it
+        # cannot fire after — and shadow — this release emit.
+        self._debouncer.cancel()
         self._values = self._values_from_dot(pos)
         # Snap the dot to the (step-quantized) value so it lands on a grid
         # point consistent with the slider's discrete value set.

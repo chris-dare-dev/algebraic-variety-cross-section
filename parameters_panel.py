@@ -30,7 +30,7 @@ from PySide6.QtWidgets import (
 import parameter_grid as pg
 from parameter_grid_panel import ParameterGridPanel
 from surfaces import ParamSpec
-from ui_helpers import build_slider_row
+from ui_helpers import Debouncer, build_slider_row
 
 
 class ParametersPanel(QWidget):
@@ -41,6 +41,17 @@ class ParametersPanel(QWidget):
         self._sliders: dict[str, QSlider] = {}
         self._value_labels: dict[str, QLabel] = {}
         self._specs: list[ParamSpec] = []
+
+        # realtime-variety-render-e1-s4 (CAND-6): shared QTimer debounce for
+        # drag-time slider ticks.  DORMANT in e1 — `_on_value_changed`
+        # registers ticks with `request()` (so the coalescing machinery is
+        # wired and exercisable), but the deferred callback only updates the
+        # live readout; it does NOT trigger a render.  Render-on-drag is
+        # gated to e2 (`typical_ms` speed routing) / e4 (coarse-LOD); until
+        # then the render trigger stays exclusively on `sliderReleased`
+        # (INT-2).  The release path calls `_debouncer.cancel()` so a
+        # trailing debounced callback can never shadow the release render.
+        self._debouncer = Debouncer(self._on_debounced_tick)
 
         self._root = QVBoxLayout(self)
         self._root.setContentsMargins(6, 6, 6, 6)
@@ -225,8 +236,28 @@ class ParametersPanel(QWidget):
         # Live-update the readout, but don't regenerate until release.
         v = self._slider_to_value(spec)
         self._value_labels[spec.name].setText(pg.format_value(v, spec))
+        # CAND-6 (e1-s4): register the drag tick with the shared debounce.
+        # Dormant in e1 — `_on_debounced_tick` does not render; this only
+        # exercises the coalescing machinery so e2/e4 can activate it.
+        self._debouncer.request()
+
+    def _on_debounced_tick(self) -> None:
+        """Debounced drag-tick callback (CAND-6, e1-s4) — DORMANT.
+
+        Fires at most once per debounce interval during a continuous drag.
+        In e1 it is intentionally a no-op render-wise: render-on-drag is
+        gated to e2/e4.  Kept as a named hook (not an inline lambda) so e2's
+        `typical_ms` fast-path can route a real render here for fast
+        surfaces without touching the panel's signal plumbing again.
+        """
+        # Intentionally no render in e1.  See class-level note above.
+        return
 
     def _on_slider_released(self) -> None:
+        # CAND-6 (e1-s4): cancel any pending debounced drag callback so it
+        # cannot fire after — and shadow — this release render.  The release
+        # path itself is unchanged: it emits `params_changed` directly.
+        self._debouncer.cancel()
         self.params_changed.emit(self.values())
 
     def _reset_defaults(self) -> None:

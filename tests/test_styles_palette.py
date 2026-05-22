@@ -648,7 +648,7 @@ def test_no_inline_color_styles_in_panel_files() -> None:
         # discuss the deprecated pattern (as the migrated call sites do)
         # are legitimate documentation, not actual calls.
         for ln_num, raw_line in enumerate(
-            panel_path.read_text().splitlines(), start=1
+            panel_path.read_text(encoding="utf-8").splitlines(), start=1
         ):
             line = raw_line.split("#", 1)[0]  # strip Python comment
             for pattern in forbidden:

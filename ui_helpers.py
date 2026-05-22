@@ -21,12 +21,148 @@ from __future__ import annotations
 
 from typing import Callable
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QObject, Qt, QTimer
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QSlider, QVBoxLayout, QWidget
 
 import parameter_grid as pg
 from styles import SMALL_LABEL_STYLE
 from surfaces import ParamSpec
+
+# realtime-variety-render-e1-s4 (CAND-6): default debounce interval, ms.
+# The roadmap specifies 80 ms; the INVEST note allows 50-150 ms if tuning
+# proves necessary.  One named constant so both panels share it.
+DEBOUNCE_INTERVAL_MS = 80
+
+
+class DebounceCounter:
+    """Pure (Qt-free) model of the debounce coalescing contract.
+
+    The :class:`Debouncer` below wraps a real ``QTimer``; this class captures
+    *only* the counting semantics so they can be unit-tested without a
+    ``QApplication`` (AI-2 — the test suite is Qt-free).
+
+    Contract: every ``request()`` while the timer is "armed" is absorbed —
+    it does not schedule an additional deferred callback.  Exactly one
+    deferred callback ``fire()`` is produced per armed window, regardless of
+    how many ``request()`` calls landed in it.  ``flush()`` models the
+    release-path bypass: it fires immediately and disarms, so the pending
+    debounced callback (if any) is cancelled rather than double-firing.
+
+    Invariant verified by tests: N rapid ``request()`` calls followed by one
+    ``fire()`` yield exactly 1 callback (``fired == 1``), and ``requests``
+    counts all N.
+    """
+
+    def __init__(self) -> None:
+        self.requests = 0   # total request() calls seen
+        self.fired = 0      # total deferred callbacks emitted
+        self.flushed = 0    # total immediate (release-path) fires
+        self._armed = False
+
+    def request(self) -> bool:
+        """Record a debounced request.
+
+        Returns ``True`` if this request *armed* the timer (i.e. it is the
+        first of a new window and a real ``QTimer`` should be (re)started),
+        ``False`` if it was absorbed into an already-armed window.
+        """
+        self.requests += 1
+        if self._armed:
+            return False
+        self._armed = True
+        return True
+
+    def fire(self) -> None:
+        """Model the QTimer timeout — emit exactly one deferred callback."""
+        if not self._armed:
+            return
+        self._armed = False
+        self.fired += 1
+
+    def flush(self) -> None:
+        """Model the release-path bypass — fire immediately, disarm.
+
+        Any armed debounced window is cancelled (its ``fire()`` will no-op),
+        so the release render is not duplicated by a trailing debounced one.
+        """
+        self._armed = False
+        self.flushed += 1
+
+    @property
+    def armed(self) -> bool:
+        return self._armed
+
+
+class Debouncer(QObject):
+    """Shared ``QTimer``-based debounce for slider / grid-dot drag ticks.
+
+    realtime-variety-render-e1-s4 (CAND-6).  A single instance is wired into
+    both :class:`parameters_panel.ParametersPanel` and
+    :class:`parameter_grid_panel.ParameterGridPanel` so the drag-time
+    coalescing discipline lives in exactly one place.
+
+    Usage::
+
+        deb = Debouncer(on_timeout=self._do_debounced_render)
+        # ... on a drag tick (valueChanged / drag-move):
+        deb.request()          # coalesces — at most 1 callback per interval
+        # ... on release (sliderReleased / dot-release):
+        deb.flush()            # bypass — fires immediately, cancels pending
+
+    AI-9 (re-entrancy): the timer is single-shot.  ``request()`` (re)starts
+    it; intermediate ``request()`` calls inside the armed window only restart
+    the same timer — at most one ``timeout`` is delivered per window.  The
+    callback runs on the Qt event loop, never inside ``processEvents`` and
+    never inside ``_render_current``'s ``_computing`` window — so it composes
+    with the ``_computing`` guard and the s2 ``QTimer.singleShot(0, ...)``
+    catch-up without re-entrancy.  ``flush()`` stops the timer first, so the
+    release path can never be shadowed by a trailing debounced callback.
+
+    **e1 scope (dormant):** the debounce machinery is shipped and wired into
+    the panels' signal plumbing, but the panels do NOT connect ``request()``
+    to a render on ``valueChanged`` — render-on-drag is gated to e2
+    (``typical_ms`` speed routing) / e4 (coarse-LOD).  The release path
+    (``sliderReleased`` → ``params_changed``) is unchanged and fully working.
+    """
+
+    def __init__(
+        self,
+        on_timeout: Callable[[], None],
+        *,
+        interval_ms: int = DEBOUNCE_INTERVAL_MS,
+        parent: QObject | None = None,
+    ) -> None:
+        super().__init__(parent)
+        self._on_timeout = on_timeout
+        self._timer = QTimer(self)
+        self._timer.setSingleShot(True)
+        self._timer.setInterval(interval_ms)
+        self._timer.timeout.connect(self._handle_timeout)
+
+    def request(self) -> None:
+        """Schedule a debounced callback.
+
+        Restarts the single-shot timer; rapid successive calls collapse to a
+        single ``on_timeout`` invocation once the drag pauses for the
+        interval.
+        """
+        self._timer.start()
+
+    def flush(self) -> None:
+        """Release-path bypass — cancel any pending debounce and fire now."""
+        self._timer.stop()
+        self._on_timeout()
+
+    def cancel(self) -> None:
+        """Drop any pending debounced callback without firing."""
+        self._timer.stop()
+
+    def is_active(self) -> bool:
+        """Whether a debounced callback is currently pending."""
+        return self._timer.isActive()
+
+    def _handle_timeout(self) -> None:
+        self._on_timeout()
 
 
 def build_slider_row(

@@ -8,9 +8,10 @@ mouse — no extra wiring required.
 from __future__ import annotations
 
 import sys
+import time
 import warnings
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import (
     QAction,
     QActionGroup,
@@ -44,6 +45,36 @@ from surfaces import VARIETIES, VARIETY_TOOLTIPS, SUBTYPE_TOOLTIPS, Surface
 from view_panel import ViewPanel
 
 _PLACEHOLDER = "— Select —"
+
+
+def clipped_cache_is_valid(
+    cached_clip: object,
+    raw_mesh_changed: bool,
+    domain_changed: bool,
+) -> bool:
+    """Pure predicate for the CAND-11 clipped-mesh cache (e1-s5).
+
+    Returns ``True`` when a previously cached clipped mesh may be reused for
+    the current render — i.e. there *is* a cached clip and neither the raw
+    mesh nor the domain settings have changed since it was computed.
+
+    This is extracted as a free function (no ``QApplication``, no VTK) so the
+    cache-invalidation logic is unit-testable under the Qt-free AI-2 suite.
+    ``MainWindow`` realises the same logic imperatively: it sets
+    ``self._clipped_mesh = None`` (``_invalidate_clipped_mesh``) on a
+    raw-mesh change or a domain change, and otherwise reuses the slot — which
+    is exactly ``cached_clip is not None and not raw_mesh_changed and not
+    domain_changed``.
+
+    AI-10: a domain-radius change sets ``domain_changed=True`` (cache miss,
+    re-clip) but never implies a raw-mesh regeneration — the raw mesh is
+    independent of this predicate.
+    """
+    return (
+        cached_clip is not None
+        and not raw_mesh_changed
+        and not domain_changed
+    )
 
 
 class MainWindow(QMainWindow):
@@ -100,7 +131,29 @@ class MainWindow(QMainWindow):
         self._actor = None
         self._domain_overlay_actor = None
         self._raw_mesh = None
+        # realtime-variety-render-e1-s5 (CAND-11): clipped-mesh cache slot.
+        # Holds the result of `view_panel.clip_to_domain(self._raw_mesh)` so an
+        # appearance-only re-render (e.g. surface colour change) reuses it
+        # instead of re-running the full `mesh.copy()` + scalar-tag + clip.
+        # Invalidated (set back to None) ONLY when `_raw_mesh` changes OR the
+        # domain settings change — see `_invalidate_clipped_mesh`.  AI-10:
+        # this cache never causes a raw-mesh regeneration; a domain-radius
+        # slider change still reuses the cached `_raw_mesh`.
+        self._clipped_mesh = None
+        self._clipped_overlay = None
         self._computing = False
+        # realtime-variety-render-e1-s2 (CAND-5): queue-latest re-entrancy
+        # semantics.  When a render is requested while one is in flight,
+        # `_pending_render` is set True instead of the request being dropped;
+        # the `finally` block of `_render_current` schedules one catch-up
+        # render via `QTimer.singleShot(0, ...)`.  This fixes the CRITICAL
+        # correctness bug where a fast drag-and-release silently discarded
+        # the slider's final resting position.
+        self._pending_render = False
+        # The reset_camera flag the catch-up render should use.  A catch-up
+        # is always a parameter re-tune (reset_camera=False); recorded here
+        # so the catch-up does not have to guess.
+        self._pending_reset_camera = False
         self._current_surface: Surface | None = None
         self._set_subtype_enabled(False)
 
@@ -353,8 +406,12 @@ class MainWindow(QMainWindow):
     def _on_domain_changed(self) -> None:
         # Domain shape/radius/overlay-toggle changed — re-clip the cached raw
         # mesh without regenerating it. Camera preserved.
+        # AI-10: the raw mesh is NOT regenerated here — only the clip is
+        # recomputed.  CAND-11 (e1-s5): the domain changed, so the cached
+        # clipped mesh is stale and must be invalidated before re-clipping.
         if self._raw_mesh is None:
             return
+        self._invalidate_clipped_mesh()
         self._apply_domain_and_render(reset_camera=False)
 
     # --- rendering ---------------------------------------------------------
@@ -374,7 +431,18 @@ class MainWindow(QMainWindow):
             return
         # Re-entrancy guard: QApplication.processEvents() below can cause a
         # second call via slider release → _on_params_changed → _render_current.
+        #
+        # realtime-variety-render-e1-s2 (CAND-5): the guard is no longer a
+        # pure DROP.  When a render is requested while one is in flight we
+        # record `_pending_render = True` and return; the `finally` block
+        # below schedules exactly one catch-up via `QTimer.singleShot(0, ...)`
+        # once the current render completes.  The catch-up re-reads the LATEST
+        # parameter values inside its own `_render_current` invocation (it
+        # calls `self.parameters_panel.values()` fresh), so the slider's final
+        # resting position is rendered rather than silently dropped.
         if self._computing:
+            self._pending_render = True
+            self._pending_reset_camera = reset_camera
             return
         self._computing = True
         # Show busy cursor while the marching-cubes pipeline runs
@@ -386,19 +454,31 @@ class MainWindow(QMainWindow):
             self.statusBar().showMessage(f"Computing {surface.label}…")
             QApplication.processEvents()
             _surface_warning: str = ""
+            # realtime-variety-render-e1-s1 (CAND-12): perf_counter bracket
+            # around the surface.generate() call only.  Placed here, inside
+            # the `_computing` guard but AROUND the actual generate call, so
+            # it times every *completed* render (the guard's early-return is
+            # for concurrent re-entry, not a burst — a burst's final request
+            # still completes via the s2 catch-up and is timed here).
+            _gen_t0 = time.perf_counter()
             try:
                 # Capture RuntimeWarning (e.g. the Dwork conifold warning at
                 # ψ≈1) so it appears in the status bar rather than vanishing
                 # into stderr.
                 with warnings.catch_warnings(record=True) as _caught:
                     warnings.simplefilter("always")
-                    self._raw_mesh = surface.generate(**params)
+                    new_mesh = surface.generate(**params)
+                # CAND-11: a successful generate() invalidates the clipped
+                # cache — the raw mesh has changed.
+                self._raw_mesh = new_mesh
+                self._invalidate_clipped_mesh()
                 for _w in _caught:
                     if issubclass(_w.category, RuntimeWarning):
                         _surface_warning = str(_w.message)
                         break
             except ValueError as exc:
                 self._raw_mesh = None  # don't let a stale mesh be domain-clipped
+                self._invalidate_clipped_mesh()
                 msg = str(exc)
                 # "No real zero set" means the parameter *combination* produces
                 # an empty field — not that any single slider is out of range.
@@ -412,8 +492,12 @@ class MainWindow(QMainWindow):
                 return
             except Exception as exc:
                 self._raw_mesh = None
+                self._invalidate_clipped_mesh()
                 self.statusBar().showMessage(f"Error: {exc}")
                 return
+            _gen_ms = (time.perf_counter() - _gen_t0) * 1000.0
+            # CAND-12: one stdout log line per completed generate().
+            print(f"[render] {surface.label}: {_gen_ms:.0f} ms")
 
             self._apply_domain_and_render(reset_camera=reset_camera)
 
@@ -438,10 +522,12 @@ class MainWindow(QMainWindow):
             # default α=π/4 — see CONTEXT.md §4.3 (status-bar-bbox-2026q2-e1).
             _b = self._raw_mesh.bounds
             bbox_suffix = f"bbox ±{_b[1]:.2f} × ±{_b[3]:.2f} × ±{_b[5]:.2f}"
+            # CAND-12 (realtime-variety-render-e1): append the measured
+            # generate() time as a trailing "NNN ms" token after the bbox.
             base_msg = (
                 f"{surface.label}  ·  {self._raw_mesh.n_points:,} verts, "
                 f"{self._raw_mesh.n_cells:,} faces{param_str}"
-                f"  ·  {bbox_suffix}"
+                f"  ·  {bbox_suffix}  ·  {_gen_ms:.0f} ms"
             )
             if _surface_warning:
                 # Warning path: the Dwork conifold RuntimeWarning text alone
@@ -456,22 +542,63 @@ class MainWindow(QMainWindow):
                 self.statusBar().showMessage(
                     f"⚠ {_surface_warning}  ·  {bbox_suffix}"
                     f"  |  {surface.label}  ·  {self._raw_mesh.n_points:,} verts, "
-                    f"{self._raw_mesh.n_cells:,} faces{param_str}"
+                    f"{self._raw_mesh.n_cells:,} faces{param_str}  ·  {_gen_ms:.0f} ms"
                 )
             else:
                 self.statusBar().showMessage(base_msg)
         finally:
             QApplication.restoreOverrideCursor()
             self._computing = False
+            # CAND-5: if a render was requested while this one was in flight,
+            # schedule exactly one catch-up.  `QTimer.singleShot(0, ...)`
+            # defers it to the next event-loop iteration — `_computing` is
+            # already False here, so the catch-up enters `_render_current`
+            # cleanly (no re-entrancy).  The lambda re-reads nothing stale:
+            # `_render_current` itself fetches the current parameter values.
+            if self._pending_render:
+                self._pending_render = False
+                _catch_up_reset = self._pending_reset_camera
+                self._pending_reset_camera = False
+                QTimer.singleShot(
+                    0, lambda: self._render_current(reset_camera=_catch_up_reset)
+                )
+
+    def _invalidate_clipped_mesh(self) -> None:
+        """Drop the cached clipped mesh + overlay (CAND-11 / e1-s5).
+
+        Called whenever the raw mesh changes (a new ``surface.generate()``)
+        or the domain settings change (``_on_domain_changed``).  After this
+        the next ``_apply_domain_and_render`` re-runs ``clip_to_domain`` and
+        re-populates the cache; an appearance-only re-render in between reuses
+        the still-valid cache.  See :func:`clipped_cache_is_valid` for the
+        pure-function form of the validity predicate.
+        """
+        self._clipped_mesh = None
+        self._clipped_overlay = None
 
     def _apply_domain_and_render(self, *, reset_camera: bool) -> None:
         """Clip the cached raw mesh per the View panel's domain settings,
         re-add the surface and (optional) domain-outline actors, and render.
-        Called whenever either the mesh OR the domain settings change."""
+        Called whenever either the mesh OR the domain settings change.
+
+        CAND-11 (e1-s5): the clip result is cached in ``self._clipped_mesh`` /
+        ``self._clipped_overlay``.  ``view_panel.clip_to_domain`` runs a full
+        ``mesh.copy()`` + scalar-tag + ``clip_scalar`` — re-running it for an
+        appearance-only re-render (no raw-mesh, no domain change) is pure
+        waste.  The cache is invalidated by ``_invalidate_clipped_mesh`` on a
+        raw-mesh change (new ``surface.generate()``) or a domain change
+        (``_on_domain_changed``), so a populated cache here is always valid
+        for the current raw mesh + domain settings.
+        """
         if self._raw_mesh is None:
             return
 
-        clipped, overlay = self.view_panel.clip_to_domain(self._raw_mesh)
+        if self._clipped_mesh is None:
+            clipped, overlay = self.view_panel.clip_to_domain(self._raw_mesh)
+            self._clipped_mesh = clipped
+            self._clipped_overlay = overlay
+        else:
+            clipped, overlay = self._clipped_mesh, self._clipped_overlay
 
         self._clear_actor()
         self._clear_domain_overlay()
