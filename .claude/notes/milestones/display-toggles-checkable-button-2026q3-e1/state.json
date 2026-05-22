@@ -1,8 +1,8 @@
 {
   "id": "display-toggles-checkable-button-2026q3-e1",
   "created_at": "2026-05-22T16:22:58Z",
-  "updated_at": "2026-05-22T16:53:00Z",
-  "phase": "rectify-running",
+  "updated_at": "2026-05-22T16:53:35Z",
+  "phase": "complete",
   "phase_history": [
     {
       "phase": "init",
@@ -35,6 +35,10 @@
     {
       "phase": "rectify-running",
       "at": "2026-05-22T16:51:05Z"
+    },
+    {
+      "phase": "complete",
+      "at": "2026-05-22T16:53:35Z"
     }
   ],
   "milestone_brief": "Close the deferred F-M2 finding from qtawesome-icons-2026q2-e2: migrate the Wireframe and Show-edges display toggles in AppearancePanel from QCheckBox+setIcon() to QPushButton(checkable=True). The current QCheckBox.setIcon() produces a [check-square][icon][label] triple-prefix that no peer scientific-viz app uses (Blender, ParaView, 3D Slicer all use icon-bearing checkable QPushButton or plain text checkboxes \u2014 never the triple-prefix). The migration eliminates the visual ambiguity (researcher unsure which affordance to click \u2014 the check-square or the icon) and aligns with industry convention. Architecture: replace self._wireframe_cb (QCheckBox) and self._edges_cb (QCheckBox) with QPushButton(checkable=True) instances. The icon becomes the primary affordance; the pressed/depressed visual state communicates checked-ness. The migration touches: (a) appearance_panel.py:_build_toggles_group widget construction, (b) _on_wireframe_toggled / _on_edges_toggled signal connections (QPushButton uses 'toggled' signal \u2014 same name as QCheckBox, so wiring stays the same), (c) appearance_panel.py:refresh_icons (no API change \u2014 setIcon works identically on both widget types), (d) styles.py QSS rules for the checked state in both PALETTE_LIGHT and PALETTE_DARK (this is the non-trivial part \u2014 needs a checked-state visual treatment that's visually distinct from hover and from unchecked in both themes, while maintaining WCAG 3:1 non-text contrast for the active state indicator). AI invariants: AI-9 (no processEvents added \u2014 setCheckable is synchronous), AI-11 (any new Qt enum references fully-qualified), AI-12 (checked-state background/border must clear 3:1 against BG_PANEL in both themes \u2014 this is the only meaningful contrast question), AI-13 (any new palette tokens 6-digit hex). The researcher should propose: (1) the QSS checked-state visual treatment (likely a subtle inset/depressed appearance plus a colored indicator stripe or filled background), (2) whether a new palette token like BG_TOGGLE_CHECKED is needed or can be assembled from existing tokens, (3) how tests/test_styles_palette.py guards the new checked-state contrast, (4) how test_appearance_panel (or similar) verifies the widget-type change doesn't break the toggled-signal contract. CONTEXT.md should gain an \u00a78 entry recording the migration pattern (QCheckBox vs checkable QPushButton \u2014 when does each apply). Surface preservation: the actual wireframe/show-edges BEHAVIOR (apply_to_actor calls actor.prop.style and show_edges) must not change \u2014 this is purely a widget-type substitution at the UI level.",
@@ -63,7 +67,7 @@
     "medium": 4,
     "low": 5
   },
-  "rectification_commit": null,
+  "rectification_commit": "269f38ffbea5ed3578fe07d17b2a04ab75bdbdcb",
   "fixed_findings": [
     "F-M1",
     "F-L1",

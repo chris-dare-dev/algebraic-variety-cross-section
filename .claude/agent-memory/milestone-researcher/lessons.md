@@ -94,3 +94,11 @@
 - `setProperty("role", "display-toggle")` for the checked button — use the same pattern as QLabel role properties, NOT a widget-level setStyleSheet (which would override the QApplication cascade and break dark mode).
 - `text-align: left` is essential in the QPushButton QSS for a vertical panel — without it, QPushButton defaults to center-aligned content which looks out of place in a group box stack.
 - `setFlat(True)` should NOT be called alongside transparent QSS styling — it may interfere with border rendering. Keep styling in QSS entirely.
+
+## status-bar-bbox-2026q2-e2 (2026-05-22)
+- For deferred-finding closure milestones (prior critique already decided the format), skip ALL external searches. The entire brief value is: (a) confirming the exact insertion points in app.py, (b) enumerating all 3 consuming sites for the variable rename, (c) specifying the exact BBOX_REGEX fix (use `\d{3}` not `\d+` to enforce `.3f` contract), and (d) extending the math.isfinite Hanson guard from 3 to all 6 bounds indices.
+- When renaming a variable that appears in only 2-3 places (e.g. `bbox_suffix` → `size_suffix`), ALWAYS recommend the rename if the old name and new semantics are mismatched — the cost is trivial and git blame clarity is permanent.
+- BBOX_REGEX precision guard: `\d+\.\d+` matches any number of decimal places and cannot guard the `.3f` contract. Use `\d{3}` (curly-brace quantifier) for exactly-N-decimal-place enforcement. Apply this pattern to any format-contract regex that has a precision requirement.
+- `_format_bbox` helper function name in the test file: when the format changes, also rename the private helper to avoid semantic drift (`_format_bbox` → `_format_size`). The helper name matters for future readers of the test.
+- When switching from ±max (reads `b[1]/b[3]/b[5]` only) to full-extent (reads `b[1]-b[0]` etc.), the math.isfinite guards must extend from 3 checked indices to all 6 — the subtrahends (`b[0]`, `b[2]`, `b[4]`) also matter.
+- `view_panel.py`'s `_bbox_actor`/`_bbox_cb` are a separate VTK wireframe overlay feature, NOT the status-bar text readout. The naming collision is cosmetic — do not rename the view_panel attributes when changing the status-bar format string.

@@ -566,35 +566,45 @@ class MainWindow(QMainWindow):
                 )
                 if params else ""
             )
-            # Spatial extent readout — researchers want to see the bounding
-            # box of the mathematical surface (not the domain-clipped slice).
-            # `self._raw_mesh.bounds` returns (xmin, xmax, ymin, ymax, zmin, zmax);
-            # indices [1]/[3]/[5] are the positive max-extents.  The ±max display
-            # is exact for the 11 implicit-surface generators (symmetric
-            # np.linspace(-bounds, bounds, n) sampling) and an honest
-            # over-approximation for the 3 Hanson parametric generators at
-            # default α=π/4 — see CONTEXT.md §4.3 (status-bar-bbox-2026q2-e1).
+            # Spatial size readout — researchers want to see the spatial
+            # extent of the mathematical surface (not the domain-clipped
+            # slice).  `self._raw_mesh.bounds` returns
+            # (xmin, xmax, ymin, ymax, zmin, zmax); the full extent along
+            # each axis is `bounds[2i+1] - bounds[2i]`.  This is exact for
+            # ALL 14 generators in the live registry — including the 3
+            # Hanson parametric generators whose theta sweeps [0, π/2]
+            # produce non-symmetric bounds.  The previous ±max format
+            # (status-bar-bbox-2026q2-e1) was an honest over-approximation
+            # for Hanson at default α=π/4; this milestone switches to
+            # full-extent (status-bar-bbox-2026q2-e2) which is honest for
+            # all generators by construction.  Aligned with peer
+            # scientific-viz tools (ParaView per-axis ranges, MeshLab
+            # full-extent X:/Y:/Z:, Blender Dimensions:).  Precision .3f
+            # avoids false equalities at sub-1.0 extents — see CONTEXT.md
+            # §4.3 (status-bar-bbox-2026q2-e1 + -e2, UPL-13).
             _b = self._raw_mesh.bounds
-            bbox_suffix = f"bbox ±{_b[1]:.2f} × ±{_b[3]:.2f} × ±{_b[5]:.2f}"
+            size_suffix = (
+                f"size: {_b[1]-_b[0]:.3f} × {_b[3]-_b[2]:.3f} × {_b[5]-_b[4]:.3f}"
+            )
             # CAND-12 (realtime-variety-render-e1): append the measured
-            # generate() time as a trailing "NNN ms" token after the bbox.
+            # generate() time as a trailing "NNN ms" token after the size.
             base_msg = (
                 f"{surface.label}  ·  {self._raw_mesh.n_points:,} verts, "
                 f"{self._raw_mesh.n_cells:,} faces{param_str}"
-                f"  ·  {bbox_suffix}  ·  {_gen_ms:.0f} ms"
+                f"  ·  {size_suffix}  ·  {_gen_ms:.0f} ms"
             )
             if _surface_warning:
                 # Warning path: the Dwork conifold RuntimeWarning text alone
                 # is ~175 chars; combined with base_msg the full string can
-                # exceed QStatusBar's ~120-char clip width.  Hoist bbox right
+                # exceed QStatusBar's ~120-char clip width.  Hoist size right
                 # after the warning so the spatial extent stays visible even
                 # when the trailing `{label} verts, faces` content clips
                 # silently — see CONTEXT.md §4.3 warning-path note.  This is
-                # the one render path where researchers most need bbox: the
+                # the one render path where researchers most need size: the
                 # conifold mesh is geometrically unusual and verts/faces is
                 # less informative.
                 self.statusBar().showMessage(
-                    f"⚠ {_surface_warning}  ·  {bbox_suffix}"
+                    f"⚠ {_surface_warning}  ·  {size_suffix}"
                     f"  |  {surface.label}  ·  {self._raw_mesh.n_points:,} verts, "
                     f"{self._raw_mesh.n_cells:,} faces{param_str}  ·  {_gen_ms:.0f} ms"
                 )
