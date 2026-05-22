@@ -1,8 +1,8 @@
 {
   "id": "status-bar-bbox-2026q2-e2",
   "created_at": "2026-05-22T17:45:39Z",
-  "updated_at": "2026-05-22T18:08:56Z",
-  "phase": "rectify-running",
+  "updated_at": "2026-05-22T18:09:32Z",
+  "phase": "complete",
   "phase_history": [
     {
       "phase": "init",
@@ -35,6 +35,10 @@
     {
       "phase": "rectify-running",
       "at": "2026-05-22T18:06:25Z"
+    },
+    {
+      "phase": "complete",
+      "at": "2026-05-22T18:09:32Z"
     }
   ],
   "milestone_brief": "Close the deferred F-M2 + F-L1 + F-L2 findings from status-bar-bbox-2026q2-e1: switch the status-bar spatial extent readout from the half-extent \u00b1max format ('bbox \u00b1a \u00d7 \u00b1b \u00d7 \u00b1c') to a full-extent format aligned with peer scientific-viz tools. Concretely: the previous milestone's frontend-ux critic flagged that ParaView, MeshLab, and Blender all use full-extent widths (size/dimensions/X Range labels) and NONE use the \u00b1 half-extent convention; that AVC's '\u00b1max' is a silent over-approximation for the 3 Hanson parametric generators (theta sweeps [0, \u03c0/2], non-symmetric bounds); and that .2f precision creates false equalities at sub-1.0 extents. This milestone replaces the readout. Proposed format from the previous deferral: 'size: Lx \u00d7 Ly \u00d7 Lz' where Lx = mesh.bounds[1] - mesh.bounds[0] (true full extent), with .3f precision. The full-extent format eliminates the Hanson over-approximation honestly: a Hanson surface that's -1.07..+1.19 in x reads as 'size: 2.26' (the actual diameter), no \u00b1 misleading prefix. Additionally the previous v1 deferred F-M1 (status-bar overflow on Dwork warning path) was already addressed in the v1 rect via priority reordering \u2014 that work stays. AI invariants: AI-9 (no processEvents added \u2014 string format change only), AI-10 (read still uses self._raw_mesh inside success branch, no mesh regen, AI-14 unchanged \u2014 error paths set _raw_mesh=None and return before format line). Test surface: tests/test_status_bar_bbox.py \u2014 update BBOX_FORMAT and BBOX_REGEX to match the new 'size: Lx \u00d7 Ly \u00d7 Lz' format with .3f precision; the Hanson regression test no longer needs the math.isfinite over-approximation guard since the new format reports actual extent (still keep the isfinite check though \u2014 guards against NaN-producing future generator changes regardless of format). CONTEXT.md \u00a74.3 status-bar bbox paragraph: rewrite to reflect the new format and remove the 'honest over-approximation' caveat (no longer needed); the warning-path priority note from v1 stays. Roadmap acceptance: peer-vocabulary alignment (ParaView/MeshLab/Blender), Hanson honesty, .3f precision avoids false equalities at sub-1.0 extents. Out of scope: hover-coord readout (separate v2 deferral; defer to dedicated milestone with mouse-position-tracking infrastructure).",
@@ -63,7 +67,7 @@
     "medium": 2,
     "low": 2
   },
-  "rectification_commit": null,
+  "rectification_commit": "96b1d546cdb207bc5f192e32be5086636c408efd",
   "fixed_findings": [
     "F-M1",
     "M1",
