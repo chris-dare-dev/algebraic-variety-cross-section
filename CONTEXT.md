@@ -447,6 +447,32 @@ Also note: the Enriques wing-tip truncation visible at the edge of the rendered 
 
 The user's `apply_to_actor` path pushes `actor.prop.culling = self._culling or "none"` so Wireframe / Show-edges / Flat-shading toggles in the Appearance dock don't fight the culling state (the cull persists across appearance changes within the same surface session).
 
+### 8.16 Enriques bounds padded by 5% to capture wing tips; second Taubin pass deferred over-budget
+
+The Enriques canonical sextic (Fig. 1) and the three sibling Enriques figures all use symmetric `np.linspace(-bounds, bounds, n)` sampling around the origin.  At the original `bounds` defaults (1.8 / 1.8 / 2.5 / 1.5 for Figs. 1–4), the marching-cubes grid clips the three "wing tips" of the surface where it extends past the sampling box — visible as flat truncated edges at the wing extremes, especially the bottom wing of Fig. 1.
+
+The original `panel-refresh-2026q2` roadmap epic e4 (UPL-18) proposed two related fixes: (a) a second Taubin smoothing pass (`n_iter=40, pass_band=0.05`) on top of the existing single pass, to attenuate the double-curve sawtooth-ridge artifact; (b) a 5% bounds-padding multiplier (`bounds * 1.05`) to capture the missing wing geometry.  The roadmap pre-committed to a spike: ship the second pass only if median generate time stayed under ~500ms per CONTEXT.md §4.4.
+
+Spike result (`enriques-taubin-spike-2026q2-e1` — see `.claude/notes/milestones/enriques-taubin-spike-2026q2-e1/artifacts/timing-log.txt`):
+- Single-pass median (production baseline at `enriques_figure_1(c=1.0)`, n=240, N=7 runs): **449.3 ms**
+- Double-pass median (proposed: existing pass + second `n_iter=40, pass_band=0.05`): **587.5 ms**
+- Second-pass overhead: +138.2 ms (+30.8%)
+- Budget headroom: −87.5 ms (17.5% over the 500 ms threshold)
+
+**Decision: Path B (over-budget) — ship bounds-padding only; defer the second Taubin pass.**
+
+The bounds-padding (`bounds * 1.05`) shipped universally across all four Enriques figures:
+- `enriques_figure_1`: 1.8 → 1.89
+- `enriques_figure_2`: 1.8 → 1.89
+- `enriques_figure_3`: 2.5 → 2.625
+- `enriques_figure_4`: 1.5 → 1.575
+
+Off-screen render verification (`/tmp/check-enriques-{before,after}*.png`) confirms the wing tips now resolve to clean tapering points instead of truncated flat edges; the double-curve sawtooth artifact along the central crease is unchanged (the deferred second pass would have addressed that).  Mesh extent on Fig. 1 grew from 3.60 × 3.60 × 3.60 to 3.78 × 3.78 × 3.78; vertex count +0.52% (399,507 → 401,592), face count +0.48% — negligible perf impact vs the wing-tip visual win.
+
+AI-14 verification: the 5% pad doesn't degrade marching-cubes resolution.  Voxel spacing at the new defaults: Fig. 1 = 2 × 1.89 / 239 ≈ 0.01582 (was 0.01506 at 1.8); Fig. 3 = 2 × 2.625 / 239 ≈ 0.02197; Fig. 4 = 2 × 1.575 / 219 ≈ 0.01438.  All well above the practical floor (~0.003) below which marching cubes produces unusable meshes.
+
+**Deferral path for the second Taubin pass.** A future "high-quality smoothing" toggle milestone (provisional id `enriques-hq-smoothing-2026q3-e1`) can expose this as an opt-in slider in the Parameters panel — the user accepts the +30% latency in exchange for the ridge-noise reduction.  This is the cleaner home for the work than a global default change: power users get the quality bump, default-launch researchers keep the snappier 449 ms baseline.  Regression guard: `tests/test_mesh_generators.py:test_enriques_figures_have_padded_bounds_defaults` asserts the four padded values on the generator signatures so any future revert to the unpadded defaults fires loudly.
+
 ---
 
 ## 9. Things explicitly NOT done (and why)

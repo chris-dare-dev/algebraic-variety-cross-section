@@ -82,6 +82,49 @@ def test_enriques_figure_4_defaults():
     _assert_nonempty(mesh)
 
 
+def test_enriques_figures_have_padded_bounds_defaults() -> None:
+    """Regression guard for enriques-taubin-spike-2026q2-e1 Path B
+    (bounds-padding only; second Taubin pass deferred over-budget).
+
+    All 4 Enriques generators must have their default `bounds`
+    parameter set to the v1 padded value (1.05× the original
+    sampling box) to reduce wing-tip truncation at the
+    marching-cubes grid boundary.  See CONTEXT.md §8.16 for the
+    spike timing log and the per-figure padding rationale.
+
+    Asserts on the function defaults rather than the mesh extent
+    because mesh extent depends on the c/k/tau parameter values
+    (the surface shape changes) — the padding is the static
+    sampling-box change.
+    """
+    import inspect
+    from surfaces import (
+        enriques_figure_1,
+        enriques_figure_2,
+        enriques_figure_3,
+        enriques_figure_4,
+    )
+
+    # Each tuple: (generator, expected bounds default, original bounds).
+    # Padded value should be exactly 1.05× the original; using
+    # math.isclose with a small absolute tolerance to handle
+    # floating-point representation (1.5 * 1.05 = 1.5750000000000002).
+    import math
+    cases = (
+        ("enriques_figure_1", enriques_figure_1, 1.89, 1.80),
+        ("enriques_figure_2", enriques_figure_2, 1.89, 1.80),
+        ("enriques_figure_3", enriques_figure_3, 2.625, 2.50),
+        ("enriques_figure_4", enriques_figure_4, 1.575, 1.50),
+    )
+    for name, fn, expected, original in cases:
+        sig = inspect.signature(fn)
+        actual = sig.parameters["bounds"].default
+        assert math.isclose(actual, expected, abs_tol=1e-9), (
+            f"{name} default bounds = {actual!r}; expected {expected!r} "
+            f"(= original {original} × 1.05).  See CONTEXT.md §8.16."
+        )
+
+
 # ---------------------------------------------------------------------------
 # ValueError for invalid kummer_surface parameters
 # ---------------------------------------------------------------------------
