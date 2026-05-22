@@ -108,6 +108,18 @@ PALETTE_LIGHT: dict[str, str] = {
 
     # === Domain-clip wireframe overlay (flows into PyVista add_mesh) ===
     "COLOR_WIREFRAME_OVERLAY":  "#888888",
+
+    # === Parameter-grid mode (QGraphicsScene — Qt-only, not PyVista) ===
+    # The grid panel draws gridlines, a draggable dot, axis labels and (for
+    # the 3D isometric box) a wireframe cube inside a QGraphicsScene.  These
+    # are Qt stylesheet / QPen / QBrush colors, never passed to PyVista.
+    "BG_GRID_SCENE":            "#fbfbfb",   # grid drawing-surface background
+    "GRID_LINE":                "#d0d0d0",   # minor gridline pen
+    "GRID_AXIS_LINE":           "#9aa3ad",   # bounding axis-frame pen (stronger)
+    "GRID_DOT_FILL":            "#3c6da8",   # draggable dot fill
+    "GRID_DOT_BORDER":          "#1f3d5c",   # draggable dot outline
+    "GRID_AXIS_LABEL":          "#4a4a4a",   # axis-name text (8.6:1 on BG_GRID_SCENE — AA pass)
+    "GRID_BOX_WIRE":            "#7d8893",   # 3D isometric box wireframe pen
 }
 
 
@@ -236,6 +248,22 @@ PALETTE_DARK: dict[str, str] = {
 
     # === Domain-clip wireframe overlay (flows into PyVista add_mesh) ===
     "COLOR_WIREFRAME_OVERLAY":   "#888888",   # SHARED — 4.32:1 vs #252526
+
+    # === Parameter-grid mode (QGraphicsScene — Qt-only, not PyVista) ===
+    # Dark-tuned companions to the PALETTE_LIGHT GRID_* tokens, kept so the
+    # two palettes stay key-identical (enforced by
+    # test_palette_dark_has_minimum_tokens).  NOTE: parameter_grid_panel.py
+    # currently freezes these into QColor objects at module-import time, so
+    # the grid scene does not yet live-swap on a theme toggle — a dark-grid
+    # runtime refresh is a tracked follow-up (see
+    # .claude/notes/features/parameter-grid/design.md).
+    "BG_GRID_SCENE":             "#2a2a2b",   # dark grid drawing surface
+    "GRID_LINE":                 "#4a4a4c",   # minor gridline on dark
+    "GRID_AXIS_LINE":            "#6f7780",   # bounding axis-frame pen (stronger)
+    "GRID_DOT_FILL":             "#5b9bd5",   # draggable dot fill — bright blue on dark
+    "GRID_DOT_BORDER":           "#cfe4f5",   # draggable dot outline — pale rim
+    "GRID_AXIS_LABEL":           "#c8c8c8",   # axis-name text on dark grid scene
+    "GRID_BOX_WIRE":             "#8a929c",   # 3D isometric box wireframe pen
 }
 
 
@@ -263,6 +291,15 @@ BG_PANEL                   = PALETTE_LIGHT["BG_PANEL"]
 BG_SURFACE_DEFAULT         = PALETTE_LIGHT["BG_SURFACE_DEFAULT"]
 BORDER_SWATCH              = PALETTE_LIGHT["BORDER_SWATCH"]
 COLOR_WIREFRAME_OVERLAY    = PALETTE_LIGHT["COLOR_WIREFRAME_OVERLAY"]
+
+# Parameter-grid mode tokens — consumed by parameter_grid_panel.py.
+BG_GRID_SCENE              = PALETTE_LIGHT["BG_GRID_SCENE"]
+GRID_LINE                  = PALETTE_LIGHT["GRID_LINE"]
+GRID_AXIS_LINE             = PALETTE_LIGHT["GRID_AXIS_LINE"]
+GRID_DOT_FILL              = PALETTE_LIGHT["GRID_DOT_FILL"]
+GRID_DOT_BORDER            = PALETTE_LIGHT["GRID_DOT_BORDER"]
+GRID_AXIS_LABEL            = PALETTE_LIGHT["GRID_AXIS_LABEL"]
+GRID_BOX_WIRE              = PALETTE_LIGHT["GRID_BOX_WIRE"]
 
 
 # ---------------------------------------------------------------------------

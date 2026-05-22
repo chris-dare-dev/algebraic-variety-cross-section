@@ -3,6 +3,13 @@
 Repopulated each time the user picks a different surface. Emits ``params_changed``
 when a slider is released, carrying the current parameter dict. The signal fires
 on release rather than continuously to avoid thrashing the marching-cubes call.
+
+The panel also hosts a **grid mode** (:class:`parameter_grid_panel.ParameterGridPanel`):
+a "Grid mode" toggle swaps the slider stack for a draggable-dot grid that
+adjusts two or three parameters at once. Both views share one source of
+parameter truth — toggling preserves the current values, and the grid funnels
+its changes back through the same ``params_changed`` signal, so the single
+``_computing``-guarded render path in ``app.py`` is unchanged.
 """
 
 from __future__ import annotations
@@ -11,7 +18,6 @@ from typing import Iterable
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
-    QHBoxLayout,
     QLabel,
     QPushButton,
     QSizePolicy,
@@ -21,8 +27,10 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from styles import SMALL_LABEL_STYLE  # MUTED/VALUE_MONO/RANGE inline styles deprecated in dark-mode-2026q2-e1 — use setProperty("role", X)
+import parameter_grid as pg
+from parameter_grid_panel import ParameterGridPanel
 from surfaces import ParamSpec
+from ui_helpers import build_slider_row
 
 
 class ParametersPanel(QWidget):
@@ -48,6 +56,15 @@ class ParametersPanel(QWidget):
         self._hint_label.hide()
         self._root.addWidget(self._hint_label)
 
+        # Grid-mode toggle — swaps the slider stack for the draggable-dot grid.
+        # Disabled for 0/1-param surfaces (a grid needs >= 2 axes).
+        self._grid_toggle = QPushButton("Grid mode")
+        self._grid_toggle.setCheckable(True)
+        self._grid_toggle.setEnabled(False)
+        self._grid_toggle.setToolTip("Grid mode needs at least 2 parameters")
+        self._grid_toggle.toggled.connect(self._on_grid_toggled)
+        self._root.addWidget(self._grid_toggle)
+
         self._content_layout = QVBoxLayout()
         self._content_layout.setSpacing(10)
         self._root.addLayout(self._content_layout)
@@ -57,6 +74,12 @@ class ParametersPanel(QWidget):
         self._empty_label.setProperty("role", "muted")
         self._empty_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._content_layout.addWidget(self._empty_label)
+
+        # Grid panel — created once, shown only while the toggle is checked.
+        self._grid_panel = ParameterGridPanel()
+        self._grid_panel.grid_params_changed.connect(self._on_grid_params_changed)
+        self._grid_panel.hide()
+        self._root.addWidget(self._grid_panel)
 
         # Reset button — styled via object name so the app stylesheet targets it
         self._reset_btn = QPushButton("Reset all to defaults")
@@ -92,14 +115,34 @@ class ParametersPanel(QWidget):
             self._hint_label.hide()
 
     def set_specs(self, specs: Iterable[ParamSpec]) -> None:
-        """Rebuild the panel for a new surface's parameter spec list."""
+        """Rebuild the panel for a new surface's parameter spec list.
+
+        Switching surfaces resets both the slider stack and the grid panel
+        consistently: each is rebuilt from the new specs with default values.
+        """
         self._clear_content()
         self._specs = list(specs)
+
+        # Grid mode is only meaningful for >= 2 parameters.  Switching to a
+        # 0/1-param surface forces the panel back to slider view and disables
+        # the toggle.
+        grid_ok = pg.grid_enabled(self._specs)
+        self._grid_toggle.blockSignals(True)
+        self._grid_toggle.setEnabled(grid_ok)
+        if not grid_ok and self._grid_toggle.isChecked():
+            self._grid_toggle.setChecked(False)
+        self._grid_toggle.setToolTip(
+            "Adjust two or three parameters at once on a draggable grid"
+            if grid_ok
+            else "Grid mode needs at least 2 parameters"
+        )
+        self._grid_toggle.blockSignals(False)
 
         if not self._specs:
             self._empty_label.show()
             self._content_layout.addWidget(self._empty_label)
             self._reset_btn.setEnabled(False)
+            self._grid_panel.hide()
             return
 
         self._empty_label.hide()
@@ -107,7 +150,22 @@ class ParametersPanel(QWidget):
             self._content_layout.addWidget(self._build_row(spec))
         self._reset_btn.setEnabled(True)
 
+        # Rebuild the grid panel from the same specs + default values so the
+        # two views start coherent.
+        defaults = {spec.name: spec.default for spec in self._specs}
+        if grid_ok:
+            self._grid_panel.set_specs(self._specs, defaults)
+        # Honor whichever view the toggle currently selects.
+        self._apply_view_mode()
+
     def values(self) -> dict[str, float]:
+        """Return the current {name: value} dict from whichever view is active.
+
+        Grid mode and slider mode share one source of truth: in grid mode the
+        grid panel's values are authoritative, otherwise the sliders are.
+        """
+        if self._grid_toggle.isChecked():
+            return dict(self._grid_panel.values())
         return {spec.name: self._slider_to_value(spec) for spec in self._specs}
 
     def refresh_icons(self, theme: str = "dark") -> None:
@@ -144,62 +202,21 @@ class ParametersPanel(QWidget):
         self._value_labels.clear()
 
     def _build_row(self, spec: ParamSpec) -> QWidget:
-        row = QWidget()
-        outer = QVBoxLayout(row)
-        outer.setContentsMargins(0, 0, 0, 0)
-        outer.setSpacing(2)
+        """Build one slider row via the shared factory and register its widgets.
 
-        # Header: parameter name on the left, current value on the right
-        header = QHBoxLayout()
-        header.setContentsMargins(0, 0, 0, 0)
-        name_lbl = QLabel(spec.label)
-        name_lbl.setStyleSheet(SMALL_LABEL_STYLE)
-        name_lbl.setToolTip(spec.description or spec.label)
-        header.addWidget(name_lbl)
-        header.addStretch(1)
-        # dark-mode-2026q2-e1 rect: QSS role property (was VALUE_MONO_STYLE inline).
-        value_lbl = QLabel(self._format_value(spec.default, spec))
-        value_lbl.setProperty("role", "value-mono")
-        value_lbl.setToolTip("Current value")
-        header.addWidget(value_lbl)
-        outer.addLayout(header)
-
-        # Slider
-        slider = QSlider(Qt.Orientation.Horizontal)
-        ticks = max(1, int(round((spec.maximum - spec.minimum) / spec.step)))
-        slider.setRange(0, ticks)
-        slider.setValue(self._value_to_tick(spec.default, spec))
-        slider.setToolTip(
-            f"{spec.label}\n"
-            f"Range: {spec.minimum:g} – {spec.maximum:g}  |  Step: {spec.step:g}"
+        The label+slider+range layout lives in :func:`ui_helpers.build_slider_row`
+        so the slider stack here and the residual sliders in the grid panel
+        (:meth:`parameter_grid_panel.ParameterGridPanel._build_residual_row`)
+        cannot drift apart.  The factory applies the dark-mode-aware QSS
+        ``role`` properties for the colour-bearing labels.
+        """
+        row, slider, value_lbl = build_slider_row(
+            spec,
+            spec.default,
+            on_value_changed=self._on_value_changed,
+            on_released=self._on_slider_released,
+            include_description=True,
         )
-        slider.valueChanged.connect(lambda _v, s=spec: self._on_value_changed(s))
-        slider.sliderReleased.connect(self._on_slider_released)
-        outer.addWidget(slider)
-
-        # Min / max range labels flanking below the slider
-        range_row = QHBoxLayout()
-        range_row.setContentsMargins(0, 0, 0, 0)
-        # dark-mode-2026q2-e1 rect: QSS role property (was RANGE_LABEL_STYLE inline).
-        min_lbl = QLabel(f"{spec.minimum:g}{spec.suffix}")
-        min_lbl.setProperty("role", "range-label")
-        min_lbl.setToolTip("Minimum value")
-        max_lbl = QLabel(f"{spec.maximum:g}{spec.suffix}")
-        max_lbl.setProperty("role", "range-label")
-        max_lbl.setToolTip("Maximum value")
-        max_lbl.setAlignment(Qt.AlignmentFlag.AlignRight)
-        range_row.addWidget(min_lbl)
-        range_row.addStretch(1)
-        range_row.addWidget(max_lbl)
-        outer.addLayout(range_row)
-
-        if spec.description:
-            # dark-mode-2026q2-e1 rect: QSS role property (was MUTED_TEXT_STYLE inline).
-            desc = QLabel(spec.description)
-            desc.setProperty("role", "muted")
-            desc.setWordWrap(True)
-            outer.addWidget(desc)
-
         self._sliders[spec.name] = slider
         self._value_labels[spec.name] = value_lbl
         return row
@@ -207,37 +224,83 @@ class ParametersPanel(QWidget):
     def _on_value_changed(self, spec: ParamSpec) -> None:
         # Live-update the readout, but don't regenerate until release.
         v = self._slider_to_value(spec)
-        self._value_labels[spec.name].setText(self._format_value(v, spec))
+        self._value_labels[spec.name].setText(pg.format_value(v, spec))
 
     def _on_slider_released(self) -> None:
         self.params_changed.emit(self.values())
 
     def _reset_defaults(self) -> None:
+        """Reset every parameter to its default — works in both view modes."""
+        defaults = {spec.name: spec.default for spec in self._specs}
         for spec in self._specs:
             slider = self._sliders[spec.name]
             slider.blockSignals(True)
-            slider.setValue(self._value_to_tick(spec.default, spec))
+            slider.setValue(pg.value_to_tick(spec.default, spec))
             slider.blockSignals(False)
-            self._value_labels[spec.name].setText(self._format_value(spec.default, spec))
+            self._value_labels[spec.name].setText(pg.format_value(spec.default, spec))
+        # Keep the grid panel in sync so a later toggle shows correct values.
+        if pg.grid_enabled(self._specs):
+            self._grid_panel.set_values(defaults)
         self.params_changed.emit(self.values())
 
-    # ----- value <-> tick conversion (slider stores integer ticks) ----
+    # ------------------------------------------------------------------
+    # Grid-mode wiring
+    # ------------------------------------------------------------------
 
-    @staticmethod
-    def _value_to_tick(value: float, spec: ParamSpec) -> int:
-        return int(round((value - spec.minimum) / spec.step))
+    def _slider_values(self) -> dict[str, float]:
+        """The current {name: value} dict as read from the slider stack."""
+        return {spec.name: self._slider_to_value(spec) for spec in self._specs}
+
+    def _sync_sliders_to(self, values: dict[str, float]) -> None:
+        """Push *values* into the slider widgets without emitting."""
+        for spec in self._specs:
+            if spec.name not in values:
+                continue
+            slider = self._sliders.get(spec.name)
+            if slider is None:
+                continue
+            slider.blockSignals(True)
+            slider.setValue(pg.value_to_tick(values[spec.name], spec))
+            slider.blockSignals(False)
+            self._value_labels[spec.name].setText(
+                pg.format_value(values[spec.name], spec)
+            )
+
+    def _apply_view_mode(self) -> None:
+        """Show the slider stack or the grid panel per the toggle state."""
+        grid_on = self._grid_toggle.isChecked()
+        # Slider rows live in _content_layout; hide/show them as a group.
+        for i in range(self._content_layout.count()):
+            w = self._content_layout.itemAt(i).widget()
+            if w is not None and w is not self._empty_label:
+                w.setVisible(not grid_on)
+        self._grid_panel.setVisible(grid_on and bool(self._specs))
+
+    def _on_grid_toggled(self, checked: bool) -> None:
+        """Toggle between slider and grid view, preserving current values."""
+        if checked:
+            # Hand the slider values to the grid so the dot starts in place.
+            self._grid_panel.set_values(self._slider_values())
+        else:
+            # Adopt the grid's values back into the sliders.
+            self._sync_sliders_to(self._grid_panel.values())
+        self._apply_view_mode()
+
+    def _on_grid_params_changed(self, values: dict) -> None:
+        """Relay a grid dot-release into the panel's single params_changed.
+
+        Keeping the sliders synced means the two views never diverge, and
+        re-using ``params_changed`` means the grid funnels through the same
+        ``_computing``-guarded render path in app.py — no second render path.
+        """
+        self._sync_sliders_to(values)
+        self.params_changed.emit(dict(values))
+
+    # ----- value <-> tick conversion (slider stores integer ticks) ----
+    #
+    # The value<->tick mapping and the readout format both live in the
+    # Qt-free ``parameter_grid`` module so the slider stack and the grid
+    # panel's residual sliders share one source of truth (no drift).
 
     def _slider_to_value(self, spec: ParamSpec) -> float:
-        tick = self._sliders[spec.name].value()
-        return spec.minimum + tick * spec.step
-
-    @staticmethod
-    def _format_value(value: float, spec: ParamSpec) -> str:
-        # Format with enough precision to reflect the step size.
-        if spec.step >= 1:
-            text = f"{value:.0f}"
-        elif spec.step >= 0.1:
-            text = f"{value:.2f}"
-        else:
-            text = f"{value:.3f}"
-        return f"{text}{spec.suffix}"
+        return pg.tick_to_value(self._sliders[spec.name].value(), spec)
