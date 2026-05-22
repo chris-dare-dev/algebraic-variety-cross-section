@@ -1,0 +1,152 @@
+{
+  "id": "realtime-variety-render",
+  "kind": "capability-scout",
+  "created_at": "2026-05-22T02:10:31Z",
+  "updated_at": "2026-05-22T02:35:37Z",
+  "phase": "complete",
+  "phase_history": [
+    {
+      "phase": "init",
+      "at": "2026-05-22T02:10:31Z"
+    },
+    {
+      "phase": "survey-running",
+      "at": "2026-05-22T02:10:49Z"
+    },
+    {
+      "phase": "survey-complete",
+      "at": "2026-05-22T02:23:58Z"
+    },
+    {
+      "phase": "synthesize-running",
+      "at": "2026-05-22T02:24:05Z"
+    },
+    {
+      "phase": "synthesize-complete",
+      "at": "2026-05-22T02:28:30Z"
+    },
+    {
+      "phase": "challenge-running",
+      "at": "2026-05-22T02:28:31Z"
+    },
+    {
+      "phase": "challenge-complete",
+      "at": "2026-05-22T02:32:55Z"
+    },
+    {
+      "phase": "prioritize-running",
+      "at": "2026-05-22T02:32:55Z"
+    },
+    {
+      "phase": "complete",
+      "at": "2026-05-22T02:35:37Z"
+    }
+  ],
+  "scout_brief": "Research how to make the algebraic variety in the central viewport update DYNAMICALLY/in real time as the user drags a parameter slider or moves the dot on the 2D/3D parameter grid. Today there is a deliberate buffer: the mesh re-renders only on slider-release / dot-release (interaction discipline INT-2; continuous re-render during drag is the INT-NO-1 anti-pattern) because the marching-cubes mesh generation is ~0.5s and would thrash the UI. The goal of this scout is a deep, ranked survey of optimization techniques that could shrink or hide that latency enough to make continuous update viable: pre-rendering / preloading / mesh caching keyed by parameter tuple, low-resolution coarse-preview during drag with full-res snap on release (level-of-detail), GPU-accelerated isosurfacing, background-thread / QThread mesh generation that respects the AI-9 _computing re-entrancy guard, parameter-space mesh interpolation or morphing between cached meshes, Numba/Cython JIT of the implicit-field evaluation, incremental / windowed marching cubes, adaptive sampling, and how peer scientific-viz tools achieve interactive parameter response. Hard constraints: AI-1 (PySide6+PyVista+VTK only), AI-3 (pv.OFF_SCREEN, never MainWindow offscreen), AI-9 (_computing re-entrancy guard), macOS Apple-Silicon-primary Qt+VTK GL offscreen constraint, single-developer cadence. Deliverable: a ranked candidate report of optimization approaches with effort/impact/risk.",
+  "survey_mode": "standard",
+  "survey_briefs": [
+    ".claude/notes/capability-scouts/realtime-variety-render/survey/competitive-brief.md",
+    ".claude/notes/capability-scouts/realtime-variety-render/survey/math-research-brief.md",
+    ".claude/notes/capability-scouts/realtime-variety-render/survey/oss-trends-brief.md",
+    ".claude/notes/capability-scouts/realtime-variety-render/survey/desktop-platform-brief.md",
+    ".claude/notes/capability-scouts/realtime-variety-render/survey/adversary-brief.md"
+  ],
+  "scouts_dispatched": [
+    "competitive",
+    "math-research",
+    "oss-trends",
+    "desktop-platform",
+    "adversary"
+  ],
+  "scouts_returned": [
+    "competitive",
+    "math-research",
+    "oss-trends",
+    "desktop-platform",
+    "adversary"
+  ],
+  "synthesis_path": ".claude/notes/capability-scouts/realtime-variety-render/artifacts/synthesis.md",
+  "candidate_count": 13,
+  "challenge_path": ".claude/notes/capability-scouts/realtime-variety-render/artifacts/challenge.md",
+  "challenge_finding_counts": {
+    "critical": 0,
+    "high": 3,
+    "medium": 4,
+    "low": 6
+  },
+  "final_report_path": ".claude/notes/capability-scouts/realtime-variety-render/artifacts/final-report.md",
+  "ranked_candidates": [
+    {
+      "id": "CAND-5",
+      "title": "Re-entrancy guard drop->queue-latest",
+      "rice": 32.0,
+      "rank": 1
+    },
+    {
+      "id": "CAND-12",
+      "title": "Render timing instrumentation",
+      "rice": 20.0,
+      "rank": 2
+    },
+    {
+      "id": "CAND-13",
+      "title": "Grid-resolution-cap hygiene",
+      "rice": 20.0,
+      "rank": 3
+    },
+    {
+      "id": "CAND-8",
+      "title": "Hanson parametric fast-path",
+      "rice": 18.0,
+      "rank": 4
+    },
+    {
+      "id": "CAND-11",
+      "title": "Clipped-mesh cache",
+      "rice": 10.0,
+      "rank": 5
+    },
+    {
+      "id": "CAND-1",
+      "title": "VTK Flying Edges",
+      "rice": 9.0,
+      "rank": 6
+    },
+    {
+      "id": "CAND-6",
+      "title": "Debounce valueChanged",
+      "rice": 8.0,
+      "rank": 7
+    },
+    {
+      "id": "CAND-3",
+      "title": "Two-pass coarse-preview LOD",
+      "rice": 7.5,
+      "rank": 8
+    },
+    {
+      "id": "CAND-2",
+      "title": "Numba JIT field eval",
+      "rice": 6.75,
+      "rank": 9
+    },
+    {
+      "id": "CAND-4",
+      "title": "Background-thread worker",
+      "rice": 2.81,
+      "rank": 10
+    },
+    {
+      "id": "CAND-7",
+      "title": "LRU mesh cache",
+      "rice": 2.4,
+      "rank": 11
+    },
+    {
+      "id": "CAND-9",
+      "title": "In-place mesh update",
+      "rice": 1.5,
+      "rank": 12
+    }
+  ]
+}

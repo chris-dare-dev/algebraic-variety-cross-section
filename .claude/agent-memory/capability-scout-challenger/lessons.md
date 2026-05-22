@@ -1,0 +1,1 @@
+- When a synthesis flags a known risk (e.g., pyvistaqt/PySide6≥6.10 hang) but does not propagate it into the effort rating of the candidate it affects, always escalate the effort tier and mandate a spike first — risks that survive into the implementation phase cost 5–10× more to resolve than risks caught in the challenge pass.
