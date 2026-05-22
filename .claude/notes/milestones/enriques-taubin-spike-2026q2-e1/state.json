@@ -1,8 +1,8 @@
 {
   "id": "enriques-taubin-spike-2026q2-e1",
   "created_at": "2026-05-22T18:48:13Z",
-  "updated_at": "2026-05-22T19:07:46Z",
-  "phase": "rectify-running",
+  "updated_at": "2026-05-22T19:08:11Z",
+  "phase": "complete",
   "phase_history": [
     {
       "phase": "init",
@@ -35,6 +35,10 @@
     {
       "phase": "rectify-running",
       "at": "2026-05-22T19:05:56Z"
+    },
+    {
+      "phase": "complete",
+      "at": "2026-05-22T19:08:11Z"
     }
   ],
   "milestone_brief": "Close the deferred [MUST] Taubin-pass spike from the original Enriques epic (panel-refresh-2026q2-e4 / UPL-18). The back-face culling half of that epic shipped as enriques-backface-2026q2-e1 in v0; the smoothing half (second Taubin pass + bounds padding) was spike-gated and never run \u2014 this milestone closes it. THIS IS A SPIKE MILESTONE, NOT A FEATURE MILESTONE: the implementation phase begins with a perf measurement and the production-code outcome is conditional on the numbers. Spike requirement: measure render-time cost of a SECOND Taubin smoothing pass (n_iter=40, pass_band=0.05) added on top of the existing single pass (n_iter=20, pass_band=0.1) on the Enriques canonical sextic at default c=1.0. Budget: ~500ms generate time per CONTEXT.md \u00a76 / the original roadmap acceptance criterion. Output the timing log to /tmp/enriques-taubin-spike.txt AND commit a copy into .claude/notes/milestones/enriques-taubin-spike-2026q2-e1/artifacts/timing-log.txt. Two conditional outcomes the researcher and implementer must pre-commit to: (A) Under-budget: ship the second Taubin pass + bounds*1.05 padding (the wing-tip truncation fix), add CONTEXT.md \u00a78 entry recording the smoothing quality improvement and the measured ms numbers. (B) Over-budget: ship bounds*1.05 padding only; commit the timing log showing the second-pass cost; defer the smoothing pass to a future high-quality-toggle milestone; CONTEXT.md \u00a78 entry records the budget-overrun and the deferral rationale. Required off-screen render verification: render Enriques canonical sextic at default c=1.0 before and after to /tmp/check-enriques-{before,after}.png and visually confirm sawtooth seam reduction. Critical AI-invariant note: AI-8 (Surface dataclass is frozen) \u2014 DO NOT add a recommends_backface_culling field to Surface; back-face culling is already gated via Pattern-A in appearance_panel.set_culling() called from MainWindow._on_variety_changed (see CONTEXT.md \u00a78.13). The Taubin work lives entirely inside surfaces.py:enriques_figure_1..4 generator functions. AI-6 (implicit surface pipeline): the second pass STACKS on top of the existing first pass; do NOT replace, do NOT skip. AI-9: smoothing is part of generator execution, not the Qt event loop \u2014 no processEvents concern. AI-2: tests stay pure-NumPy/PyVista, no QApplication. Note on baseline: the realtime-variety-render-e1/e2 work added a clipped-mesh cache that helps SLIDER-RELEASE responsiveness but does NOT help INITIAL generate time which is what this spike measures. Time against current main, not pre-realtime-work main. Don't measure the entire UI loop \u2014 measure surfaces.enriques_figure_1(c=1.0) directly.",
@@ -62,7 +66,7 @@
     "medium": 0,
     "low": 3
   },
-  "rectification_commit": null,
+  "rectification_commit": "9e41cd890a5c65aec1d33b54d986b667a1592c21",
   "fixed_findings": [
     "L1",
     "L2",
