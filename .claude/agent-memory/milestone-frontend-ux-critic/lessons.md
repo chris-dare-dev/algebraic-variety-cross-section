@@ -152,3 +152,37 @@
 
 ### State-reset-on-navigate UX
 - Unconditional `setChecked(False)` on `set_hq_smoothing_eligible(False)` is the "clear" pattern. This is defensible (avoids dangling-enabled bugs) but is the minority peer pattern (ParaView / SageMath both preserve per-object state). Flag as LOW when the state-clear has no status-bar feedback — the user cannot observe the reset happened.
+
+## realtime-variety-render-e4b (CAND-3 coarse-preview LOD) — 2026-05-22
+
+### Token-discipline near-misses
+- No short-hex, no shorthand-enum, no new QColor, no new processEvents in the diff. Pure dispatcher / status-bar f-string change. All four AI-9/AI-11/AI-12/AI-13 axes dispose in one sentence. AI-9 check: the new `coarse` kwarg is DATA — not a new locking primitive — and the existing `_computing` single-flight latch is unchanged.
+
+### The "Computing… vs Preview" flicker — the dispatch/result message-pair asymmetry
+- When a result-time slot BRANCHES on `result.is_coarse` to choose between two visually-distinct status-bar labels, the corresponding DISPATCH-time `showMessage` MUST also branch — otherwise the user sees rapid flicker between the two label styles during a drag burst (each dispatch shows the un-attributed "Computing…" and each result shows the attributed "Preview — …"). For e4b at ~25 Hz this is a real flicker that undercuts the AI-15 disclosure the result-time branch was built to provide. Fast check: any milestone that adds a result-time `if result.<flag>: showMessage(<flag-specific>)` branch should have an equivalent dispatch-time `f"Computing{flag_label} {label}…"` interpolation. The busy-branch `showMessage` at the in-flight queue-latest path is a THIRD copy that needs the same treatment — it currently reads `self._current_surface.label` but not the queued coarse-vs-full mode (which is now stored in `_pending_is_coarse`).
+- Flag this kind of asymmetry as HIGH (math-honesty consequence, not just paper-cut) when the user-visible label drives an AI invariant disclosure.
+
+### `True` as AND-identity is mathematically correct but doc-confusing for booleans
+- e4b's `_pending_is_coarse = True` init relies on `True` being the boolean-AND identity element, then explains it in a 6-line truth-table comment. Mathematically correct, but the sister field `_pending_reset_camera = False` (OR-identity) is *better* because `False` reads naturally as "no signal pending." A future maintainer skimming `_pending_is_coarse = True` (at init) may read it as "the pending render IS coarse" rather than "no pending render yet."
+- Flag whenever a boolean uses `True` as a "no signal" sentinel (AND-identity polarity). Suggest either (a) rename to the OR-natural polarity (`_pending_render_is_full = False`) or (b) use `Optional[bool]` with `None` as the explicit "no signal" sentinel. Pattern repeats whenever a queue-latest flag is added with AND-promote semantics.
+
+### Status-bar overflow recurring risk extended to coarse-path warning composites
+- The Dwork conifold 175-char RuntimeWarning + the 55-char Preview badge + the " | " separator = ~233 chars, well over QStatusBar's ~120-char visible window. The full-result equivalent dodges this by hoisting `bbox_suffix` to the LEFT of the pipe (status-bar-bbox-2026q2-e1 lesson); the coarse-result branch suppresses bbox (correctly per AI-15) so the equivalent hoist must move the BADGE to the left of the pipe. Same recurring pattern as the e1/e2 bbox-overflow issue.
+- Fix-side preference: shortening the source RuntimeWarning text is cleaner than rearranging the composite — runtime warnings on the worker thread should be ≤80 chars per peer convention.
+
+### AI-15 disclosure is structural, not just transient
+- A status-bar Preview badge satisfies AI-15 ONLY for status-bar-watching users. A user who hovers the subtype combo box reads SUBTYPE_TOOLTIPS but never sees the badge. New AI-15 line 170 says "A new render-mode candidate that lacks a comparable user-visible fidelity disclosure is an AI-15 conflict" — *comparable* covers tooltip-level disclosure that the variety is opt-in for coarse-preview LOD. Always flag the absence of a per-surface tooltip mention of a new render mode as MEDIUM.
+- Mathematica `Manipulate[ControlActive[...]]` puts the disclosure in the tooltip of its mode toggle, not just in a transient status-bar line — the peer pattern.
+
+### Industry-comparison concrete findings
+- **Mathematica `Manipulate[..., ControlActive[low_res, full]]`** is the canonical peer for two-pass coarse-vs-full UX (since v6.0, 2007). Indicator location: small "computing..." shimmer at bottom-right of the CANVAS, NOT in a status-bar text label. AVC's status-bar approach is a deliberate divergence.
+- **ParaView "Interactive Render" / "Still Render"** explicit toggle for the same trade-off. Indicator: small label at bottom-right of the RENDER VIEW. Also canvas-adjacent, not status-bar.
+- Both peers locate the indicator AT THE RENDER VIEW. AVC's status-bar location is defensible BECAUSE the status bar already carries the load-bearing render metadata (verts/faces/bbox/ms) — the eye is trained there — but the divergence should be documented in CONTEXT.md §8.19.
+- ParaView's "Interactive Render" status string stays "Interactive (preview)" CONTINUOUSLY across both phases of the same drag (dispatch + result both say "preview"). AVC's e4b currently flickers between "Computing X…" and "Preview — X — N ms." Fix is the HIGH-1 finding.
+
+### Dead "in-flight mirror" fields are a smell
+- `_inflight_is_coarse` is set at dispatch but never read (the slot uses `result.is_coarse`). Its docstring claims "defensive symmetry with the rest of the `_inflight_*` family" but that family DOES have consumers (`_inflight_surface`, `_inflight_params`, `_inflight_reset_camera`, `_inflight_hq_label` are all read in the slot). Pure dead code. Fast check on any new `_inflight_*` field: grep for its NAME, not its definition site — if the only hits are init + set, it's dead.
+
+### Scope discipline
+- Pure dispatcher / status-bar branch + math/worker plumbing changes — `appearance_panel.py`, `view_panel.py`, `parameters_panel.py`, `styles.py` are byte-identical. `git diff --stat 4db5c12..601612c -- <panel_files>` returning empty IS the canonical panel-scope check; run it first. A milestone with no panel-widget diff legitimately produces a critique focused on dispatcher + status-bar f-strings (axes 1-4, 7-9, 11 dispose in one sentence as "out-of-panel-scope" or "no relevant change").
+- `render_worker.py` and `surfaces.py` are worker / math, not panel surfaces — same dispose pattern as e4 (CAND-4) for `render_worker.py`.
