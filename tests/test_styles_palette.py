@@ -304,3 +304,205 @@ def test_critical_text_tokens_meet_wcag_aa_on_bg_panel() -> None:
     assert _ratio(styles.PALETTE_LIGHT["TEXT_VALUE"], bg) >= 4.5, (
         "TEXT_VALUE on BG_PANEL fails WCAG AA (need >=4.5:1)"
     )
+
+
+# ---------------------------------------------------------------------------
+# PALETTE_DARK regression guards (dark-mode-2026q2-e1 / UPL-1)
+# ---------------------------------------------------------------------------
+#
+# Parallel coverage to the light-palette tests above.  Every text token in
+# PALETTE_DARK must clear 4.5:1 against BG_PANEL_DARK; every non-text UI
+# border must clear 3:1.  The TEXT_DISABLED and BG_DOCK_HEADER tokens are
+# intentionally below the threshold per the WCAG §1.4.3 disabled exception
+# and the structural-contrast pattern (the BORDER_DOCK_HEADER separator at
+# 3.05:1 carries the §1.4.11 boundary) — skipped here, same as light.
+#
+# Named constants (COLOR_MUTED, COLOR_VALUE, etc.) remain PALETTE_LIGHT
+# aliases per the brief; no dark twin needed for the backward-compat tests.
+
+
+def test_palette_dark_has_minimum_tokens() -> None:
+    """PALETTE_DARK must be key-identical to PALETTE_LIGHT."""
+    assert set(styles.PALETTE_DARK.keys()) == set(styles.PALETTE_LIGHT.keys()), (
+        "PALETTE_DARK keys must match PALETTE_LIGHT exactly so the same QSS "
+        "template (_render_stylesheet) renders against either palette."
+    )
+
+
+def test_palette_dark_every_value_is_six_digit_hex() -> None:
+    """AI-13: every PALETTE_DARK value must be 6-digit hex (PyVista hard
+    requirement; convention extended to QSS for consistency).
+    """
+    for key, value in styles.PALETTE_DARK.items():
+        assert HEX6.match(value), (
+            f"PALETTE_DARK[{key!r}] = {value!r} is not 6-digit hex"
+        )
+
+
+def test_palette_dark_pyvista_bound_tokens_match_light() -> None:
+    """Tokens flowing into PyVista (BG_VIEWPORT, BG_SURFACE_DEFAULT,
+    COLOR_WIREFRAME_OVERLAY) are intentionally identical across themes —
+    the VTK canvas is always dark, so its background never changes, and the
+    default mesh color reads on either chrome.  Verify they match so a
+    drifted dark value can't silently change PyVista behavior.
+    """
+    shared = {"BG_VIEWPORT", "BG_SURFACE_DEFAULT", "COLOR_WIREFRAME_OVERLAY"}
+    for key in shared:
+        assert styles.PALETTE_DARK[key] == styles.PALETTE_LIGHT[key], (
+            f"PALETTE_DARK[{key!r}] = {styles.PALETTE_DARK[key]!r} differs "
+            f"from PALETTE_LIGHT[{key!r}] = {styles.PALETTE_LIGHT[key]!r}; "
+            f"PyVista-bound tokens must be theme-shared."
+        )
+
+
+def test_dark_text_tokens_meet_wcag_aa_on_bg_panel_dark() -> None:
+    """AI-12: TEXT_MUTED_DARK and TEXT_VALUE_DARK must clear >=4.5:1 on
+    BG_PANEL_DARK.  The original challenger MAJOR finding for UPL-1
+    specifically called out that the light TEXT_MUTED = #5a5a5a fails on
+    dark at 1.94:1 — this test guards the dark replacement.
+    """
+    bg = styles.PALETTE_DARK["BG_PANEL"]
+    assert _ratio(styles.PALETTE_DARK["TEXT_MUTED"], bg) >= 4.5, (
+        f"PALETTE_DARK[TEXT_MUTED] on BG_PANEL_DARK fails WCAG AA "
+        f"(measured {_ratio(styles.PALETTE_DARK['TEXT_MUTED'], bg):.2f}:1; "
+        f"need >=4.5:1)"
+    )
+    assert _ratio(styles.PALETTE_DARK["TEXT_VALUE"], bg) >= 4.5, (
+        f"PALETTE_DARK[TEXT_VALUE] on BG_PANEL_DARK fails WCAG AA "
+        f"(measured {_ratio(styles.PALETTE_DARK['TEXT_VALUE'], bg):.2f}:1; "
+        f"need >=4.5:1)"
+    )
+
+
+def test_dark_non_text_borders_meet_wcag_aa_on_bg_panel_dark() -> None:
+    """WCAG 2.1 §1.4.11 non-text UI components must clear >=3:1.  Covers
+    BORDER_GROUP_BOX, BORDER_DOCK_HEADER, BORDER_CAMERA_BTN, BORDER_RESET_BTN,
+    and the FOCUS_RING (which serves as a non-text UI affordance).
+    """
+    bg = styles.PALETTE_DARK["BG_PANEL"]
+    non_text_tokens = (
+        "BORDER_GROUP_BOX",
+        "BORDER_DOCK_HEADER",
+        "BORDER_CAMERA_BTN",
+        "BORDER_RESET_BTN",
+        "FOCUS_RING",
+    )
+    for token in non_text_tokens:
+        r = _ratio(styles.PALETTE_DARK[token], bg)
+        assert r >= 3.0, (
+            f"PALETTE_DARK[{token!r}] = {styles.PALETTE_DARK[token]} fails "
+            f"non-text 3:1 against BG_PANEL_DARK ({bg}): measured {r:.2f}:1"
+        )
+
+
+def test_app_stylesheet_dark_no_raw_hex() -> None:
+    """APP_STYLESHEET_DARK must use only hex values from PALETTE_DARK — no
+    inline literals.  Parallels test_app_stylesheet_substitutes_no_raw_hex_outside_palette
+    for the dark output.
+    """
+    qss = styles.APP_STYLESHEET_DARK
+    found = set(re.findall(r"#[0-9a-fA-F]{6}", qss))
+    allowed = set(styles.PALETTE_DARK.values())
+    extra = found - allowed
+    assert not extra, (
+        f"APP_STYLESHEET_DARK contains hex values not in PALETTE_DARK: {extra}.  "
+        f"Every hex should come from a palette[\"TOKEN\"] reference in "
+        f"_render_stylesheet()."
+    )
+
+
+# --- VARIETY_DEFAULT_COLOR_DARK tests --------------------------------------
+
+
+def test_variety_default_color_dark_has_all_four_families() -> None:
+    """VARIETY_DEFAULT_COLOR_DARK must have the same Unicode keys as
+    VARIETY_DEFAULT_COLOR.  The dark dict reuses the same hex values (all
+    four clear 3:1 on BG_PANEL_DARK), so the key set must match exactly.
+    """
+    assert set(styles.VARIETY_DEFAULT_COLOR_DARK.keys()) == set(
+        styles.VARIETY_DEFAULT_COLOR.keys()
+    ), (
+        "VARIETY_DEFAULT_COLOR_DARK keys must match VARIETY_DEFAULT_COLOR "
+        "(both Unicode en-dash U+2013 and Greek rho U+03C1 must be present)."
+    )
+
+
+def test_variety_default_color_dark_all_six_digit_hex() -> None:
+    """AI-13: every VARIETY_DEFAULT_COLOR_DARK value is 6-digit hex."""
+    for variety, color in styles.VARIETY_DEFAULT_COLOR_DARK.items():
+        assert HEX6.match(color), (
+            f"VARIETY_DEFAULT_COLOR_DARK[{variety!r}] = {color!r} not 6-digit hex"
+        )
+
+
+def test_variety_default_color_dark_wcag_on_bg_viewport() -> None:
+    """AI-12: dark-theme variety colors must clear >=4.5:1 against
+    BG_VIEWPORT (shared between themes — the canvas is always dark).  Same
+    threshold as the light dict because the surface fills enough of the dark
+    canvas to function as a text-level identity cue.
+    """
+    bg = styles.PALETTE_LIGHT["BG_VIEWPORT"]  # shared between themes
+    for variety, color in styles.VARIETY_DEFAULT_COLOR_DARK.items():
+        r = _ratio(color, bg)
+        assert r >= 4.5, (
+            f"VARIETY_DEFAULT_COLOR_DARK[{variety!r}] = {color} fails 4.5:1 "
+            f"against BG_VIEWPORT ({bg}): measured {r:.2f}:1"
+        )
+
+
+def test_variety_default_color_dark_swatch_chip_vs_bg_panel_dark() -> None:
+    """Closes the deferred MF1 finding from variety-palette-2026q2-e1: the
+    swatch chip contrast against the panel background was below WCAG
+    §1.4.11's 3:1 non-text threshold in light mode (1.87-2.31:1 vs
+    BG_PANEL_LIGHT).  In dark mode the same colors pass at 5+:1 against the
+    dark panel — verify this is still true if either dict or BG_PANEL_DARK
+    is ever changed.
+    """
+    bg = styles.PALETTE_DARK["BG_PANEL"]
+    for variety, color in styles.VARIETY_DEFAULT_COLOR_DARK.items():
+        r = _ratio(color, bg)
+        assert r >= 3.0, (
+            f"VARIETY_DEFAULT_COLOR_DARK[{variety!r}] = {color} fails 3:1 "
+            f"swatch-chip contrast against BG_PANEL_DARK ({bg}): "
+            f"measured {r:.2f}:1.  This re-opens the MF1 finding; lighten "
+            f"the value or darken BG_PANEL_DARK."
+        )
+
+
+def test_variety_default_color_dark_keys_match_surfaces_varieties() -> None:
+    """Forward-compat guard: keys in VARIETY_DEFAULT_COLOR_DARK must be
+    present in surfaces.VARIETIES (same guard as the light dict's parallel
+    test).  Catches any future variety rename before the silent
+    BG_SURFACE_DEFAULT fallback masks the bug.
+    """
+    from surfaces import VARIETIES
+    for key in styles.VARIETY_DEFAULT_COLOR_DARK:
+        assert key in VARIETIES, (
+            f"VARIETY_DEFAULT_COLOR_DARK has key {key!r} not in "
+            f"surfaces.VARIETIES (keys: {sorted(VARIETIES.keys())!r})"
+        )
+
+
+# --- get_variety_default_colors() accessor tests ---------------------------
+
+
+def test_get_variety_default_colors_returns_correct_dict() -> None:
+    """The theme-aware accessor must return the right dict for each theme.
+    AppearancePanel's decoupling from theme state depends on this — the
+    call site in app.py uses this accessor instead of importing both dicts.
+    Unknown theme names fall through to the dark dict (the launch default).
+    """
+    assert styles.get_variety_default_colors("light") is styles.VARIETY_DEFAULT_COLOR, (
+        "get_variety_default_colors('light') must return VARIETY_DEFAULT_COLOR"
+    )
+    assert styles.get_variety_default_colors("dark") is styles.VARIETY_DEFAULT_COLOR_DARK, (
+        "get_variety_default_colors('dark') must return VARIETY_DEFAULT_COLOR_DARK"
+    )
+    # Unknown / unexpected theme name → dark fallback (launch default)
+    assert styles.get_variety_default_colors("unknown") is styles.VARIETY_DEFAULT_COLOR_DARK, (
+        "Unknown theme name must fall through to VARIETY_DEFAULT_COLOR_DARK"
+    )
+    # Default argument is "dark"
+    assert styles.get_variety_default_colors() is styles.VARIETY_DEFAULT_COLOR_DARK, (
+        "get_variety_default_colors() (no arg) must default to dark dict"
+    )

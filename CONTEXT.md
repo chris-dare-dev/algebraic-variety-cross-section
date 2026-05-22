@@ -140,6 +140,19 @@ Critical: **the raw mesh is cached**. `_on_domain_changed` (sphere/cube clip sli
 - `apply_to_actor(actor)` — invoked at the end of every render path (see §4.3 above). Sets `actor.prop.color`, `style`, `show_edges`, `opacity`, `interpolation` from stored panel state. Also unconditionally calls `apply_background()` to push the chosen viewport background. Safe to call with `actor=None` (background-only path; used on first launch before any mesh).
 - `set_default_color(hex_str)` — invoked from `_on_variety_changed` and `_on_subtype_changed` on every variety/subtype switch (variety-palette-2026q2-e1 / UPL-2). Seeds `_surface_color` from `styles.VARIETY_DEFAULT_COLOR[variety]` and refreshes the swatch chip in the Appearance dock. **Does NOT trigger a render** — the caller flows naturally into `_render_current` → `apply_to_actor` which reads the updated color. AI-9 safe (no `processEvents`). The user's subsequent override via the "Surface…" swatch wins for the rest of the session, but switching surfaces re-seeds from the family default (V0 scope; sticky overrides are UPL-25's home).
 
+### 4.3b Theme system (dark-mode-2026q2-e1, UPL-1)
+
+The app ships two palettes — `PALETTE_LIGHT` and `PALETTE_DARK` in [styles.py](styles.py) — with key-identical entries.  Both render through a single `_render_stylesheet(palette: dict) -> str` template function to produce `APP_STYLESHEET` (light) and `APP_STYLESHEET_DARK` (dark) as module-level constants at import time.  Future QSS changes land in one place; both themes automatically pick them up.  Per-variety surface colors live in two parallel dicts (`VARIETY_DEFAULT_COLOR` light, `VARIETY_DEFAULT_COLOR_DARK` dark — currently identical values because all four clear 3:1 on both panel backgrounds) with a `get_variety_default_colors(theme)` accessor so `AppearancePanel` stays decoupled from theme state.
+
+**Dark is the launch default.**  `main()` calls `app.setStyleSheet(APP_STYLESHEET_DARK)` because the VTK viewport is always `#2f2f2f` — dark chrome is the coherent baseline, not the optional variant.  A Theme menu in the main-window menu bar exposes Light / Dark / Follow-system as mutually-exclusive `QAction`s; `_on_theme_changed(name)` swaps the `QApplication` stylesheet synchronously (AI-9 safe — no `processEvents` involved) and re-seeds the active variety's color from the theme-aware dict.  "Follow system" connects `QGuiApplication.styleHints().colorSchemeChanged` (Qt 6.5+ native — no `darkdetect` dep needed) and listens for live OS theme changes; switching to an explicit Light or Dark choice disconnects the signal so the override sticks.
+
+**V0 scope, intentionally narrow:**
+- No `QSettings` persistence — every launch returns to dark.  Persisting the user's theme + dock layout is UPL-25's territory.
+- "Follow system" on macOS uses Qt's `colorScheme()` enum; high-contrast or other non-Light/Dark values map to Dark as a safe fallback.
+- The named constants (`COLOR_MUTED`, `BG_VIEWPORT`, etc.) remain `PALETTE_LIGHT` aliases for backward-compat — the theme swap goes through `_render_stylesheet`, not through these constants.
+
+WCAG verification is per-token, per-theme.  `tests/test_styles_palette.py` carries a dark twin for every text-contrast assertion and a parallel non-text contrast suite for the dark panel borders, focus ring, and reset button.  The MF1 swatch-chip finding deferred from variety-palette-2026q2-e1 is closed by the dark default: all four variety colors clear 3:1 on `BG_PANEL_DARK = #252526` (measured 5.83-7.20:1).
+
 ### 4.4 Re-entrancy guard
 
 `_render_current` calls `QApplication.processEvents()` (to keep the status bar responsive during ~0.5 s mesh generation). This drains the Qt event queue, which can re-enter via slider release → `_on_params_changed` → `_render_current`. Guarded by `self._computing: bool` set at the top of `_render_current` and cleared in a `finally` block. **If you add another `processEvents` call elsewhere, audit re-entrancy.**

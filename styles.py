@@ -20,11 +20,20 @@ Palette structure (UPL-1, panel-refresh-2026q2-e2):
                           light theme.  Downstream UPL-4 (dark mode) will
                           add a parallel PALETTE_DARK with identical keys.
     VARIETY_DEFAULT_COLOR — per-variety default surface colors keyed by
-                          variety family name.  Populated in
+                          variety family name (light theme).  Populated in
                           variety-palette-2026q2-e1 (UPL-2 from the
-                          2026q2-graph-and-window uplift).  UPL-4 will add a
-                          parallel VARIETY_DEFAULT_COLOR_DARK; the active
-                          dict is chosen by theme.
+                          2026q2-graph-and-window uplift).
+    VARIETY_DEFAULT_COLOR_DARK — dark-theme parallel; identical values
+                          because all four colors clear 3:1 on the dark
+                          panel.  Added by dark-mode-2026q2-e1 (UPL-1).
+    get_variety_default_colors(theme) — single-line accessor returning the
+                          active-theme dict; lets AppearancePanel stay
+                          decoupled from theme state.
+    PALETTE_DARK — key-identical companion to PALETTE_LIGHT, dark-tuned
+                          values, every text token re-audited against
+                          BG_PANEL_DARK = #252526.
+    APP_STYLESHEET / APP_STYLESHEET_DARK — both rendered via
+                          _render_stylesheet(palette) at import time.
     COLOR_*, BG_*, etc. — named exports computed from PALETTE_LIGHT.  Kept
                           for backward-compat (zero call-site changes) and
                           for cases where importing the named constant is
@@ -41,15 +50,16 @@ Palette structure (UPL-1, panel-refresh-2026q2-e2):
 # adjacent.  PyVista-bound tokens (BG_VIEWPORT, BG_SURFACE_DEFAULT,
 # COLOR_WIREFRAME_OVERLAY) are annotated explicitly.
 #
-# UPL-4 (dark mode) will add a parallel PALETTE_DARK dict with identical
-# keys; the application stylesheet will then swap source dicts.  Tokens
-# that are intentionally light-palette-only (e.g. TEXT_MUTED's #5a5a5a
-# fails 4.5:1 on a dark panel ground; UPL-4 must provide TEXT_MUTED_DARK)
-# carry a comment marker.
+# PALETTE_DARK (dark-mode-2026q2-e1, closing UPL-1) lives below this dict
+# with key-identical entries.  Both palettes render through the
+# `_render_stylesheet(palette)` helper to produce APP_STYLESHEET (light) and
+# APP_STYLESHEET_DARK (dark).
 #
-# Per-variety surface colors are populated below in VARIETY_DEFAULT_COLOR
-# (variety-palette-2026q2-e1, closing UPL-2).  UPL-4 (dark mode) will add a
-# parallel VARIETY_DEFAULT_COLOR_DARK with identical keys.
+# Per-variety surface colors live in VARIETY_DEFAULT_COLOR (light, populated
+# by variety-palette-2026q2-e1) and VARIETY_DEFAULT_COLOR_DARK (dark, added
+# by dark-mode-2026q2-e1 — reuses the light values verbatim because all four
+# clear 3:1 on BG_PANEL_DARK).  See `get_variety_default_colors(theme)` for
+# the theme-aware accessor.
 
 PALETTE_LIGHT: dict[str, str] = {
     # === Core viewport + panel backgrounds ===
@@ -133,28 +143,100 @@ VARIETY_DEFAULT_COLOR: dict[str, str] = {
     "Fano 3-fold (ρ=1)":   "#8fbe85",   # U+03C1 rho in key
 }
 
-# UPL-4 dark-mode parallel: VARIETY_DEFAULT_COLOR_DARK will live here with
-# key-identical entries tuned for a dark panel background (BG_PANEL_DARK).
-# Do NOT add it in this milestone — populate alongside PALETTE_DARK in UPL-4.
-# Adoption pattern for that milestone: route the .get() call in
-# appearance_panel.set_default_color through the active-theme dict
-# (VARIETY_DEFAULT_COLOR if light, VARIETY_DEFAULT_COLOR_DARK if dark) rather
-# than referencing VARIETY_DEFAULT_COLOR directly.
-
-
-# UPL-4 placeholder marker: PALETTE_DARK will live here as a parallel dict
-# with identical keys.  The application stylesheet will then swap source
-# dicts (or merge PALETTE_LIGHT with PALETTE_DARK_OVERRIDES).  Do NOT add
-# the dark dict in UPL-1 — it ships in its own milestone with its own
-# WCAG verification pass.
+# Dark-mode variety colors — added by dark-mode-2026q2-e1 (UPL-1).
 #
-# UPL-4 contract — ALSO export an `APP_STYLESHEET_DARK` module attribute
-# (the rendered QSS string against PALETTE_DARK) alongside the data dict.
-# `.claude/scripts/frontend-uplift/render-panel-chrome.py` auto-detects that
-# export via `getattr(styles, "APP_STYLESHEET_DARK", None)` and emits dark
-# variants of every panel-chrome capture with no slash-command edit.  If
-# UPL-4 only ships the data dict without the QSS string, dark captures stay
-# silently disabled — please honor the naming convention.
+# The four light-mode values clear BOTH thresholds against the dark panel
+# background (BG_PANEL_DARK = #252526):
+#   K3        #8e9ed4   5.83:1 vs BG_PANEL_DARK (swatch chip 3:1 PASS)
+#   Enriques  #c4a882   6.76:1
+#   CY3       #85b5d0   6.94:1
+#   Fano      #8fbe85   7.20:1
+# All four already clear 5+:1 against BG_VIEWPORT (the shared canvas).  Reuse
+# the light values verbatim — this closes the deferred MF1 finding from
+# variety-palette-2026q2-e1 (swatch-chip contrast was 1.87-2.31:1 on the
+# light panel; in dark mode the same colors hit 5.83-7.20:1 on the dark
+# panel, comfortably above the WCAG 1.4.11 non-text 3:1 threshold).
+VARIETY_DEFAULT_COLOR_DARK: dict[str, str] = dict(VARIETY_DEFAULT_COLOR)
+
+
+def get_variety_default_colors(theme: str = "dark") -> dict[str, str]:
+    """Return the active-theme per-variety surface-color dict.
+
+    Single source of truth for theme-aware variety color resolution.  Callers
+    (currently ``MainWindow._on_variety_changed`` and ``_on_subtype_changed``)
+    pass the active theme name; this accessor returns the matching dict.
+    AppearancePanel stays decoupled from theme state — it receives the
+    resolved hex string from ``set_default_color(hex_str)`` and never knows
+    which theme produced it.
+
+    Unknown theme names fall through to the dark dict (the launch default).
+    """
+    return VARIETY_DEFAULT_COLOR if theme == "light" else VARIETY_DEFAULT_COLOR_DARK
+
+
+# ---------------------------------------------------------------------------
+# PALETTE_DARK — dark-mode-2026q2-e1 (UPL-1)
+# ---------------------------------------------------------------------------
+#
+# Key-identical companion to PALETTE_LIGHT.  Every token has a dark-tuned
+# value verified against BG_PANEL_DARK = #252526 (VS Code sidebar register
+# — dark but not pitch-black, leaving headroom for the dock header to
+# differentiate at #313132).
+#
+# Tokens shared between themes (intentionally identical):
+#   BG_VIEWPORT         #2f2f2f   canvas is always dark
+#   BG_SURFACE_DEFAULT  #b0c4de   flows to PyVista; reads on either background
+#   BORDER_SWATCH       #888888   neutral grey reads on either panel
+#   COLOR_WIREFRAME_OVERLAY #888888  same — 4.32:1 vs #252526 PASS
+#
+# Every text token re-audited vs BG_PANEL_DARK at the 4.5:1 floor; every
+# non-text UI border re-audited at 3:1.  The dock header's structural
+# contrast (1.18:1 vs panel) mirrors the light-mode pattern (1.03:1 vs
+# panel) — the BORDER_DOCK_HEADER separator line at 3.05:1 provides the
+# WCAG 1.4.11-compliant boundary.  TEXT_DISABLED at 2.87:1 is intentionally
+# below 4.5:1 per WCAG §1.4.3 disabled-state exception.
+PALETTE_DARK: dict[str, str] = {
+    # === Core viewport + panel backgrounds ===
+    "BG_VIEWPORT":              "#2f2f2f",   # SHARED — VTK canvas always dark
+    "BG_PANEL":                 "#252526",   # dark panel anchor (VS Code sidebar register)
+    "BG_SURFACE_DEFAULT":       "#b0c4de",   # SHARED — flows into PyVista
+
+    # === Text / foreground (4.5:1 floor vs BG_PANEL = #252526) ===
+    "TEXT_VALUE":               "#e0e0e0",   # 11.60:1 — was #333333 (light); inverted to near-white
+    "TEXT_MUTED":                "#a0a0a0",   # 5.86:1  — was #5a5a5a (light, 1.94:1 on dark — known fail)
+    "TEXT_DISABLED":             "#6b6b6b",   # 2.87:1  — intentional low contrast (WCAG §1.4.3 exception)
+    "TEXT_RESET_BTN":            "#ffc0c0",   # 9.32:1 vs BG_RESET_BTN dark — light pink on dark wine
+
+    # === Focus ring (3:1 floor vs BG_PANEL for non-text UI) ===
+    # FOCUS_RING #5b9bd5 measured 5.17:1 vs #252526 (PASS).  Reuse light
+    # value — the focus ring blue happens to be dark-mode-compatible.
+    "FOCUS_RING":                "#5b9bd5",   # 5.17:1 vs BG_PANEL — PASS for non-text 3:1
+
+    # === Dock + group-box structure ===
+    # BG_DOCK_HEADER is structural (1.18:1 vs panel); the BORDER_DOCK_HEADER
+    # at 3.05:1 carries the WCAG 1.4.11 boundary contrast.  Same pattern as
+    # light mode (#e8edf2 on #f0f0f0 is 1.03:1).
+    "BG_DOCK_HEADER":            "#313132",   # structural; close-to-panel
+    "BORDER_DOCK_HEADER":        "#6f6f6f",   # 3.05:1 vs BG_PANEL — separator line
+    "BORDER_GROUP_BOX":          "#777777",   # 3.42:1 vs BG_PANEL — non-text 3:1 PASS
+
+    # === Color swatches in Appearance panel ===
+    "BORDER_SWATCH":             "#888888",   # SHARED — 6-digit, reads on either ground
+
+    # === Reset-defaults button (destructive variant) — dark-wine on dark ===
+    "BG_RESET_BTN":              "#4a1a1a",   # structural dark wine
+    "BORDER_RESET_BTN":          "#c05050",   # 3.28:1 vs BG_PANEL — component boundary
+    "BG_RESET_BTN_HOVER":        "#5a2020",   # structural hover state
+    "BG_RESET_BTN_DISABLED":     "#333333",   # disabled state (WCAG exception)
+    "BORDER_RESET_BTN_DISABLED": "#444444",   # disabled state (WCAG exception)
+
+    # === Reset-camera button (outlined variant) ===
+    "BORDER_CAMERA_BTN":         "#6a8090",   # 3.72:1 vs BG_PANEL — non-text 3:1 PASS
+    "BG_CAMERA_BTN_HOVER":       "#2a3a45",   # structural hover
+
+    # === Domain-clip wireframe overlay (flows into PyVista add_mesh) ===
+    "COLOR_WIREFRAME_OVERLAY":   "#888888",   # SHARED — 4.32:1 vs #252526
+}
 
 
 # ---------------------------------------------------------------------------
@@ -217,20 +299,32 @@ RANGE_LABEL_STYLE = f"font-family: monospace; font-size: 9px; color: {COLOR_MUTE
 #   * Keyboard-focus highlight that's visible but not garish
 #   * Reset button variant (#resetDefaultsBtn object name)
 #
-# All hex values are substituted from PALETTE_LIGHT — no raw literals here.
-#
-# UPL-4 will refactor this into _build_stylesheet(palette: dict[str, str]) so
-# the same template can render against either PALETTE_LIGHT or PALETTE_DARK.
-# Keep all hex references tokenized through PALETTE_LIGHT[...] subscripts so
-# the swap is a single function-arg change.
-APP_STYLESHEET = f"""
+# dark-mode-2026q2-e1 (UPL-1) refactored this into _render_stylesheet(palette)
+# so the same template renders against either PALETTE_LIGHT or PALETTE_DARK.
+# Every hex reference is tokenized through palette[...] subscripts — there is
+# no light-only literal in the template.  The two module-level constants
+# below (APP_STYLESHEET, APP_STYLESHEET_DARK) capture both renderings at
+# import time.  Theme switching at runtime is a single
+# QApplication.setStyleSheet() call between the two — no template re-render
+# needed.
+
+
+def _render_stylesheet(palette: dict[str, str]) -> str:
+    """Render the application QSS against the given palette.
+
+    Single source of truth for the QSS template.  Both ``APP_STYLESHEET``
+    (light) and ``APP_STYLESHEET_DARK`` (dark) are produced by calling this
+    once per palette at module import time.  Future template edits land in
+    one place; both themes automatically pick them up.
+    """
+    return f"""
 /* --- Dock widget title bars ------------------------------------------ */
 QDockWidget {{
     font-size: 12px;
 }}
 QDockWidget::title {{
-    background: {COLOR_DOCK_HEADER_BG};
-    border-bottom: 1px solid {COLOR_DOCK_HEADER_BORDER};
+    background: {palette["BG_DOCK_HEADER"]};
+    border-bottom: 1px solid {palette["BORDER_DOCK_HEADER"]};
     padding: 4px 8px;
     font-weight: bold;
     font-size: 12px;
@@ -243,7 +337,7 @@ QGroupBox {{
     font-weight: bold;
     margin-top: 8px;
     padding-top: 4px;
-    border: 1px solid {PALETTE_LIGHT["BORDER_GROUP_BOX"]};
+    border: 1px solid {palette["BORDER_GROUP_BOX"]};
     border-radius: 4px;
 }}
 QGroupBox::title {{
@@ -261,37 +355,45 @@ QPushButton {{
 
 /* --- Reset-to-defaults button -- visually distinct from primary actions */
 QPushButton#resetDefaultsBtn {{
-    background-color: {COLOR_RESET_BTN_BG};
-    border: 1px solid {COLOR_RESET_BTN_BORDER};
-    color: {PALETTE_LIGHT["TEXT_RESET_BTN"]};
+    background-color: {palette["BG_RESET_BTN"]};
+    border: 1px solid {palette["BORDER_RESET_BTN"]};
+    color: {palette["TEXT_RESET_BTN"]};
 }}
 QPushButton#resetDefaultsBtn:hover {{
-    background-color: {COLOR_RESET_BTN_HOVER_BG};
+    background-color: {palette["BG_RESET_BTN_HOVER"]};
 }}
 QPushButton#resetDefaultsBtn:disabled {{
-    background-color: {PALETTE_LIGHT["BG_RESET_BTN_DISABLED"]};
-    border: 1px solid {PALETTE_LIGHT["BORDER_RESET_BTN_DISABLED"]};
-    color: {PALETTE_LIGHT["TEXT_DISABLED"]};
+    background-color: {palette["BG_RESET_BTN_DISABLED"]};
+    border: 1px solid {palette["BORDER_RESET_BTN_DISABLED"]};
+    color: {palette["TEXT_DISABLED"]};
 }}
 
 /* --- Reset Camera button -- outlined, different from view-preset grid -- */
 QPushButton#resetCameraBtn {{
-    border: 1px solid {PALETTE_LIGHT["BORDER_CAMERA_BTN"]};
+    border: 1px solid {palette["BORDER_CAMERA_BTN"]};
     background: transparent;
 }}
 QPushButton#resetCameraBtn:hover {{
-    background: {PALETTE_LIGHT["BG_CAMERA_BTN_HOVER"]};
+    background: {palette["BG_CAMERA_BTN_HOVER"]};
 }}
 
 /* --- Keyboard focus ring -- visible on all interactive widgets --------- */
 QAbstractButton:focus, QComboBox:focus, QSlider:focus {{
-    outline: 2px solid {PALETTE_LIGHT["FOCUS_RING"]};
+    outline: 2px solid {palette["FOCUS_RING"]};
     outline-offset: 1px;
 }}
 
 /* --- Status bar -------------------------------------------------------- */
 QStatusBar {{
     font-size: 11px;
-    color: {PALETTE_LIGHT["TEXT_MUTED"]};
+    color: {palette["TEXT_MUTED"]};
 }}
 """
+
+
+# Rendered once per palette at module import.  `render-panel-chrome.py`
+# detects dark-mode capability via `getattr(styles, "APP_STYLESHEET_DARK", None)`
+# (see `.claude/references/frontend-uplift/source-registry.md` §4b.1).  Honor
+# this naming convention — do NOT rename either constant.
+APP_STYLESHEET = _render_stylesheet(PALETTE_LIGHT)
+APP_STYLESHEET_DARK = _render_stylesheet(PALETTE_DARK)

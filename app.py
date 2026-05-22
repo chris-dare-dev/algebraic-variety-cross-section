@@ -11,7 +11,13 @@ import sys
 import warnings
 
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QKeySequence, QShortcut
+from PySide6.QtGui import (
+    QAction,
+    QActionGroup,
+    QGuiApplication,
+    QKeySequence,
+    QShortcut,
+)
 from PySide6.QtWidgets import (
     QApplication,
     QComboBox,
@@ -29,9 +35,11 @@ from appearance_panel import AppearancePanel
 from parameters_panel import ParametersPanel
 from styles import (
     APP_STYLESHEET,
+    APP_STYLESHEET_DARK,
     BG_SURFACE_DEFAULT,
     COLOR_WIREFRAME_OVERLAY,
     VARIETY_DEFAULT_COLOR,
+    get_variety_default_colors,
 )
 from surfaces import VARIETIES, VARIETY_TOOLTIPS, SUBTYPE_TOOLTIPS, Surface
 from view_panel import ViewPanel
@@ -96,6 +104,15 @@ class MainWindow(QMainWindow):
         self._computing = False
         self._current_surface: Surface | None = None
         self._set_subtype_enabled(False)
+
+        # dark-mode-2026q2-e1 (UPL-1): theme state + Theme menu.  The active
+        # theme controls which palette `get_variety_default_colors()` returns
+        # (consumed by `_on_variety_changed`/`_on_subtype_changed`) and which
+        # stylesheet `QApplication.setStyleSheet` applies.  Launch default is
+        # `dark` because the VTK viewport is always `#2f2f2f` — dark chrome
+        # is the coherent baseline, not the optional variant.
+        self._active_theme: str = "dark"
+        self._build_theme_menu()
 
         # --- View dock (left) ------------------------------------------------
         self.view_panel = ViewPanel(self.plotter)
@@ -192,13 +209,20 @@ class MainWindow(QMainWindow):
             self._set_subtype_enabled(True)
             # UPL-2 (variety-palette-2026q2-e1): seed the surface color from
             # the family default so each variety has a visually distinct
-            # identity cue.  Falls back to BG_SURFACE_DEFAULT if the key is
-            # missing — the test_variety_default_color_keys_match_surfaces_varieties
-            # guard in tests/test_styles_palette.py prevents drift.  User's
+            # identity cue.  UPL-1 (dark-mode-2026q2-e1): route through
+            # `get_variety_default_colors(active_theme)` so the swatch
+            # reflects the active theme's tuned color (light + dark dicts
+            # currently share values, but the accessor is the right
+            # abstraction for any future divergence).  Falls back to
+            # BG_SURFACE_DEFAULT if the key is missing — the
+            # test_variety_default_color_keys_match_surfaces_varieties guard
+            # in tests/test_styles_palette.py prevents drift.  User's
             # subsequent override via the "Surface…" swatch still wins; this
             # only sets the starting point on switch.
             self.appearance_panel.set_default_color(
-                VARIETY_DEFAULT_COLOR.get(name, BG_SURFACE_DEFAULT)
+                get_variety_default_colors(self._active_theme).get(
+                    name, BG_SURFACE_DEFAULT
+                )
             )
             # For CY3 and Fano, include a brief contextual note in the status
             # bar AND in the Parameters dock banner so first-time users
@@ -256,9 +280,12 @@ class MainWindow(QMainWindow):
         # (UPL-25 dock state persistence is the future home for sticky
         # overrides).  Symmetric with the wire in _on_variety_changed so
         # the swatch updates whether the user changes only Variety or also
-        # picks a Subtype.
+        # picks a Subtype.  UPL-1 (dark-mode-2026q2-e1): theme-aware via
+        # `get_variety_default_colors(active_theme)`.
         self.appearance_panel.set_default_color(
-            VARIETY_DEFAULT_COLOR.get(variety, BG_SURFACE_DEFAULT)
+            get_variety_default_colors(self._active_theme).get(
+                variety, BG_SURFACE_DEFAULT
+            )
         )
         # Update subtype combo tooltip with the selected model's description
         self.subtype_combo.setToolTip(
@@ -464,6 +491,119 @@ class MainWindow(QMainWindow):
             return f"{value:.2f}"
         return f"{value:.3f}"
 
+    # --- theme system ------------------------------------------------------
+
+    def _build_theme_menu(self) -> None:
+        """Construct the menu bar's Theme menu (Light / Dark / Follow system).
+
+        Dark is the launch default (the viewport is always #2f2f2f, so dark
+        chrome is the coherent baseline).  Theme choice is V0-scope only:
+        the next launch returns to dark.  Persisting the user's pick is
+        UPL-25's territory (QSettings dock + theme state).
+        """
+        theme_menu = self.menuBar().addMenu("Theme")
+        # AI-11: fully qualified Qt enums.  QAction + QActionGroup live in
+        # PySide6.QtGui in Qt 6 (deprecated in QtWidgets).
+        self._theme_group = QActionGroup(self)
+        self._theme_group.setExclusive(True)
+
+        action_dark = QAction("Dark", self, checkable=True, checked=True)
+        action_dark.triggered.connect(lambda: self._on_theme_changed("dark"))
+        self._theme_group.addAction(action_dark)
+        theme_menu.addAction(action_dark)
+
+        action_light = QAction("Light", self, checkable=True)
+        action_light.triggered.connect(lambda: self._on_theme_changed("light"))
+        self._theme_group.addAction(action_light)
+        theme_menu.addAction(action_light)
+
+        action_follow = QAction("Follow system", self, checkable=True)
+        action_follow.triggered.connect(lambda: self._on_theme_changed("follow"))
+        self._theme_group.addAction(action_follow)
+        theme_menu.addAction(action_follow)
+
+        # Cache the actions for `_on_theme_changed` to manage the system-theme
+        # signal connection on entry / exit of "Follow system" mode.
+        self._action_dark = action_dark
+        self._action_light = action_light
+        self._action_follow = action_follow
+
+        # The colorSchemeChanged signal is connected lazily when the user
+        # selects "Follow system" and disconnected when they switch away —
+        # avoids the override-conflict described in the research brief.
+        self._system_theme_connection = None
+
+    def _on_theme_changed(self, name: str) -> None:
+        """Swap the application stylesheet + active theme state.
+
+        `name` is one of: "dark", "light", "follow".  The "follow" path
+        resolves the current system color scheme via
+        ``QGuiApplication.styleHints().colorScheme()`` and applies the
+        matching stylesheet, then connects to ``colorSchemeChanged`` so
+        future system-theme changes propagate live.  Selecting "Dark" or
+        "Light" disconnects that signal so the explicit choice sticks.
+
+        AI-9 safe: ``QApplication.setStyleSheet`` is synchronous and does not
+        call ``processEvents``.  No re-entry into the render pipeline.
+        """
+        style_hints = QGuiApplication.styleHints()
+
+        # Disconnect any prior follow-system subscription before re-deciding.
+        if self._system_theme_connection is not None:
+            try:
+                style_hints.colorSchemeChanged.disconnect(self._system_theme_connection)
+            except (RuntimeError, TypeError):
+                pass  # already disconnected; safe to ignore
+            self._system_theme_connection = None
+
+        if name == "follow":
+            # Resolve current system scheme; subscribe for future changes.
+            scheme = style_hints.colorScheme()
+            resolved = "light" if scheme == Qt.ColorScheme.Light else "dark"
+            self._active_theme = resolved
+            self._system_theme_connection = style_hints.colorSchemeChanged.connect(
+                lambda s: self._apply_system_theme(s)
+            )
+        else:
+            self._active_theme = name
+
+        QApplication.instance().setStyleSheet(
+            APP_STYLESHEET if self._active_theme == "light" else APP_STYLESHEET_DARK
+        )
+
+        # Re-seed the appearance panel's variety-default color from the active
+        # theme's dict — without this, switching theme while a variety is
+        # selected leaves the swatch on the old theme's default (visible
+        # mismatch with the new chrome).  If no variety is selected yet, the
+        # call is a no-op against BG_SURFACE_DEFAULT (the shared fallback).
+        current_variety = self.variety_combo.currentText()
+        if current_variety in VARIETIES:
+            self.appearance_panel.set_default_color(
+                get_variety_default_colors(self._active_theme).get(
+                    current_variety, BG_SURFACE_DEFAULT
+                )
+            )
+
+    def _apply_system_theme(self, scheme) -> None:
+        """Handler for QStyleHints.colorSchemeChanged when 'Follow system'
+        is active.  Maps the Qt.ColorScheme enum to our internal theme name
+        and re-applies the stylesheet without disconnecting the signal.
+        """
+        resolved = "light" if scheme == Qt.ColorScheme.Light else "dark"
+        if resolved == self._active_theme:
+            return
+        self._active_theme = resolved
+        QApplication.instance().setStyleSheet(
+            APP_STYLESHEET if resolved == "light" else APP_STYLESHEET_DARK
+        )
+        current_variety = self.variety_combo.currentText()
+        if current_variety in VARIETIES:
+            self.appearance_panel.set_default_color(
+                get_variety_default_colors(resolved).get(
+                    current_variety, BG_SURFACE_DEFAULT
+                )
+            )
+
     # --- lifecycle ---------------------------------------------------------
 
     def closeEvent(self, event):
@@ -474,7 +614,10 @@ class MainWindow(QMainWindow):
 def main() -> int:
     QApplication.setAttribute(Qt.AA_ShareOpenGLContexts, True)
     app = QApplication(sys.argv)
-    app.setStyleSheet(APP_STYLESHEET)
+    # dark-mode-2026q2-e1 (UPL-1): dark is the launch default because the
+    # VTK viewport is always #2f2f2f.  Users can toggle to Light or Follow
+    # system via the Theme menu in the main-window menu bar.
+    app.setStyleSheet(APP_STYLESHEET_DARK)
     win = MainWindow()
     win.show()
     return app.exec()
