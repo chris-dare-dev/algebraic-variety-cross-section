@@ -1,8 +1,8 @@
 {
   "id": "qtawesome-icons-2026q2-e2",
   "created_at": "2026-05-22T15:21:14Z",
-  "updated_at": "2026-05-22T15:45:20Z",
-  "phase": "rectify-running",
+  "updated_at": "2026-05-22T15:45:56Z",
+  "phase": "complete",
   "phase_history": [
     {
       "phase": "init",
@@ -35,6 +35,10 @@
     {
       "phase": "rectify-running",
       "at": "2026-05-22T15:43:07Z"
+    },
+    {
+      "phase": "complete",
+      "at": "2026-05-22T15:45:56Z"
     }
   ],
   "milestone_brief": "Extend qtawesome icon coverage to the v1 scope deferred from qtawesome-icons-2026q2-e1 (UPL-4 v0). The v0 milestone covered 3 toolbar/dialog buttons (Reset Camera, Screenshot, Reset Defaults) and explicitly deferred: (a) the 7 camera-preset buttons in the View panel (+X, -X, +Y, -Y, +Z, -Z, Isometric), (b) the Wireframe and Show-edges display-toggle checkboxes in the Appearance panel, and (c) a render-spinner icon shown during mesh generation (~0.5s window). This milestone closes (a) and (b); the spinner (c) is the riskiest because it touches re-entrancy (AI-9 _computing guard) and may need its own follow-up \u2014 research should flag if spinner integration crosses any AI-9 risk lines or requires extending into the timer/QMovie surface. Reuse the established Pattern-A architecture from qtawesome-icons-2026q2-e1: panel stores theme + qta state, MainWindow calls refresh_icons(theme) on theme change. Icon color routes through _icon_color(theme) returning palette['TEXT_VALUE']. Lazy-import qtawesome via _get_qta() in icons.py to defer the 150-200ms font-cache cost. AI invariants: AI-1 (PySide6 stack), AI-2 (tests stay Qt-free \u2014 mock qta module for icon tests), AI-9 (no processEvents added; theme-change is synchronous), AI-11 (any new Qt enum references use fully-qualified form), AI-13 (6-digit hex from palette tokens only). Look at the established icons.py / refresh_icons() patterns from e1 and extend without breaking existing v0 icons. Each panel that gains icons must wire refresh_icons through MainWindow._on_theme_changed and _apply_system_theme. Test coverage: extend tests/test_icons.py with theme-aware tests for each new icon + a regression guard that all existing v0 icons still bind correctly. CONTEXT.md \u00a73 deferred-scope bullet should be updated to reflect what v1 closes (camera presets + display toggles) and what remains deferred (spinner \u2014 if still deferred after research). The brief is fully specified; researcher should verify the icon names (mdi6.* or fa5s.*) for camera-preset arrow semantics and display-toggle wireframe/edge icons that are visually distinct, theme-readable at small button sizes, and license-compatible.",
@@ -63,7 +67,7 @@
     "medium": 4,
     "low": 5
   },
-  "rectification_commit": null,
+  "rectification_commit": "4db404763bf3a3a514e6312422c08498582c5c54",
   "fixed_findings": [
     "M1",
     "M2",
