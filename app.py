@@ -650,14 +650,17 @@ class MainWindow(QMainWindow):
         )
         if _is_hq_active:
             params["hq_smoothing"] = True
-        # enriques-hq-smoothing-2026q3-e1 rect F-M2: derive the [HQ]
-        # status-bar attribution label once and thread it through both
-        # the "Computing…" message AND (via self._inflight_hq_label) the
-        # final success/warning messages in _on_mesh_ready — users see
-        # "Computing Enriques surface [HQ]…" then "… [HQ] · … · 587 ms"
-        # so the longer render time is causally attributable to the
-        # toggle.
-        _hq_label = " [HQ]" if _is_hq_active else ""
+        # enriques-hq-smoothing-2026q3-e1 rect F-M2: derive the
+        # [Double-pass] status-bar attribution label once and thread it
+        # through both the "Computing…" message AND (via
+        # self._inflight_hq_label) the final success/warning messages in
+        # _on_mesh_ready — users see "Computing Enriques surface
+        # [Double-pass]…" then "… [Double-pass] · … · 587 ms" so the
+        # longer render time is causally attributable to the toggle.
+        # hq-smoothing-label-rename-2026q3-e1 (F-L1 closure): suffix
+        # renamed from "[HQ]" → "[Double-pass]" — variable name
+        # `_hq_label` STAYS (internal symbol).
+        _hq_label = " [Double-pass]" if _is_hq_active else ""
 
         # Capture the job context on the instance.  The result slot uses THESE
         # — not `_current_surface` / a fresh `parameters_panel.values()` —
@@ -794,8 +797,10 @@ class MainWindow(QMainWindow):
             # generate() time as a trailing "NNN ms" token after the bbox.
             # enriques-hq-smoothing-2026q3-e1 rect F-M2: `hq_label`
             # appended right after the surface label so users see
-            # "Enriques surface [HQ] · … · 587 ms" when the toggle is on
-            # — the longer render time is causally attributable.
+            # "Enriques surface [Double-pass] · … · 587 ms" when the
+            # toggle is on — the longer render time is causally
+            # attributable.  (Suffix renamed [HQ] → [Double-pass] by
+            # hq-smoothing-label-rename-2026q3-e1.)
             base_msg = (
                 f"{surface.label}{hq_label}  ·  {self._raw_mesh.n_points:,} verts, "
                 f"{self._raw_mesh.n_cells:,} faces{param_str}"

@@ -194,3 +194,20 @@
 - **The CAND-8 / e2 dataclass pattern**: adding a trailing `typical_ms: int = 0` field to a non-frozen `@dataclass` is the clean pattern for surface-speed hints. The `should_render_on_drag` free-function predicate (not a method) is required by AI-2 (Qt-free tests) — always pull dispatch predicates into free functions when they need to be unit-tested without QApplication.
 - **Grep for `params_preview_changed` to find e2-class drag-tick wiring**: the e1-e2 debounce split is: `params_changed` (release, always renders) vs `params_preview_changed` (drag-tick, speed-routed). This split pattern is reusable for any future "fast surface" milestone.
 - **AI-9 analysis for async dispatch**: after e4 (background worker), the re-entrancy concern is now `_computing` single-flight + `_pending_render` queue-latest, NOT `processEvents`. Any milestone touching `_render_current` must verify the `_computing` guard is respected, not a `processEvents` guard.
+
+## hq-smoothing-label-rename-2026q3-e1 (2026-05-22)
+
+### Brief-extraction patterns
+- Label-rename milestones have a clear "bucket" structure: USER-VISIBLE (must rename), TEST ASSERTION (must rename), SYMBOL/COMMENT (stays), DOC PROSE (rename with note). Building a bucketed match table before recommending is faster than deciding on each match ad-hoc.
+- The brief's phrase "internal symbol names can stay as-is to avoid blast-radius churn" is an explicit opt-out from the normal "rename everything consistently" impulse — honor it rather than proposing a cascading rename across all `_hq_*` symbols.
+- For status-bar suffix renames, the decision between `[Double-pass]` / `[2-pass]` / `[Double-pass smooth]` should be resolved by: (a) pick the most distinctive word from the new label, (b) keep it concise (the suffix appears next to surface label + verts/faces count + time), (c) avoid repeating text already in the surface label context.
+
+### Prior-art discovery
+- Grep pattern for complete HQ coverage: `"HQ\|hq_smoothing\|hq-smoothing\|\[HQ\]\|Double.pass"` across `*.py` and `*.md`. The `\[HQ\]` variant is critical — literal `[HQ]` in status-bar strings requires escaping the brackets for grep.
+- The adversary-critique.md for the PRIOR milestone is the most reliable source for finding the deferred finding being closed — read it before grepping. The exact line numbers and finding ID (F-L1) are there.
+- Source-grep tests (`test_enriques_hq_smoothing.py:154–337`) that look for `src.find('QPushButton("HQ smoothing")')` are the canonical "test assertions that must be updated" — search for `src.find(` or `assert ... in src` patterns when inventorying test changes.
+
+### AI-N conflict heuristics
+- AI-2 (Qt-free tests): a label rename that only updates `QPushButton("...")` literal strings and source-grep tests is trivially AI-2-clean. No QApplication needed for source-text grep tests.
+- AI-15 for a label rename: verify the new label is factually accurate (both words). "Double-pass" = exactly 2 Taubin passes (confirmed at `surfaces.py:558,605`). "smooth" = Taubin smoothing (confirmed at `surfaces.py:558`). If either word were inaccurate, the label would fail AI-15 regardless of the implementation detail.
+- Button fit check: always look up `setMinimumWidth` (or `setFixedWidth`) for the panel before worrying about label clipping. In this case `setMinimumWidth(200)` was found at `appearance_panel.py:127` and 18 chars at ~8px/char = ~144px, well within 200px minus icon padding.

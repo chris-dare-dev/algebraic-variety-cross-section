@@ -1,0 +1,50 @@
+{
+  "id": "hq-smoothing-label-rename-2026q3-e1",
+  "created_at": "2026-05-22T23:47:14Z",
+  "updated_at": "2026-05-22T23:52:58Z",
+  "phase": "implement-running",
+  "phase_history": [
+    {
+      "phase": "init",
+      "at": "2026-05-22T23:47:14Z"
+    },
+    {
+      "phase": "research-running",
+      "at": "2026-05-22T23:47:29Z"
+    },
+    {
+      "phase": "research-complete",
+      "at": "2026-05-22T23:52:28Z"
+    },
+    {
+      "phase": "implement-running",
+      "at": "2026-05-22T23:52:44Z"
+    }
+  ],
+  "milestone_brief": "Close F-L1 from enriques-hq-smoothing-2026q3-e1 (deferred). Rename the user-facing \"HQ smoothing\" label to \"Double-pass smooth\". The frontend-ux critic flagged \"HQ\" as marketing-tone / opaque; \"Double-pass smooth\" is descriptive (the feature applies a second Taubin smoothing pass after the first). Scope: appearance_panel.py button label + tooltip + nearby comments; app.py status-bar template variables that interpolate \"[HQ]\" or \"HQ\"; tests/test_enriques_hq_smoothing.py + tests/test_styles_palette.py source-text assertions that grep for \"HQ smoothing\"; CONTEXT.md \u00a74.3a + \u00a78.16 doc references. AI-15 honesty check: \"Double-pass smooth\" is technically accurate \u2014 the implementation runs exactly two Taubin passes (n_iter=20+40). Internal symbol names (hq_smoothing, _hq_smoothing_cb, set_hq_smoothing_eligible, hq_smoothing_changed, HQ_SMOOTHING_ICON_NAME, _HQ_SMOOTHING_ELIGIBLE_SUBTYPES) can stay as-is to avoid blast-radius churn \u2014 only USER-VISIBLE strings rename. Test for both the new label appearing and the old label not appearing (regression guard).",
+  "research_mode": "single",
+  "oss_scout_requested": false,
+  "research_briefs": [
+    ".claude/notes/milestones/hq-smoothing-label-rename-2026q3-e1/research/agent-solo-brief.md"
+  ],
+  "research_synthesis": "Pure label rename, ~25 LOC. appearance_panel.py:265 button label + tooltip phrase; app.py:660 status-bar _hq_label suffix + 2 comment updates; 3 existing test assertion updates + 4 new regression-guard tests; CONTEXT.md prose updates. Internal symbols (_hq_smoothing, _hq_smoothing_cb, set_hq_smoothing_eligible, hq_smoothing_changed, HQ_SMOOTHING_ICON_NAME, _HQ_SMOOTHING_ELIGIBLE_SUBTYPES, _hq_label var name) STAY per brief. AI-15 attestation: Double-pass smooth is honest \u2014 exactly 2 Taubin passes (n_iter=20+40). All 15 invariants green.",
+  "implementation_path": "inline",
+  "implementation_plan": ".claude/notes/milestones/hq-smoothing-label-rename-2026q3-e1/artifacts/implementation-plan.md",
+  "implementation_base": "e4acb1053d7e37c93eac738e7767c4688602e5f0",
+  "implementation_commit_range": null,
+  "implementation_commits": [],
+  "implementation_branch": null,
+  "critique_path": null,
+  "critics_run": [],
+  "critique_finding_counts": {
+    "critical": 0,
+    "high": 0,
+    "medium": 0,
+    "low": 0
+  },
+  "rectification_commit": null,
+  "fixed_findings": [],
+  "deferred_findings": [],
+  "invalidated_findings": [],
+  "regression_tests_added": []
+}

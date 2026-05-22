@@ -262,20 +262,26 @@ class AppearancePanel(QWidget):
         # CONTEXT.md §8.13 audit).  Figs 3+4 and all other varieties keep
         # the toggle greyed out — the +138ms second-pass cost is not
         # justified at their A₁-node topology.
-        self._hq_smoothing_cb = QPushButton("HQ smoothing")
+        # hq-smoothing-label-rename-2026q3-e1 (F-L1 closure): the user-
+        # visible label is "Double-pass smooth" — descriptive of the actual
+        # implementation (two Taubin passes total).  Internal symbol names
+        # (`_hq_smoothing_cb`, `hq_smoothing_changed`, etc.) stay as-is
+        # to avoid blast-radius churn — only the rendered text and the
+        # status-bar "[HQ]" → "[Double-pass]" suffix renamed.
+        self._hq_smoothing_cb = QPushButton("Double-pass smooth")
         self._hq_smoothing_cb.setCheckable(True)
         self._hq_smoothing_cb.setChecked(False)
         self._hq_smoothing_cb.setEnabled(False)
         self._hq_smoothing_cb.setToolTip(
-            "Apply a second Taubin smoothing pass (n_iter=40, pass_band=0.05) "
-            "to reduce the double-curve sawtooth-ridge artifact on Enriques "
-            "figs 1 and 2.  Unlike Wireframe / Show edges (display-only "
-            "toggles), this triggers a full mesh regeneration — adds roughly "
-            "+31% generate time, about +140 ms on a reference dev machine at "
-            "default grid resolution; absolute cost is hardware-dependent.  "
-            "Disabled (greyed out) on other surfaces — the second pass "
-            "targets double-curve topology specifically and gives no benefit "
-            "on K3 / CY3 / Fano / Enriques figs 3+4."
+            "Applies a second Taubin smoothing pass (n_iter=40, pass_band=0.05) "
+            "— two passes total — to reduce the double-curve sawtooth-ridge "
+            "artifact on Enriques figs 1 and 2.  Unlike Wireframe / Show edges "
+            "(display-only toggles), this triggers a full mesh regeneration — "
+            "adds roughly +31% generate time, about +140 ms on a reference dev "
+            "machine at default grid resolution; absolute cost is hardware-"
+            "dependent.  Disabled (greyed out) on other surfaces — the second "
+            "pass targets double-curve topology specifically and gives no "
+            "benefit on K3 / CY3 / Fano / Enriques figs 3+4."
         )
         self._hq_smoothing_cb.setProperty("role", "display-toggle")
         self._hq_smoothing_cb.toggled.connect(self._on_hq_smoothing_toggled)
