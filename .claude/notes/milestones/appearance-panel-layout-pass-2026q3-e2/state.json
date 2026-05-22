@@ -1,8 +1,8 @@
 {
   "id": "appearance-panel-layout-pass-2026q3-e2",
   "created_at": "2026-05-22T21:55:43Z",
-  "updated_at": "2026-05-22T22:18:52Z",
-  "phase": "rectify-running",
+  "updated_at": "2026-05-22T22:19:31Z",
+  "phase": "complete",
   "phase_history": [
     {
       "phase": "init",
@@ -35,6 +35,10 @@
     {
       "phase": "rectify-running",
       "at": "2026-05-22T22:15:34Z"
+    },
+    {
+      "phase": "complete",
+      "at": "2026-05-22T22:19:31Z"
     }
   ],
   "milestone_brief": "Close the deferred F-M2 + F-L2 findings from display-toggles-checkable-button-2026q3-e1. Two coordinated layout improvements in the Appearance panel: (a) text-align consistency across the Colors and Display groups (currently the Display group's QPushButton(checkable=True) toggles for Wireframe / Show edges / HQ smoothing have setProperty('role', 'display-toggle') + QSS text-align: left from the v1 critic's F-M2; the Colors group's Surface\u2026 / Background\u2026 QPushButton instances inherit Qt's default center-alignment \u2014 creating a visible vertical-rhythm fracture across the group boundary on narrow panels ~200px); (b) the Display group header is generic \u2014 Blender uses 'Overlay' or 'Shading', 3D Slicer uses 'Display Type', ParaView uses 'Representation' \u2014 propose a more specific label like 'Render Mode' or 'Surface Style'. Research the right combined approach: either (1) extend text-align:left to the global QPushButton rule (broadest fix; might regress Reset Defaults / Reset Camera which are intentionally outside the role-property pattern) or (2) add a 'colors-button' role to Surface\u2026 / Background\u2026 so they pick up the same left-align treatment as display-toggle WITHOUT cascading to all QPushButton, OR (3) re-evaluate whether the display-toggles should actually be center-aligned to match Colors (the reverse fix). Researcher should evaluate visual rhythm by looking at the rendered panel chrome (use the existing .claude/scripts/frontend-uplift/render-panel-chrome.py captures), and pick the option that best matches the established scientific-viz convention (Blender/Slicer/ParaView). For the header rename, audit Blender / 3D Slicer / ParaView terminology and propose. AI invariants: AI-2 (tests stay Qt-free), AI-11 (any new role-property strings are pure data \u2014 no enum exposure), AI-13 (no new color tokens if reusing the established role-property pattern). Surface preservation: the actual click behavior of Surface\u2026 / Background\u2026 (color picker) and the display toggles (wireframe state, edges state, HQ state) MUST NOT change \u2014 this is a pure visual-alignment + header-label pass.",
@@ -63,7 +67,7 @@
     "medium": 3,
     "low": 2
   },
-  "rectification_commit": null,
+  "rectification_commit": "a5d4633737572c30554f4acf9605dd1f32a8fcdd",
   "fixed_findings": [
     "F-M1",
     "M1",
