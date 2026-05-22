@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from typing import Callable
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (
     QButtonGroup,
@@ -64,6 +64,16 @@ class AppearancePanel(QWidget):
         Zero-argument callable returning the pyvistaqt QtInteractor.
     """
 
+    # enriques-hq-smoothing-2026q3-e1 (UPL-18-followup): emitted when the
+    # HQ-smoothing toggle changes state.  Connected by MainWindow to a
+    # handler that calls _invalidate_clipped_mesh() + _render_current().
+    # We use a Signal rather than calling plotter.render() in the slot
+    # (the Wireframe / Show-edges pattern) because HQ smoothing changes
+    # the MESH (requires surface.generate to re-run), not just actor
+    # display properties.  See CONTEXT.md §4 and §8.16 for the
+    # mesh-regeneration vs actor-property distinction.
+    hq_smoothing_changed = Signal(bool)
+
     def __init__(
         self,
         get_actor: Callable,
@@ -94,6 +104,16 @@ class AppearancePanel(QWidget):
         # MainWindow sets it to "back" only for the Enriques family on variety
         # switch — see set_culling() below + the per-variety gate in app.py.
         self._culling: str | None = None
+        # enriques-hq-smoothing-2026q3-e1: opt-in second Taubin pass for the
+        # double-curve sawtooth artifact on Enriques figs 1+2.  Default False
+        # preserves the 449ms baseline; enabling adds ~138ms (the spike
+        # measurement) — see CONTEXT.md §8.16.  Unlike Wireframe/Show-edges
+        # which only change actor properties, toggling this changes the MESH
+        # — MainWindow must invalidate the clipped-mesh cache and call
+        # _render_current (not the apply_to_actor fast path).  Pattern-A
+        # storage like _culling; per-subtype gating from
+        # MainWindow._on_subtype_changed.
+        self._hq_smoothing: bool = False
 
         self._build_ui()
 
@@ -200,6 +220,38 @@ class AppearancePanel(QWidget):
         self._edges_cb.toggled.connect(self._on_edges_toggled)
         vl.addWidget(self._edges_cb)
 
+        # enriques-hq-smoothing-2026q3-e1 (UPL-18-followup): opt-in second
+        # Taubin pass for the Enriques double-curve sawtooth artifact.
+        # Same QPushButton(checkable=True) pattern as Wireframe / Show-edges
+        # (display-toggles-checkable-button-2026q3-e1 / F-M2 closure) so the
+        # visual register stays consistent across the Display group.  The
+        # KEY DIFFERENCE from the other two toggles: toggling this changes
+        # the MESH (re-generation required), not just actor properties —
+        # the slot handler `_on_hq_smoothing_toggled` emits
+        # `hq_smoothing_changed` instead of calling plotter.render().
+        # MainWindow connects that signal to a handler that invalidates the
+        # clipped-mesh cache and calls _render_current.  Disabled at launch
+        # — enabled per-subtype by MainWindow when the active subtype is
+        # Enriques Fig. 1 or Fig. 2 (the double-curve targets per
+        # CONTEXT.md §8.13 audit).  Figs 3+4 and all other varieties keep
+        # the toggle greyed out — the +138ms second-pass cost is not
+        # justified at their A₁-node topology.
+        self._hq_smoothing_cb = QPushButton("HQ smoothing")
+        self._hq_smoothing_cb.setCheckable(True)
+        self._hq_smoothing_cb.setChecked(False)
+        self._hq_smoothing_cb.setEnabled(False)
+        self._hq_smoothing_cb.setToolTip(
+            "Apply a second Taubin smoothing pass (n_iter=40, pass_band=0.05) "
+            "to reduce the double-curve sawtooth-ridge artifact on Enriques "
+            "figs 1 and 2.  Adds ~140 ms to mesh generation time.  "
+            "Disabled (greyed out) on other surfaces — the second pass "
+            "targets double-curve topology specifically and gives no benefit "
+            "on K3 / CY3 / Fano / Enriques figs 3+4."
+        )
+        self._hq_smoothing_cb.setProperty("role", "display-toggle")
+        self._hq_smoothing_cb.toggled.connect(self._on_hq_smoothing_toggled)
+        vl.addWidget(self._hq_smoothing_cb)
+
         return box
 
     def _build_opacity_group(self) -> QGroupBox:
@@ -299,6 +351,23 @@ class AppearancePanel(QWidget):
             if not self._wireframe:
                 actor.prop.show_edges = checked
             self._get_plotter().render()
+
+    def _on_hq_smoothing_toggled(self, checked: bool) -> None:
+        """Slot for the HQ-smoothing toggle.
+
+        Differs from `_on_wireframe_toggled` / `_on_edges_toggled` in
+        the critical way: this toggle changes the MESH (re-generation
+        required) rather than an actor display property.  We therefore
+        emit `hq_smoothing_changed` instead of calling
+        `_get_plotter().render()` directly — MainWindow connects the
+        signal to a handler that calls `_invalidate_clipped_mesh()` +
+        `_render_current()` (the canonical regeneration path).
+        Calling `render()` here would re-render the *stale* mesh and
+        silently produce a no-op visual change.  See CONTEXT.md §4 +
+        §8.16 for the mesh-vs-actor discipline.
+        """
+        self._hq_smoothing = checked
+        self.hq_smoothing_changed.emit(checked)
 
     def _on_opacity_changed(self, value: int) -> None:
         self._opacity = value
@@ -431,6 +500,51 @@ class AppearancePanel(QWidget):
         pass.  AI-9 safe (no ``processEvents``).
         """
         self._culling = value
+
+    @property
+    def hq_smoothing(self) -> bool:
+        """Whether the opt-in second Taubin pass is currently enabled.
+
+        Read by ``MainWindow._render_current`` to inject the
+        ``hq_smoothing=True`` kwarg into ``enriques_figure_1`` /
+        ``enriques_figure_2`` when the user has toggled the
+        "HQ smoothing" button.  Default ``False`` preserves the
+        ~449 ms Enriques generate-time baseline (see CONTEXT.md §8.16
+        for the spike timing log that justified the deferral / opt-in
+        design).
+        """
+        return self._hq_smoothing
+
+    def set_hq_smoothing_eligible(self, eligible: bool) -> None:
+        """Enable/disable the HQ-smoothing toggle button per the active
+        variety+subtype (enriques-hq-smoothing-2026q3-e1).
+
+        Called by ``MainWindow._on_variety_changed`` (always False on
+        variety switch — clear stale state) and
+        ``MainWindow._on_subtype_changed`` (True only when the active
+        variety is "Enriques surface" AND the active subtype is
+        Fig. 1 or Fig. 2 — the double-curve topology where the
+        second pass has a targeted benefit per CONTEXT.md §8.13).
+        When ``eligible=False``, the toggle is forcibly reset to
+        unchecked AND the stored ``_hq_smoothing`` state is cleared
+        — switching away from a double-curve subtype with HQ enabled
+        does NOT persist the setting across the move.
+
+        Setting checked to False emits ``toggled(False)`` which fires
+        ``_on_hq_smoothing_toggled`` and re-emits
+        ``hq_smoothing_changed`` — but MainWindow's handler is a
+        no-op on the resulting render since the same subtype change
+        already triggered ``_render_current`` upstream.  Idempotent.
+        """
+        self._hq_smoothing_cb.setEnabled(eligible)
+        if not eligible:
+            # Clear stored state so a future re-enable starts unchecked.
+            # setChecked(False) emits toggled(False) when transitioning
+            # from True; harmless because MainWindow's handler is
+            # idempotent and the _render_current chain is already
+            # active during subtype switches.
+            self._hq_smoothing_cb.setChecked(False)
+            self._hq_smoothing = False
 
     def refresh_icons(self, theme: str = "dark") -> None:
         """Re-apply qtawesome icons to the Wireframe + Show-edges display

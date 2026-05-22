@@ -45,11 +45,27 @@ from surfaces import (
     VARIETY_TOOLTIPS,
     SUBTYPE_TOOLTIPS,
     Surface,
+    enriques_figure_1,
+    enriques_figure_2,
     should_render_on_drag,
 )
 from view_panel import ViewPanel
 
 _PLACEHOLDER = "— Select —"
+
+# enriques-hq-smoothing-2026q3-e1: the two Enriques subtypes whose
+# generators accept the opt-in `hq_smoothing` kwarg.  Figs. 3 and 4 do
+# NOT — their A₁-node topology doesn't benefit from the second pass
+# (CONTEXT.md §8.13).  Used by `_on_subtype_changed` to gate the
+# "HQ smoothing" toggle and by `_render_current` to inject the kwarg.
+_HQ_SMOOTHING_ELIGIBLE_SUBTYPES = frozenset({
+    "Canonical sextic  [Fig. 1]",
+    "Diagonal λ-family  [Fig. 2]",
+})
+_HQ_SMOOTHING_ELIGIBLE_GENERATORS = frozenset({
+    enriques_figure_1,
+    enriques_figure_2,
+})
 
 
 def clipped_cache_is_valid(
@@ -222,6 +238,13 @@ class MainWindow(QMainWindow):
             get_actor=lambda: self._actor,
             get_plotter=lambda: self.plotter,
         )
+        # enriques-hq-smoothing-2026q3-e1: HQ-smoothing toggle re-renders the
+        # MESH (not just actor properties), so the signal handler must
+        # invalidate the clipped-mesh cache and call _render_current — see
+        # AppearancePanel.hq_smoothing_changed docstring + CONTEXT.md §8.16.
+        self.appearance_panel.hq_smoothing_changed.connect(
+            self._on_hq_smoothing_changed
+        )
         appearance_dock = QDockWidget("Appearance", self)
         appearance_dock.setObjectName("AppearanceDock")
         appearance_dock.setAllowedAreas(
@@ -360,6 +383,14 @@ class MainWindow(QMainWindow):
             self.appearance_panel.set_culling(
                 "back" if name == "Enriques surface" else None
             )
+            # enriques-hq-smoothing-2026q3-e1: clear HQ-smoothing toggle on
+            # every variety switch.  _on_subtype_changed re-enables it
+            # ONLY for Enriques figs 1+2 (the per-subtype gate) below.
+            # Always-clear-on-variety-switch avoids the dangling-enabled
+            # bug where the user enables HQ on Enriques fig 1, switches
+            # to K3, and the toggle stays visually enabled despite the
+            # generator not honoring the kwarg (K3 doesn't accept it).
+            self.appearance_panel.set_hq_smoothing_eligible(False)
             # For CY3 and Fano, include a brief contextual note in the status
             # bar AND in the Parameters dock banner so first-time users
             # understand they are viewing 2D shadows/slices, not the full
@@ -439,6 +470,19 @@ class MainWindow(QMainWindow):
             SUBTYPE_TOOLTIPS.get(name,
                 "Choose a specific surface model within the selected family.")
         )
+        # enriques-hq-smoothing-2026q3-e1: enable the "HQ smoothing" toggle
+        # ONLY for the two double-curve Enriques figures.  Per CONTEXT.md
+        # §8.13's per-figure topology audit: Figs. 1 and 2 carry double
+        # curves along the coordinate-tetrahedron edges (where the
+        # sawtooth-ridge artifact lives — what the second Taubin pass
+        # attenuates).  Figs. 3+4 have ordinary A₁ nodes and gain no
+        # targeted benefit from the +138 ms second-pass cost; toggle
+        # stays disabled there.
+        is_hq_eligible = (
+            variety == "Enriques surface"
+            and name in _HQ_SMOOTHING_ELIGIBLE_SUBTYPES
+        )
+        self.appearance_panel.set_hq_smoothing_eligible(is_hq_eligible)
         # Repopulate the parameters panel for the new surface.
         self.parameters_panel.set_specs(surface.params)
         self._render_current(reset_camera=True)
@@ -498,6 +542,37 @@ class MainWindow(QMainWindow):
         self._invalidate_clipped_mesh()
         self._apply_domain_and_render(reset_camera=False)
 
+    def _on_hq_smoothing_changed(self, _enabled: bool) -> None:
+        """Handler for AppearancePanel.hq_smoothing_changed signal
+        (enriques-hq-smoothing-2026q3-e1 / UPL-18-followup).
+
+        Toggling HQ smoothing changes the MESH (the second Taubin pass
+        moves every vertex by ~0.0015 units mean displacement at default
+        params), not just an actor display property.  Unlike
+        `_on_domain_changed` which can reuse the cached raw mesh and
+        only re-clips, this handler must trigger a fresh
+        `surface.generate()` — the simplest way is to invalidate the
+        clipped-mesh cache and call `_render_current(reset_camera=False)`
+        which goes through the full generate path and re-reads
+        `appearance_panel.hq_smoothing` at the call site.
+
+        AI-9 safe: synchronous; the `_computing` re-entrancy guard
+        inside `_render_current` handles the case where the user
+        toggles during an in-flight render (queue-latest semantics
+        from realtime-variety-render-e1-s2 catch the toggle on the
+        post-render `_pending_render` flush).
+
+        No-op when there's no current surface to re-render — toggling
+        before selecting a variety silently does nothing rather than
+        triggering an error.  The `_enabled` argument from the Signal
+        is unused because `_render_current` reads
+        `appearance_panel.hq_smoothing` fresh.
+        """
+        if self._raw_mesh is None or self._current_surface is None:
+            return
+        self._invalidate_clipped_mesh()
+        self._render_current(reset_camera=False)
+
     # --- rendering ---------------------------------------------------------
 
     def _clear_actor(self) -> None:
@@ -554,6 +629,36 @@ class MainWindow(QMainWindow):
         surface = self._current_surface
         params = self.parameters_panel.values() if surface.params else {}
 
+        # enriques-hq-smoothing-2026q3-e1: inject opt-in second-Taubin
+        # kwarg ONLY when (a) the active generator accepts it (Enriques
+        # figs 1+2 — see _HQ_SMOOTHING_ELIGIBLE_GENERATORS at module
+        # scope) AND (b) the user has the HQ toggle on.  K3 / CY3 / Fano /
+        # Enriques figs 3+4 generators do NOT accept the kwarg and would
+        # raise TypeError if passed it — the membership check is the
+        # safety net.  When the toggle is disabled (the vast majority of
+        # renders), no kwarg is added so the worker dispatch is
+        # byte-identical to the pre-milestone code path.  The HQ kwarg is
+        # injected INTO `params` (then a fresh dict-copy is handed to the
+        # worker) rather than as a separate `extra_kwargs` because the
+        # worker's API is `MeshWorker(fn, params_dict, generation)` — one
+        # params dict, no extras.  realtime-variety-render-e4 made the
+        # worker thread the surface.generate call site; the kwarg
+        # injection moved here from the pre-worker code path.
+        _is_hq_active = (
+            surface.generate in _HQ_SMOOTHING_ELIGIBLE_GENERATORS
+            and self.appearance_panel.hq_smoothing
+        )
+        if _is_hq_active:
+            params["hq_smoothing"] = True
+        # enriques-hq-smoothing-2026q3-e1 rect F-M2: derive the [HQ]
+        # status-bar attribution label once and thread it through both
+        # the "Computing…" message AND (via self._inflight_hq_label) the
+        # final success/warning messages in _on_mesh_ready — users see
+        # "Computing Enriques surface [HQ]…" then "… [HQ] · … · 587 ms"
+        # so the longer render time is causally attributable to the
+        # toggle.
+        _hq_label = " [HQ]" if _is_hq_active else ""
+
         # Capture the job context on the instance.  The result slot uses THESE
         # — not `_current_surface` / a fresh `parameters_panel.values()` —
         # because the user may change the selection or drag a slider further
@@ -564,10 +669,13 @@ class MainWindow(QMainWindow):
         self._inflight_surface = surface
         self._inflight_params = params
         self._inflight_reset_camera = reset_camera
+        # Hold the HQ label for the result slot so the success message can
+        # attribute the longer render time to the HQ toggle as well.
+        self._inflight_hq_label = _hq_label
 
         # Busy cursor for the whole flight; restored in `_on_mesh_ready`.
         QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
-        self.statusBar().showMessage(f"Computing {surface.label}…")
+        self.statusBar().showMessage(f"Computing {surface.label}{_hq_label}…")
 
         # Hand the worker its OWN copy of the params dict — it reads it on the
         # worker thread, so it must not alias a dict the GUI thread could
@@ -593,6 +701,13 @@ class MainWindow(QMainWindow):
         """
         surface = self._inflight_surface
         params = self._inflight_params
+        # enriques-hq-smoothing-2026q3-e1 rect F-M2: read the [HQ] label
+        # for the in-flight job (set in _render_current at dispatch time).
+        # Reading it from `self._inflight_hq_label` (not recomputing from
+        # `appearance_panel.hq_smoothing`) ensures the label reflects the
+        # state at GENERATE time, not at slot-fire time — the user may
+        # have toggled HQ off while the worker was in flight.
+        hq_label = self._inflight_hq_label
         try:
             # Defensive supersede guard (see render_worker.is_stale_result).
             # It lives INSIDE the `try` so the `finally` cleanup (cursor
@@ -677,8 +792,12 @@ class MainWindow(QMainWindow):
             )
             # CAND-12 (realtime-variety-render-e1): append the measured
             # generate() time as a trailing "NNN ms" token after the bbox.
+            # enriques-hq-smoothing-2026q3-e1 rect F-M2: `hq_label`
+            # appended right after the surface label so users see
+            # "Enriques surface [HQ] · … · 587 ms" when the toggle is on
+            # — the longer render time is causally attributable.
             base_msg = (
-                f"{surface.label}  ·  {self._raw_mesh.n_points:,} verts, "
+                f"{surface.label}{hq_label}  ·  {self._raw_mesh.n_points:,} verts, "
                 f"{self._raw_mesh.n_cells:,} faces{param_str}"
                 f"  ·  {bbox_suffix}  ·  {result.gen_ms:.0f} ms"
             )
@@ -694,7 +813,7 @@ class MainWindow(QMainWindow):
                 # less informative.
                 self.statusBar().showMessage(
                     f"⚠ {result.warning_text}  ·  {bbox_suffix}"
-                    f"  |  {surface.label}  ·  {self._raw_mesh.n_points:,} verts, "
+                    f"  |  {surface.label}{hq_label}  ·  {self._raw_mesh.n_points:,} verts, "
                     f"{self._raw_mesh.n_cells:,} faces{param_str}"
                     f"  ·  {result.gen_ms:.0f} ms"
                 )
