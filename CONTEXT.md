@@ -389,6 +389,10 @@ The shorthand still works via backward-compat aliases but emits warnings. Use th
 
 PySide6's `QDockWidget.setWidget(panel)` transfers C++ ownership of `panel` to the dock; when the dock is garbage-collected, Qt deletes `panel`'s C++ object. The obvious analogue to `QMainWindow.takeCentralWidget()` does NOT exist on `QDockWidget` (verified: PySide6 6.6+ `QDockWidget` exposes only `setWidget()` and `widget()`). If you need to reuse the same panel across multiple dock containers (the panel-chrome capture script does this for the DEFAULT + HIRES grabs of the same panel), call `panel.setParent(None)` in a `finally:` block before the dock goes out of scope. This re-parents the panel to None, restoring Python's reference as the keep-alive — without it, the next grab crashes with `libshiboken: Internal C++ object (AppearancePanel) already deleted`. The capture script's `_grab_in_dock` helper at [`.claude/scripts/frontend-uplift/render-panel-chrome.py`](.claude/scripts/frontend-uplift/render-panel-chrome.py) documents this in-line.
 
+### 8.12 `qtawesome.icon()` silently returns an empty QIcon without a live QApplication
+
+qtawesome's `qta.icon()` checks `if QApplication.instance() is not None` and falls back to an empty `QIcon` + `UserWarning` when no app is running.  Calling it from a panel's `_build_ui()` constructor — which runs during `MainWindow.__init__` before the QApplication has fully come up in some test contexts — produces invisible icons with no exception.  Fix: each panel exposes a public `refresh_icons(theme)` method (see [`view_panel.py:refresh_icons`](view_panel.py) / [`parameters_panel.py:refresh_icons`](parameters_panel.py)), and `MainWindow.__init__` calls them AFTER the panels are constructed — same call is repeated in `_on_theme_changed` and `_apply_system_theme` so theme swaps re-render with the new color.  The capture script `render-panel-chrome.py` mirrors this discipline (calls `refresh_icons` after each panel construction) so panel-chrome PNGs reflect the live app.  See [`icons.py`](icons.py) docstring + [qtawesome issue #144](https://github.com/spyder-ide/qtawesome/issues/144) for the canonical prior art on this footgun.
+
 ---
 
 ## 9. Things explicitly NOT done (and why)
@@ -397,6 +401,7 @@ Logged as adversarial findings in the most recent reviews but skipped. Future ma
 
 - **No state persistence.** App doesn't save window layout, last-used surface, slider values, or color choices via `QSettings`. Every launch starts fresh.
 - **No 3D mesh export.** Only PNG screenshot is supported. Adding STL/OBJ/PLY export is one line: `mesh.save("file.stl")`.
+- **Icons on camera-preset buttons (+X, -X, +Y, -Y, +Z, -Z, Isometric), display-toggle checkboxes (Wireframe, Show-edges), and a spinner during render** — deferred to a follow-up qtawesome-icons-2026q2-e2 (UPL-4 v1 scope).  The v0 milestone (`qtawesome-icons-2026q2-e1`) shipped icons for the 3 highest-value buttons (Reset Camera, Screenshot, Reset Defaults); the rest stays text-only intentionally so the original challenger's MINOR-flagged cold-boot risk stays contained.
 - **No first-launch auto-render.** App opens to a `— Select —` placeholder and an empty plotter. The UI/UX agent considered auto-selecting the first surface and decided it would feel presumptuous in a research tool.
 - **No confirmation dialog on Reset to Defaults.** The action is non-destructive (the surface re-renders with default sliders); a confirm dialog would interrupt flow.
 - **No keyboard navigation beyond the three shortcuts** (`Ctrl+R` reset camera, `Ctrl+Shift+S` screenshot, `Ctrl+D` reset defaults). Tab order is whatever PySide6 derives by default.

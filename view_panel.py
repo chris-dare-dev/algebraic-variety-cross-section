@@ -35,7 +35,9 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from styles import MUTED_TEXT_STYLE, RANGE_LABEL_STYLE, VALUE_MONO_STYLE
+# MUTED_TEXT_STYLE / RANGE_LABEL_STYLE / VALUE_MONO_STYLE deprecated in
+# dark-mode-2026q2-e1 — call sites use setProperty("role", X) so QSS role
+# selectors handle theme-aware color cascade.  No import needed here.
 
 
 class ViewPanel(QWidget):
@@ -369,12 +371,22 @@ class ViewPanel(QWidget):
         called from ``_build_ui()`` — at that point ``QApplication`` is
         not yet fully active and ``qta.icon()`` silently returns an empty
         ``QIcon``.
+
+        Sets an explicit 16x16 icon size on both buttons so the rendered
+        size is platform-independent (Qt's PM_ButtonIconSize varies
+        between Aqua-native 22px and Fusion-style 16px; a 16x16 fixed
+        size keeps the View dock's vertical rhythm consistent with the
+        26px-fixed-height preset grid — frontend-ux critic LOW-1).
         """
         # Lazy import — keeps `from view_panel import ViewPanel` cheap if
         # the caller never invokes refresh_icons (e.g. headless tests).
         import icons
+        from PySide6.QtCore import QSize
 
+        _ICON_SIZE = QSize(16, 16)
+        self._reset_camera_btn.setIconSize(_ICON_SIZE)
         self._reset_camera_btn.setIcon(icons.reset_camera_icon(theme))
+        self._shot_btn.setIconSize(_ICON_SIZE)
         self._shot_btn.setIcon(icons.screenshot_icon(theme))
 
     # ------------------------------------------------------------------

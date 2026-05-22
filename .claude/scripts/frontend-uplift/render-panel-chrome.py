@@ -165,8 +165,11 @@ def main(argv: list[str]) -> int:
     app = QApplication.instance() or QApplication(sys.argv[:1])
 
     # ----- Themes to capture ------------------------------------------------
-    # PALETTE_DARK is a placeholder in styles.py today (UPL-4).  We auto-detect
-    # to forward-port without code change when it lands.
+    # Both PALETTE_LIGHT and PALETTE_DARK are populated since
+    # dark-mode-2026q2-e1 — APP_STYLESHEET_DARK is now a permanent module
+    # attribute.  The getattr() guard remains as a forward-compat safety net:
+    # if a future refactor renames or removes the dark stylesheet, this
+    # capture script degrades gracefully to light-only instead of crashing.
     themes: list[tuple[str, str]] = [("light", getattr(styles, "APP_STYLESHEET", ""))]
     dark_qss = getattr(styles, "APP_STYLESHEET_DARK", None)
     if dark_qss:
@@ -340,6 +343,11 @@ def main(argv: list[str]) -> int:
         # Empty state: ViewPanel takes the plotter directly (not a callable);
         # a MagicMock satisfies the attribute access without rendering.
         view_empty = ViewPanel(MagicMock())
+        # qtawesome-icons-2026q2-e1 (UPL-4) rect M3: load the qtawesome icons
+        # so the captured PNGs reflect the live app's button chrome.  Without
+        # this, the visual scout sees iconless buttons and flags missing
+        # icons as a gap that has already shipped.
+        view_empty.refresh_icons(theme_name)
         _grab_in_dock(
             view_empty,
             "View",
@@ -363,6 +371,8 @@ def main(argv: list[str]) -> int:
         # panel refactor renames them this script fails loudly rather than
         # silently producing stale captures.
         view_populated = ViewPanel(MagicMock())
+        # qtawesome-icons-2026q2-e1 (UPL-4) rect M3: see view_empty above.
+        view_populated.refresh_icons(theme_name)
         # Select "Sphere" — index 1 in the (Off, Sphere, Cube) sequence.
         view_populated._domain_mode.setCurrentText(view_populated.DOMAIN_SPHERE)
         view_populated._bbox_cb.setChecked(True)
@@ -384,6 +394,10 @@ def main(argv: list[str]) -> int:
         # Empty state: no specs loaded → the "(no parameters for this
         # surface)" placeholder + disabled reset button.
         params_empty = ParametersPanel()
+        # qtawesome-icons-2026q2-e1 (UPL-4) rect M3: see ViewPanel above.
+        # The Reset Defaults button uses the red-family TEXT_RESET_BTN
+        # color routing — captured here so the scout sees its true look.
+        params_empty.refresh_icons(theme_name)
         _grab_in_dock(
             params_empty,
             "Parameters",
@@ -402,6 +416,8 @@ def main(argv: list[str]) -> int:
         # The 4-slider stack lets the scout critique multi-control spacing in
         # addition to per-slider styling.
         params_populated = ParametersPanel()
+        # qtawesome-icons-2026q2-e1 (UPL-4) rect M3: see params_empty above.
+        params_populated.refresh_icons(theme_name)
         params_populated.set_specs(populated_specs)
         params_populated.set_context_hint(
             "Each parameter sweep alters the variety's geometry. Release "

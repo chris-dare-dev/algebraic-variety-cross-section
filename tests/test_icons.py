@@ -79,6 +79,16 @@ def test_icon_functions_call_qta_icon_with_correct_args() -> None:
     """Each icon factory calls ``qta.icon()`` with the right MDI 6 icon
     name AND the active theme's color.  Mocked at the qta boundary so this
     runs without a QApplication (AI-2 compliant).
+
+    Covers BOTH themes for every icon function (rect adv M2 — the prior
+    pass only tested one theme per function, leaving a coverage gap where
+    a wrong-branch refactor in either ``_icon_color`` or
+    ``_reset_defaults_icon_color`` could slip past mock-only tests).
+
+    Reset Defaults uses a DIFFERENT color helper
+    (``_reset_defaults_icon_color`` returns TEXT_RESET_BTN, not TEXT_VALUE)
+    so the button-glyph color matches the red-family text label (rect
+    frontend-ux M1).  This test asserts that distinction explicitly.
     """
     from unittest.mock import MagicMock, patch
     import icons
@@ -88,28 +98,45 @@ def test_icon_functions_call_qta_icon_with_correct_args() -> None:
 
     # Patch the cached qtawesome module so _get_qta() returns the mock.
     with patch.object(icons, "_qta", mock_qta):
-        # Reset Camera — mdi6.camera-retake — dark palette
-        icons.reset_camera_icon("dark")
-        mock_qta.icon.assert_called_with(
-            "mdi6.camera-retake",
-            color=styles.PALETTE_DARK["TEXT_VALUE"],
-        )
-        mock_qta.icon.reset_mock()
+        # Reset Camera — mdi6.fit-to-screen — TEXT_VALUE color, both themes
+        for theme in ("dark", "light"):
+            mock_qta.icon.reset_mock()
+            icons.reset_camera_icon(theme)
+            mock_qta.icon.assert_called_with(
+                "mdi6.fit-to-screen",
+                color=(
+                    styles.PALETTE_DARK["TEXT_VALUE"]
+                    if theme == "dark"
+                    else styles.PALETTE_LIGHT["TEXT_VALUE"]
+                ),
+            )
 
-        # Screenshot — mdi6.camera — light palette
-        icons.screenshot_icon("light")
-        mock_qta.icon.assert_called_with(
-            "mdi6.camera",
-            color=styles.PALETTE_LIGHT["TEXT_VALUE"],
-        )
-        mock_qta.icon.reset_mock()
+        # Screenshot — mdi6.camera — TEXT_VALUE color, both themes
+        for theme in ("dark", "light"):
+            mock_qta.icon.reset_mock()
+            icons.screenshot_icon(theme)
+            mock_qta.icon.assert_called_with(
+                "mdi6.camera",
+                color=(
+                    styles.PALETTE_DARK["TEXT_VALUE"]
+                    if theme == "dark"
+                    else styles.PALETTE_LIGHT["TEXT_VALUE"]
+                ),
+            )
 
-        # Reset Defaults — mdi6.restore — dark palette
-        icons.reset_defaults_icon("dark")
-        mock_qta.icon.assert_called_with(
-            "mdi6.restore",
-            color=styles.PALETTE_DARK["TEXT_VALUE"],
-        )
+        # Reset Defaults — mdi6.restore — TEXT_RESET_BTN color (red-family,
+        # NOT TEXT_VALUE — see _reset_defaults_icon_color rationale).
+        for theme in ("dark", "light"):
+            mock_qta.icon.reset_mock()
+            icons.reset_defaults_icon(theme)
+            mock_qta.icon.assert_called_with(
+                "mdi6.restore",
+                color=(
+                    styles.PALETTE_DARK["TEXT_RESET_BTN"]
+                    if theme == "dark"
+                    else styles.PALETTE_LIGHT["TEXT_RESET_BTN"]
+                ),
+            )
 
 
 def test_icons_return_valid_qicons_with_qapplication() -> None:

@@ -1,0 +1,85 @@
+{
+  "id": "qtawesome-icons-2026q2-e1",
+  "created_at": "2026-05-22T01:18:00Z",
+  "updated_at": "2026-05-22T01:51:02Z",
+  "phase": "rectify-running",
+  "phase_history": [
+    {
+      "phase": "init",
+      "at": "2026-05-22T01:18:00Z"
+    },
+    {
+      "phase": "research-running",
+      "at": "2026-05-22T01:18:16Z"
+    },
+    {
+      "phase": "research-complete",
+      "at": "2026-05-22T01:26:44Z"
+    },
+    {
+      "phase": "implement-running",
+      "at": "2026-05-22T01:27:08Z"
+    },
+    {
+      "phase": "implement-complete",
+      "at": "2026-05-22T01:32:35Z"
+    },
+    {
+      "phase": "critique-running",
+      "at": "2026-05-22T01:32:35Z"
+    },
+    {
+      "phase": "critique-complete",
+      "at": "2026-05-22T01:45:36Z"
+    },
+    {
+      "phase": "rectify-running",
+      "at": "2026-05-22T01:45:36Z"
+    }
+  ],
+  "milestone_brief": "Close UPL-4 (adopt qtawesome icons) from the 2026q2-graph-and-window frontend-uplift final report. RICE 8.0, ranked #6 overall, challenger-MINOR. 3-brief triangulation (library scout's top icon candidate + inspiration via PC-3/PC-11 implicit + visual scout's M-3 Reset Camera button styling). Source: .claude/notes/frontend-uplifts/2026q2-graph-and-window/artifacts/final-report.md UPL-4 + challenger MINOR.\n\nV0 scope per challenger: ship the 3 highest-value targets \u2014 Reset Camera (View panel), Screenshot (View panel), Reset Defaults (Parameters panel). The 5 camera-preset buttons (+X, -X, +Y, -Y, +Z, -Z, Isometric) + Wireframe/Show-edges toggles defer to v1 (separate follow-up milestone) so this stays a discrete S-effort milestone.\n\nTrack choice: lazy-import qtawesome via a new module-level helper (suggested file: `icons.py` at repo root, per challenger lesson). The cold-boot cost of qtawesome's icon-font cache is ~150-200ms \u2014 lazy-import the qtawesome module ITSELF (not just per-icon functions) so the cost fires on first icon use rather than at app launch.\n\nScope:\n\n1. requirements.txt \u2014 Add `qtawesome>=1.4.2` (MIT, 930 stars, PySide6 6.8.x segfaults fixed in v1.4.1 January 2026 per the library scout brief).\n\n2. icons.py \u2014 New module at repo root. Single source of truth for icon construction. Pattern:\n- `def reset_camera_icon(theme=\"dark\") -> QIcon`\n- `def screenshot_icon(theme=\"dark\") -> QIcon`\n- `def reset_defaults_icon(theme=\"dark\") -> QIcon`\nEach function lazy-imports qtawesome on first call (`global _qta; if _qta is None: import qtawesome as _qta`), resolves color from styles.py per the active theme (use PALETTE_DARK['TEXT_VALUE'] for dark, PALETTE_LIGHT['TEXT_VALUE'] for light \u2014 the icon color should match the active panel text color). Recommended icon names: mdi6.video-marker-outline or mdi6.camera-control for Reset Camera; mdi6.camera or fa6s.camera for Screenshot; mdi6.restore or fa6s.rotate-left for Reset Defaults. Researcher: pick exact names from the qtawesome 1.4.2 icon set and verify they exist.\n\n3. view_panel.py \u2014 Apply icons to the Reset Camera button (currently `objectName(\"resetCameraBtn\")`) and Screenshot button via `button.setIcon(icons.reset_camera_icon())` etc. The button SIZE may need a small bump if icon + text doesn't fit; verify visually. Default theme is dark (per dark-mode-2026q2-e1) so icons.*_icon() default arg = \"dark\" is correct for launch state.\n\n4. parameters_panel.py \u2014 Apply icon to the \"Reset all to defaults\" button (`self._reset_btn`, objectName resetDefaultsBtn). Same pattern as #3.\n\n5. app.py \u2014 When theme changes via _on_theme_changed/_apply_system_theme, the icons need re-construction with the new color. Either:\n(a) re-create icons by calling icons.*_icon(active_theme) and re-setIcon on each button \u2014 clean but the panels don't know about themes\n(b) add a `refresh_icons(active_theme)` method on each panel that the MainWindow calls\n(c) use qtawesome's IconWidget pattern (its `qta.icon()` returns a re-rendered icon each call; cheap to swap)\nResearcher: pick the cleanest pattern that doesn't tangle panels into theme awareness.\n\n6. tests/ \u2014 Add test_icons.py: smoke-test each `icons.*_icon()` function returns a valid QIcon (not isNull()) for both \"light\" and \"dark\" themes. Test must be Qt-free where possible OR use the same lightweight pattern as test_set_default_color (no QApplication needed for QIcon construction if qtawesome supports it offscreen \u2014 researcher to verify).\n\n7. CONTEXT.md \u2014 Brief mention in \u00a73 (dep stack rationale) that qtawesome is the icon source + lazy-imported on first use.\n\nAI invariants:\n- AI-1: qtawesome is MIT, PySide6-compatible (v1.4.1 fixed Qt6 segfaults). Adds a single small lib; not an alternative renderer.\n- AI-2: Qt-free tests preferred; QIcon construction may need QApplication \u2014 researcher to verify and document. If QApplication required, mark the test xfail under offscreen or use mock.\n- AI-9: icon construction is synchronous; no processEvents.\n- AI-11: qualified Qt enums for any new QIcon / QAction usage.\n- AI-12: icon color must use TEXT_VALUE from the active palette (5.83-11.6:1 vs panel bg); no raw hex.\n- AI-13: 6-digit hex when passing color to qta.icon(color=...).\n\nV0 cut explicit:\n- 3 buttons get icons (Reset Camera, Screenshot, Reset Defaults)\n- The 7 camera-preset buttons (+X, -X, +Y, -Y, +Z, -Z, Isometric) \u2014 deferred to a v1 milestone (qtawesome-icons-2026q2-e2 or similar)\n- Wireframe / Show-edges toggle icons \u2014 deferred to v1\n- Spinner icon during render (qta.IconWidget with rotation) \u2014 deferred (would couple to AI-9 render path)\n- No menu-bar icons \u2014 deferred\n\nValidation:\n- .venv/bin/python -m pytest tests/ -q passes\n- Manual: run app.py and verify the 3 buttons show icons matching the active theme; toggle Theme menu and verify icons re-render with the new color\n- Cold-boot timing: app.py launch time should not regress by more than 50ms (lazy import means qtawesome only loads on first button paint, not at module import)",
+  "research_mode": "single",
+  "oss_scout_requested": false,
+  "research_briefs": [
+    ".claude/notes/milestones/qtawesome-icons-2026q2-e1/research/agent-solo-brief.md"
+  ],
+  "research_synthesis": "Sonnet researcher picked mdi6.camera-retake/mdi6.camera/mdi6.restore for the 3 buttons. icons.py module with per-function lazy import (_qta=None sentinel) + theme-aware _icon_color(theme) via PALETTE_*['TEXT_VALUE']. Pattern A refresh_icons(theme) method on ViewPanel + ParametersPanel, called from MainWindow.__init__ AND from _on_theme_changed AND _apply_system_theme \u2014 critical because qta.icon() requires a running QApplication (silently returns empty QIcon otherwise). Researcher caught R1+R3: shot_btn and reset_btn in view_panel.py are local variables; must be promoted to instance attrs. 4-test plan: 3 AI-2-compliant pure-Python (lazy-import deferral, color routing, mock qta args) + 1 QApplication-guarded (non-isNull). qtawesome>=1.4.2,<2 MIT. ~148 LOC across 7 files \u2014 inline.",
+  "implementation_path": "inline",
+  "implementation_plan": ".claude/notes/milestones/qtawesome-icons-2026q2-e1/artifacts/implementation-plan.md",
+  "implementation_base": "fbbae5ce31340657f64799528cc30ef948b0df22",
+  "implementation_commit_range": "fbbae5ce31340657f64799528cc30ef948b0df22..e2e1ba5865188b220d55904b2c7f64dcd7e9cc67",
+  "implementation_commits": [
+    "e2e1ba5865188b220d55904b2c7f64dcd7e9cc67"
+  ],
+  "implementation_branch": null,
+  "critique_path": ".claude/notes/milestones/qtawesome-icons-2026q2-e1/artifacts/adversary-critique.md",
+  "critics_run": [
+    "adversary",
+    "frontend-ux"
+  ],
+  "critique_finding_counts": {
+    "critical": 0,
+    "high": 1,
+    "medium": 5,
+    "low": 6
+  },
+  "rectification_commit": null,
+  "fixed_findings": [
+    "adv_M1",
+    "adv_M2",
+    "adv_M3",
+    "front_M1",
+    "front_M2",
+    "adv_L1",
+    "adv_L2",
+    "adv_L3",
+    "front_L1",
+    "front_L3"
+  ],
+  "deferred_findings": [
+    "adv_H_diff_size",
+    "front_L2_restore_undo"
+  ],
+  "invalidated_findings": [],
+  "regression_tests_added": []
+}

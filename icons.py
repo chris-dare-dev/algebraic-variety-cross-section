@@ -59,11 +59,23 @@ def _get_qta():
     ~150-200ms font-load cost from app launch to the first icon
     construction (which happens inside ``MainWindow.__init__`` after the
     panels are built, not during module import).
+
+    Rectified in the milestone's rect commit: wraps the lazy import in a
+    ``try/except ImportError`` that re-raises with a clear install hint.
+    The unhelpful "No module named 'qtawesome'" stack trace from a missing
+    requirement was the adversary critic's MEDIUM-1 finding.
     """
     global _qta
     if _qta is None:
-        import qtawesome as _qtawesome
-
+        try:
+            import qtawesome as _qtawesome
+        except ImportError as e:
+            raise RuntimeError(
+                "qtawesome is required for app icons but was not found in the "
+                "Python environment.  Install the project requirements:\n"
+                "    pip install -r requirements.txt\n"
+                "(qtawesome>=1.4.2,<2 — MIT-licensed icon-font wrapper.)"
+            ) from e
         _qta = _qtawesome
     return _qta
 
@@ -73,8 +85,8 @@ def _icon_color(theme: str) -> str:
 
     Uses ``TEXT_VALUE`` from the active palette — the highest-contrast
     text token (11.09:1 on ``BG_PANEL`` light, 11.60:1 on ``BG_PANEL`` dark).
-    Icons styled this way are equally legible in both themes without
-    requiring a separate icon-color token.
+    Icons styled this way are legible in both themes without requiring a
+    separate icon-color token.
 
     AI-12 / AI-13 compliant: 6-digit hex from a tested palette.  Any theme
     name other than ``"light"`` resolves to the dark palette (matching the
@@ -84,21 +96,44 @@ def _icon_color(theme: str) -> str:
     return palette["TEXT_VALUE"]
 
 
-def reset_camera_icon(theme: str = "dark") -> QIcon:
-    """Return a QIcon for the Reset Camera button (``mdi6.camera-retake``).
+def _reset_defaults_icon_color(theme: str) -> str:
+    """Return the 6-digit hex icon color for the Reset Defaults button.
 
-    Camera body with circular refresh arrow — semantically "reset the
-    camera to its default position".  Researcher-validated as the best
-    MaterialDesign candidate over ``camera-control`` (pan/navigate
-    semantic) and ``camera-marker`` (geotagging).
+    The Reset Defaults button has a distinct red-family visual identity
+    (``BG_RESET_BTN`` pink/wine + ``TEXT_RESET_BTN`` rose text).  Using the
+    neutral ``TEXT_VALUE`` for the icon glyph would make it look like a
+    stray grey/white icon on the red-family button — inconsistent with the
+    button's intentional color coding.  This helper routes the icon color
+    through ``TEXT_RESET_BTN`` so the icon participates in the button's
+    visual identity rather than fighting it.  (Frontend-ux critic MEDIUM-1.)
+
+    Both values are pre-verified to clear WCAG 3:1 non-text contrast on the
+    matching ``BG_RESET_BTN`` background (8.37:1 light, 9.32:1 dark).
     """
-    return _get_qta().icon("mdi6.camera-retake", color=_icon_color(theme))
+    palette = styles.PALETTE_LIGHT if theme == "light" else styles.PALETTE_DARK
+    return palette["TEXT_RESET_BTN"]
+
+
+def reset_camera_icon(theme: str = "dark") -> QIcon:
+    """Return a QIcon for the Reset Camera button (``mdi6.fit-to-screen``).
+
+    Two diagonal corner brackets pointing inward — semantically "fit /
+    frame the surface in the viewport".  Replaces the original
+    ``mdi6.camera-retake`` pick to disambiguate from the Screenshot
+    button's camera glyph at small icon sizes (frontend-ux critic
+    MEDIUM-2: both icons shared a camera-body anchor that became
+    indistinguishable at the 16-22px default macOS icon size).  This
+    matches the 3D Slicer convention for the "reset / center view" action.
+    """
+    return _get_qta().icon("mdi6.fit-to-screen", color=_icon_color(theme))
 
 
 def screenshot_icon(theme: str = "dark") -> QIcon:
     """Return a QIcon for the Screenshot button (``mdi6.camera``).
 
     Classic photograph camera — universally recognized "take a photo".
+    Now that Reset Camera uses ``mdi6.fit-to-screen``, the camera glyph
+    is unambiguously the screenshot action.
     """
     return _get_qta().icon("mdi6.camera", color=_icon_color(theme))
 
@@ -107,7 +142,12 @@ def reset_defaults_icon(theme: str = "dark") -> QIcon:
     """Return a QIcon for the Reset Defaults button (``mdi6.restore``).
 
     Counterclockwise circular arrow — universally recognized "restore to
-    prior state".  Preferred over ``fa6s.rotate-left`` (partial rotation)
-    because the full circle communicates "undo all" rather than "rotate".
+    prior state".  Color is routed through ``_reset_defaults_icon_color``
+    (TEXT_RESET_BTN) so the icon glyph matches the button's red-family
+    text label, preserving the button's color-coded visual identity
+    (frontend-ux critic MEDIUM-1).
     """
-    return _get_qta().icon("mdi6.restore", color=_icon_color(theme))
+    return _get_qta().icon(
+        "mdi6.restore",
+        color=_reset_defaults_icon_color(theme),
+    )

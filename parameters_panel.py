@@ -21,7 +21,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from styles import MUTED_TEXT_STYLE, RANGE_LABEL_STYLE, SMALL_LABEL_STYLE, VALUE_MONO_STYLE
+from styles import SMALL_LABEL_STYLE  # MUTED/VALUE_MONO/RANGE inline styles deprecated in dark-mode-2026q2-e1 — use setProperty("role", X)
 from surfaces import ParamSpec
 
 
@@ -117,9 +117,15 @@ class ParametersPanel(QWidget):
         / ``_apply_system_theme`` on theme swap.  See ``icons.py`` for the
         full QApplication-availability discipline this method respects
         (qtawesome-icons-2026q2-e1 / UPL-4).
+
+        Sets an explicit 16x16 icon size for platform-independent
+        rendering (frontend-ux critic LOW-1 — matches the size set on the
+        View dock's icons).
         """
         import icons
+        from PySide6.QtCore import QSize
 
+        self._reset_btn.setIconSize(QSize(16, 16))
         self._reset_btn.setIcon(icons.reset_defaults_icon(theme))
 
     # ------------------------------------------------------------------
