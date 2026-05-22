@@ -16,6 +16,19 @@ from typing import Callable
 import numpy as np
 import pyvista as pv
 
+# realtime-variety-render-e5 (CAND-2): Numba JIT field-evaluation kernels.
+# numba is a pure compute dependency (BSD-2-Clause) — no renderer, AI-1 clean.
+# THREADING_LAYER MUST be set before the first parallel kernel is *called*;
+# module-import time is the safe, spike-proven placement (kernels are only
+# called at generate() time, long after import).  `workqueue` is Numba's
+# always-available, dependency-free layer — it keeps Numba's thread pool
+# separate from VTK's SMP pool so a kernel and a Flying Edges contour running
+# back-to-back in the e4 worker do not contend (e5 Numba arm64 spike §6).
+import numba
+
+numba.config.THREADING_LAYER = "workqueue"
+from numba import njit, prange  # noqa: E402 — must follow the config set above
+
 
 @dataclass(frozen=True)
 class ParamSpec:
@@ -177,6 +190,98 @@ def _marching_cubes_to_polydata(
     return mesh
 
 
+# ---------------------------------------------------------------------------
+# Numba JIT field-evaluation kernels (realtime-variety-render-e5 / CAND-2)
+# ---------------------------------------------------------------------------
+#
+# Scalar-field evaluation is 41-45% of total surface.generate() latency.  For
+# the two highest-cost implicit generators these kernels replace NumPy
+# meshgrid-broadcasting (which allocates several n^3 temporaries — X2, Y2, Z2,
+# every product term) with a single fused `prange` loop that reads the 1-D
+# linspace axis `g` and writes one scalar per voxel.
+#
+# `@njit(parallel=True, cache=True)`:
+#   * parallel=True  — `prange` over the outer i-axis; every `out[i,j,k]` write
+#     is independent (no cross-iteration reduction), so parallel execution is
+#     bit-identical to serial — no summation-order risk.
+#   * cache=True     — the compiled kernel is persisted to disk, so the
+#     first-call JIT cost is paid once per machine, not once per process.
+#
+# JIT-latency note: the first Fermat/Enriques render after a cold cache pays
+# the ~400-800 ms compile.  That call runs inside the e4 background-thread
+# worker (render_worker.MeshWorker), so it is OFF the GUI thread — the UI does
+# not freeze.  No eager startup warm-up is used (e5 Numba arm64 spike §4/§8).
+#
+# Numeric identity: each kernel is a term-by-term transcription of the
+# generator's former NumPy expression, in the IDENTICAL operator order, so the
+# per-voxel IEEE-754 op sequence matches NumPy's elementwise evaluation.  The
+# `np.clip` post-step is folded in as a scalar min/max.  Guarded by
+# tests/test_numba_field_kernels.py (kernel vs NumPy reference, rtol=atol=1e-9).
+
+
+@njit(parallel=True, cache=True)
+def _fermat_field_kernel(g, alpha, beta, gamma, c, out):
+    """Fill *out* with the Fermat-quartic scalar field on the ``g`` grid.
+
+    Transcribes ``fermat_quartic``'s former NumPy expression term-for-term:
+    ``X2*X2 + Y2*Y2 + Z2*Z2 + alpha*(X2*Y2+Y2*Z2+Z2*X2)
+    + beta*(X*Y*Z)*(X+Y+Z) + gamma*(X2+Y2+Z2) - c``, then ``np.clip(F, ±200)``.
+    """
+    n = g.shape[0]
+    for i in prange(n):
+        x = g[i]
+        x2 = x * x
+        for j in range(n):
+            y = g[j]
+            y2 = y * y
+            for k in range(n):
+                z = g[k]
+                z2 = z * z
+                val = (
+                    x2 * x2 + y2 * y2 + z2 * z2
+                    + alpha * (x2 * y2 + y2 * z2 + z2 * x2)
+                    + beta * (x * y * z) * (x + y + z)
+                    + gamma * (x2 + y2 + z2)
+                    - c
+                )
+                # np.clip(F, -200.0, 200.0) — scalar form.
+                if val < -200.0:
+                    val = -200.0
+                elif val > 200.0:
+                    val = 200.0
+                out[i, j, k] = val
+
+
+@njit(parallel=True, cache=True)
+def _enriques_fig1_field_kernel(g, c, out):
+    """Fill *out* with the canonical Enriques-sextic scalar field.
+
+    Transcribes ``enriques_figure_1``'s former NumPy expression term-for-term:
+    ``X2*Y2 + X2*Z2 + Y2*Z2 + X2*Y2*Z2 + c*(X*Y*Z)*(1+X2+Y2+Z2)``, then
+    ``np.clip(F, ±10)``.
+    """
+    n = g.shape[0]
+    for i in prange(n):
+        x = g[i]
+        x2 = x * x
+        for j in range(n):
+            y = g[j]
+            y2 = y * y
+            for k in range(n):
+                z = g[k]
+                z2 = z * z
+                val = (
+                    x2 * y2 + x2 * z2 + y2 * z2 + x2 * y2 * z2
+                    + c * (x * y * z) * (1.0 + x2 + y2 + z2)
+                )
+                # np.clip(F, -10.0, 10.0) — scalar form.
+                if val < -10.0:
+                    val = -10.0
+                elif val > 10.0:
+                    val = 10.0
+                out[i, j, k] = val
+
+
 def _grid_to_polydata(X: np.ndarray, Y: np.ndarray, Z: np.ndarray) -> pv.PolyData:
     """Build a triangulated PolyData from a 2D grid of (X, Y, Z) values.
 
@@ -303,19 +408,15 @@ def fermat_quartic(
     if n is None:
         n = int(np.clip(round(220 * bounds / 2.5), 200, 220))
 
+    # realtime-variety-render-e5 (CAND-2): the field is evaluated by a Numba
+    # JIT kernel (`_fermat_field_kernel`) writing directly into `F` — it
+    # replaces the NumPy meshgrid + X2/Y2/Z2 + broadcast-polynomial + np.clip
+    # block, which allocated ~half a dozen n^3 temporaries.  `n` is already
+    # int-coerced above (AI-8); the kernel only sees the float `g` axis and the
+    # float params.  The clip (±200) is folded into the kernel.
     g = np.linspace(-bounds, bounds, n)
-    X, Y, Z = np.meshgrid(g, g, g, indexing="ij")
-    X2, Y2, Z2 = X * X, Y * Y, Z * Z
-
-    F = (
-        X2 * X2 + Y2 * Y2 + Z2 * Z2
-        + alpha * (X2 * Y2 + Y2 * Z2 + Z2 * X2)
-        + beta * (X * Y * Z) * (X + Y + Z)
-        + gamma * (X2 + Y2 + Z2)
-        - c
-    )
-    # Clip wide enough to cover the corner values at the larger bounds.
-    F = np.clip(F, -200.0, 200.0)
+    F = np.empty((n, n, n), dtype=np.float64)
+    _fermat_field_kernel(g, alpha, beta, gamma, c, F)
     return _marching_cubes_to_polydata(F, bounds)
 
 
@@ -411,15 +512,12 @@ def enriques_figure_1(
     referenced across Wikipedia, MathWorld, HandWiki, and the Cossec–Dolgachev
     text.
     """
+    # realtime-variety-render-e5 (CAND-2): field evaluated by the Numba JIT
+    # kernel `_enriques_fig1_field_kernel` (see the helpers section) — replaces
+    # the NumPy meshgrid-broadcasting block; the clip (±10) is folded in.
     g = np.linspace(-bounds, bounds, n)
-    X, Y, Z = np.meshgrid(g, g, g, indexing="ij")
-    X2, Y2, Z2 = X * X, Y * Y, Z * Z
-
-    F = (
-        X2 * Y2 + X2 * Z2 + Y2 * Z2 + X2 * Y2 * Z2
-        + c * (X * Y * Z) * (1.0 + X2 + Y2 + Z2)
-    )
-    F = np.clip(F, -10.0, 10.0)
+    F = np.empty((n, n, n), dtype=np.float64)
+    _enriques_fig1_field_kernel(g, c, F)
     return _marching_cubes_to_polydata(F, bounds)
 
 
