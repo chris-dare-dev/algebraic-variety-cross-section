@@ -45,9 +45,15 @@ from surfaces import (
     VARIETY_TOOLTIPS,
     SUBTYPE_TOOLTIPS,
     Surface,
+    # realtime-variety-render-e4b (CAND-3): `dispatch_mode` superseded the
+    # earlier `should_render_on_drag` call site here — the new predicate
+    # returns "coarse" / "full" / "skip", covering Hanson fast-path AND
+    # implicit-coarse-LOD AND opt-out in one decision.  `should_render_on_drag`
+    # is still exported from `surfaces` for backwards compatibility and unit
+    # tests; just not imported here.
+    dispatch_mode,
     enriques_figure_1,
     enriques_figure_2,
-    should_render_on_drag,
 )
 from view_panel import ViewPanel
 
@@ -202,10 +208,25 @@ class MainWindow(QMainWindow):
         self._inflight_surface: Surface | None = None
         self._inflight_params: dict = {}
         self._inflight_reset_camera = False
+        # realtime-variety-render-e4b (CAND-3): coarse-vs-full mode tag for
+        # the in-flight worker, set at dispatch time.  The result slot
+        # primarily reads `result.is_coarse` (the worker self-describes), but
+        # `_inflight_is_coarse` mirrors it for defensive symmetry with the
+        # rest of the `_inflight_*` family.
+        self._inflight_is_coarse = False
         # The reset_camera flag the catch-up render should use.  A catch-up
         # is always a parameter re-tune (reset_camera=False); recorded here
         # so the catch-up does not have to guess.
         self._pending_reset_camera = False
+        # realtime-variety-render-e4b (CAND-3): the catch-up's coarse-vs-full
+        # mode.  Uses AND-promote semantics — initialized to True (the
+        # identity element for AND) so a first queued coarse stays coarse,
+        # and any queued full demotes the catch-up to full.  Reset to True
+        # whenever `_pending_render` is cleared, see `_on_mesh_ready`.
+        # Mirror of `_pending_reset_camera` (which uses OR-promote on the
+        # reset_camera flag — both are "the latest wants this" but for AND
+        # the latest-full wins; for OR the latest-reset-camera-True wins).
+        self._pending_is_coarse = True
         self._current_surface: Surface | None = None
         self._set_subtype_enabled(False)
 
@@ -495,40 +516,45 @@ class MainWindow(QMainWindow):
         self._render_current(reset_camera=False)
 
     def _on_params_preview_changed(self, _values: dict) -> None:
-        """Debounced drag-tick handler — the continuous-drag fast-path.
+        """Debounced drag-tick handler — speed-routes via `dispatch_mode`.
 
-        realtime-variety-render-e2-s2 (CAND-8).  Triggered (at most once per
-        80 ms debounce window) while a slider or grid-dot is *still being
-        dragged*.  The speed-routing decision lives HERE — not in the panels —
-        because `self._current_surface` (and therefore its `typical_ms`) is
-        only known to `MainWindow`.
+        realtime-variety-render-e4b (CAND-3): drag-tick now routes via the
+        pure free function `dispatch_mode(surface, in_drag=True)`, which
+        returns one of three outcomes:
 
-        `should_render_on_drag` is a pure predicate: it returns True only for
-        a surface with a measured `0 < typical_ms <= 80` (the 3 Hanson
-        parametric figures).  Fast surfaces get a real render on every drag
-        tick; slow (implicit, `typical_ms == 0`) surfaces ignore the preview
-        entirely and stay release-only, exactly as before this epic.
+        - ``"full"`` — Hanson parametric surface (e2 fast-path; typical_ms
+          ∈ (0, 80] ms): generate at full resolution every drag tick.
+        - ``"coarse"`` — implicit surface with a per-surface ``coarse_n``
+          floor: generate at the coarse `n` for a fast preview during drag.
+          The release path (`_on_params_changed`) re-renders at full
+          resolution. The AI-15 "Preview" status-bar badge is set by the
+          result slot and persists until the full-res result lands.
+        - ``"skip"`` — implicit surface with `coarse_n == 0` (opt-out, e.g.
+          fano_two_quadrics's fragile ε-tube): drag-tick is a no-op; the
+          surface stays release-only, exactly as before this epic.
 
-        The render flows through the normal `_render_current` path, so it is
-        covered by the e1 `_computing` + `_pending_render` queue-latest guard.
-        AI-9: a drag-tick fires at most once per 80 ms; a Hanson generate
-        round-trip is ~11-39 ms.  If a tick lands while a render is in flight
-        (`_computing` True) it sets `_pending_render` and the `finally` block
-        schedules one `QTimer.singleShot(0, ...)` catch-up that re-reads the
-        LATEST values — so a fast burst coalesces to "render, then one
-        catch-up", never an unbounded re-entrant stack.
+        AI-6 (three-layer Hanson skip):
+        1. `dispatch_mode` returns "full" (not "coarse") for Hanson.
+        2. Hanson's `coarse_n == 0` default in the registry — even if a bug
+           ever passed `coarse=True` to `_render_current` for Hanson, the
+           dispatcher skips the `params["n"] = surface.coarse_n` injection
+           when `coarse_n == 0`.
+        3. The worker is mode-agnostic — it never lowers `n` on its own;
+           routing a parametric surface through a coarse marching-cubes
+           grid is structurally impossible.
 
-        AI-6: a Hanson surface is parametric (`_grid_to_polydata` /
-        `_concat_polydata`) — it already skips marching cubes and Taubin.
-        The fast-path here only changes *when* `surface.generate()` is
-        called, never *how*.  When e4 adds CAND-3's coarse-LOD path, that
-        path's drag-tick branch MUST guard on `should_render_on_drag(surface)`
-        / `surface.typical_ms > 0` and skip Hanson — routing a parametric
-        surface through a coarse marching-cubes grid would violate AI-6.
+        AI-9: the e1 `_computing` + `_pending_render` queue-latest guard
+        coalesces a fast drag burst into one in-flight + one queued render,
+        identical to e4's contract.  e4b's only addition is the AND-promote
+        `_pending_is_coarse` so a queued coarse that gets superseded by a
+        release (full) does not silently keep the queued render coarse.
         """
-        if should_render_on_drag(self._current_surface):
-            self._render_current(reset_camera=False)
-        # else: slow / unmeasured surface — drag-tick is a no-op; the release
+        mode = dispatch_mode(self._current_surface, in_drag=True)
+        if mode == "coarse":
+            self._render_current(reset_camera=False, coarse=True)
+        elif mode == "full":
+            self._render_current(reset_camera=False, coarse=False)
+        # else "skip": opt-out implicit — drag-tick is a no-op; the release
         # path (`_on_params_changed`) remains its sole render trigger.
 
     def _on_domain_changed(self) -> None:
@@ -585,27 +611,34 @@ class MainWindow(QMainWindow):
             self.plotter.remove_actor(self._domain_overlay_actor)
             self._domain_overlay_actor = None
 
-    def _render_current(self, *, reset_camera: bool) -> None:
+    def _render_current(self, *, reset_camera: bool, coarse: bool = False) -> None:
         """Dispatch a background-thread render of the current surface.
 
-        realtime-variety-render-e4 (CAND-4): this is now *submit-only*.
+        realtime-variety-render-e4 (CAND-4): this is *submit-only*.
         ``surface.generate()`` runs on a ``QThreadPool`` worker
         (:class:`render_worker.MeshWorker`); the result is delivered back to
         the GUI thread by :meth:`_on_mesh_ready` via a ``QueuedConnection``
         signal.  The function returns immediately, so the GUI stays
-        responsive during the ~0.5-1.5 s implicit-surface compute — and the
-        old ``QApplication.processEvents()`` workaround (CONTEXT.md §8.5) is
-        gone, along with its AI-9 re-entrancy hazard.
+        responsive during the ~0.5-1.5 s implicit-surface compute.
+
+        realtime-variety-render-e4b (CAND-3): the ``coarse`` kwarg requests
+        the coarse-preview LOD path for implicit surfaces that opt in via a
+        non-zero ``surface.coarse_n``.  When ``coarse=True`` AND
+        ``surface.coarse_n > 0``, the dispatcher injects
+        ``params["n"] = surface.coarse_n`` before constructing the worker —
+        the same ``MeshWorker.run()`` body runs, just with a smaller grid.
+        The worker carries the mode tag through to ``MeshResult.is_coarse``
+        so the slot can branch on it for the AI-15 Preview-badge.
 
         Re-entrancy (AI-9): the e1 ``_computing`` / ``_pending_render``
-        queue-latest guard is preserved — ``_computing`` is now the
+        queue-latest guard is preserved — ``_computing`` is the
         "worker in flight" state.  A render requested while a worker is in
         flight records ``_pending_render`` and returns; the *result slot*
-        (not a ``finally`` here) schedules exactly one catch-up via
-        ``QTimer.singleShot(0, ...)`` once the worker reports back.  At most
-        one worker is ever in flight and at most one catch-up is queued, so a
-        fast drag burst coalesces to "render, then one catch-up" — never an
-        unbounded re-entrant stack.
+        schedules exactly one catch-up via ``QTimer.singleShot(0, ...)``
+        once the worker reports back.  e4b's only addition is AND-promote
+        on ``_pending_is_coarse`` so a queued *coarse* request that gets
+        superseded by a *full* request (release) is correctly promoted to
+        full — full always wins, never the other way round.
         """
         if self._current_surface is None:
             return
@@ -618,6 +651,16 @@ class MainWindow(QMainWindow):
             # subtype switch) is never silently downgraded by a later
             # `reset_camera=False` slider tick landing in the same window.
             self._pending_reset_camera = self._pending_reset_camera or reset_camera
+            # realtime-variety-render-e4b (CAND-3): AND-promote the coarse
+            # flag.  Identity element is True (set on init / after clear), so:
+            #   first queue (coarse=True)  : True AND True  = True   (coarse)
+            #   first queue (coarse=False) : True AND False = False  (full)
+            #   subsequent coarse,coarse   : True AND True  = True
+            #   subsequent coarse,full     : True AND False = False  (full wins)
+            #   subsequent full,*          : False AND *    = False  (sticky full)
+            # The "full wins" invariant ensures a release after a drag burst
+            # never gets stuck rendering coarse forever.
+            self._pending_is_coarse = self._pending_is_coarse and coarse
             # Keep the status-bar label tracking the user's LATEST intent — a
             # mid-flight surface switch would otherwise leave the bar naming
             # the superseded surface for the rest of the first worker's flight.
@@ -659,6 +702,19 @@ class MainWindow(QMainWindow):
         # toggle.
         _hq_label = " [HQ]" if _is_hq_active else ""
 
+        # realtime-variety-render-e4b (CAND-3): coarse-LOD injection.  Only
+        # when (a) the caller asked for coarse (drag-tick on an implicit
+        # surface), AND (b) the surface has a validated coarse_n floor
+        # (>0).  Hanson surfaces leave coarse_n=0 (AI-6 layer 2) — even if a
+        # future bug calls `_render_current(coarse=True)` for Hanson, this
+        # guard's the no-op safety net.  Opt-out implicit surfaces (e.g.
+        # fano_two_quadrics, coarse_n=0) are also caught here, though
+        # `dispatch_mode` already returns "skip" upstream so they never
+        # reach this branch in practice.
+        _is_coarse_active = coarse and surface.coarse_n > 0
+        if _is_coarse_active:
+            params["n"] = surface.coarse_n
+
         # Capture the job context on the instance.  The result slot uses THESE
         # — not `_current_surface` / a fresh `parameters_panel.values()` —
         # because the user may change the selection or drag a slider further
@@ -672,6 +728,10 @@ class MainWindow(QMainWindow):
         # Hold the HQ label for the result slot so the success message can
         # attribute the longer render time to the HQ toggle as well.
         self._inflight_hq_label = _hq_label
+        # Hold the coarse-mode flag for the slot.  The slot primarily reads
+        # `result.is_coarse` (the worker self-describes), but this mirror
+        # documents the dispatch-time choice for future debugging.
+        self._inflight_is_coarse = _is_coarse_active
 
         # Busy cursor for the whole flight; restored in `_on_mesh_ready`.
         QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
@@ -681,7 +741,10 @@ class MainWindow(QMainWindow):
         # worker thread, so it must not alias a dict the GUI thread could
         # mutate.  `parameters_panel.values()` returns a fresh dict today, so
         # this is defensive, but it makes the thread boundary explicit.
-        worker = MeshWorker(surface.generate, dict(params), self._generation)
+        worker = MeshWorker(
+            surface.generate, dict(params), self._generation,
+            is_coarse=_is_coarse_active,
+        )
         worker.signals.finished.connect(
             self._on_mesh_ready, Qt.ConnectionType.QueuedConnection
         )
@@ -751,6 +814,40 @@ class MainWindow(QMainWindow):
             print(f"[render] {surface.label}: {result.gen_ms:.0f} ms")
 
             self._apply_domain_and_render(reset_camera=self._inflight_reset_camera)
+
+            # realtime-variety-render-e4b (CAND-3): coarse-preview LOD —
+            # the AI-15 Preview-badge state machine.  On a coarse result we
+            # write "Preview — {label}{hq_label} — NNN ms" to the status
+            # bar and SKIP the verts/faces/bbox readout (those numbers are
+            # precise but TRANSIENT — printing them at coarse `n` is
+            # mathematically dishonest: the user is mid-drag viewing an
+            # approximation, and a precise "401,592 verts" readout would
+            # imply more fidelity than the rendered mesh actually has).
+            #
+            # Badge persistence: each rapid drag tick OVERWRITES the badge
+            # with a fresh "Preview — … — NNN ms" line; only a non-coarse
+            # result (the full-res release path) calls `showMessage(base_msg)`
+            # below, which REPLACES the Preview text — Qt's QStatusBar
+            # has no separate "clear" semantic, replacement IS the clear.
+            #
+            # AI-15: the Preview prefix is the math-honesty disclaimer for
+            # the coarse mesh.  A user looking at the status bar always
+            # knows whether the displayed mesh is the full-fidelity
+            # mathematical surface or a transient preview.  An early
+            # `return` here is safe — Python's try/finally guarantees the
+            # `finally` block (cursor restore, _computing clear, catch-up
+            # scheduling) still runs.
+            if result.is_coarse:
+                preview_msg = (
+                    f"Preview — {surface.label}{hq_label}"
+                    f" — {result.gen_ms:.0f} ms"
+                )
+                if result.warning_text:
+                    preview_msg = (
+                        f"⚠ {result.warning_text}  |  {preview_msg}"
+                    )
+                self.statusBar().showMessage(preview_msg)
+                return  # finally runs; skip the full base_msg build
 
             param_str = (
                 "  ·  " + ", ".join(
@@ -832,9 +929,20 @@ class MainWindow(QMainWindow):
             if self._pending_render:
                 self._pending_render = False
                 _catch_up_reset = self._pending_reset_camera
+                # realtime-variety-render-e4b (CAND-3): read the queued
+                # coarse-vs-full decision (AND-promoted across however many
+                # requests landed during the in-flight render — see
+                # `_render_current` for the truth table).  Then reset to the
+                # AND-identity (True) so the next first-queue cycle starts
+                # fresh.
+                _catch_up_coarse = self._pending_is_coarse
                 self._pending_reset_camera = False
+                self._pending_is_coarse = True
                 QTimer.singleShot(
-                    0, lambda: self._render_current(reset_camera=_catch_up_reset)
+                    0,
+                    lambda: self._render_current(
+                        reset_camera=_catch_up_reset, coarse=_catch_up_coarse,
+                    ),
                 )
 
     def _invalidate_clipped_mesh(self) -> None:

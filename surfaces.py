@@ -66,6 +66,23 @@ class Surface:
     # field placed after `params` so the dataclass contract stays clean
     # (AI-8 — the dataclass is not frozen; a trailing defaulted field is safe).
     typical_ms: int = 0
+    # realtime-variety-render-e4b (CAND-3): coarse-preview-LOD floor for the
+    # marching-cubes grid `n`.  0 means "no coarse-LOD" — the safe default for
+    # any surface not explicitly opted in:
+    #   * Hanson parametric generators (typical_ms > 0): always render full;
+    #     they never go through marching cubes, so a coarse `n` is meaningless
+    #     (AI-6 — three-layer guard, this default is the second layer).
+    #   * Implicit generators whose topology is fragile at any practical
+    #     coarse floor (e.g. fano_two_quadrics's ε-tube): stay opt-out so
+    #     drag-time renders preserve mathematical honesty.
+    # Implicit generators that DO opt in carry a per-surface `coarse_n` value
+    # validated by tests/test_coarse_n_topology.py's n-sweep — the floor is
+    # the smallest `n` at which the surface's defining topological features
+    # (Kummer's 16 nodes, Enriques double curves, etc.) survive the sweep.
+    # Mutually exclusive in use with `typical_ms`: a Surface with
+    # `typical_ms > 0` is parametric; a Surface with `coarse_n > 0` is
+    # implicit-LOD-eligible.
+    coarse_n: int = 0
 
     def defaults(self) -> dict[str, float]:
         return {p.name: p.default for p in self.params}
@@ -98,6 +115,54 @@ def should_render_on_drag(surface: "Surface | None") -> bool:
         surface is not None
         and 0 < surface.typical_ms <= FAST_RENDER_THRESHOLD_MS
     )
+
+
+def dispatch_mode(surface: "Surface | None", in_drag: bool) -> str:
+    """Return the e4b speed-routing decision for a render request.
+
+    Three outcomes (the names are stable — `app.py` keys on them):
+
+    - ``"full"`` — render at full resolution.  Fired (a) on slider RELEASE
+      for every surface; (b) on slider DRAG for Hanson parametric surfaces
+      (already fast enough — the e2 continuous-drag fast-path).
+    - ``"coarse"`` — render at the surface's per-surface ``coarse_n`` floor
+      (realtime-variety-render-e4b / CAND-3).  Fired only on slider DRAG
+      for implicit (marching-cubes) generators with ``coarse_n > 0``; the
+      release path then re-renders at full resolution.
+    - ``"skip"`` — do nothing.  Fired on slider DRAG for opt-out implicit
+      generators (``coarse_n == 0``, e.g. ``fano_two_quadrics`` whose
+      ε-tube is too fragile for any practical coarse floor) and for
+      ``None`` (no surface selected).
+
+    AI-6 (three-layer Hanson skip):
+      1. This function returns ``"full"`` (NOT ``"coarse"``) for Hanson
+         because ``typical_ms > 0`` is checked before ``coarse_n``.
+      2. Hanson surfaces' ``coarse_n == 0`` default — even if a future bug
+         called for coarse mode on Hanson, the dispatch ``params["n"]``
+         injection in ``app.py`` skips when ``coarse_n == 0``.
+      3. The worker (``render_worker.MeshWorker``) is mode-agnostic — it
+         passes ``params`` through to ``surface.generate`` unmodified, so
+         a Hanson generator never sees an unwanted ``n`` override.
+
+    Extracted as a free function (no Qt, no ``QApplication``) so the
+    routing decision is unit-testable under the Qt-free AI-2 suite — same
+    pattern as ``should_render_on_drag`` (this module) and
+    ``clipped_cache_is_valid`` (``app.py``).
+    """
+    if surface is None:
+        return "skip"
+    if not in_drag:
+        # Release path is always full-resolution.
+        return "full"
+    if surface.typical_ms > 0:
+        # Hanson parametric surfaces are already fast enough; render full at
+        # every drag tick.  (AI-6 layer 1: positive Hanson signal.)
+        return "full"
+    if surface.coarse_n > 0:
+        # Implicit surface with a validated coarse-LOD floor.
+        return "coarse"
+    # Implicit, opt-out (coarse_n == 0): no drag render.
+    return "skip"
 
 
 # ---------------------------------------------------------------------------
@@ -1162,26 +1227,39 @@ FANO_SEXTIC_DOUBLE_SOLID_PARAMS = [
 
 
 VARIETIES: dict[str, dict[str, Surface]] = {
+    # realtime-variety-render-e4b (CAND-3): per-surface `coarse_n` floors set
+    # below opt 9 of 11 implicit generators into the drag-time coarse-preview
+    # LOD path.  Values measured by agent-a's empirical n-sweep on the dev
+    # machine (see .claude/notes/milestones/realtime-variety-render-e4b/
+    # research/agent-a-brief.md §4.1); each floor is validated by
+    # tests/test_coarse_n_topology.py.  Two implicit surfaces stay opt-out:
+    # `fano_two_quadrics` (ε-tube width ≈ voxel spacing at coarse n — see the
+    # brief's §4.1 opt-out justification).  Hanson generators leave coarse_n=0
+    # (AI-6 layer 2 — the worker dispatch's coarse-injection is a no-op).
     "K3 surface": {
-        "Fermat quartic": Surface("Fermat quartic", fermat_quartic, FERMAT_PARAMS),
-        "Kummer surface": Surface("Kummer surface", kummer_surface, KUMMER_PARAMS),
+        "Fermat quartic": Surface(
+            "Fermat quartic", fermat_quartic, FERMAT_PARAMS, coarse_n=80,
+        ),
+        "Kummer surface": Surface(
+            "Kummer surface", kummer_surface, KUMMER_PARAMS, coarse_n=100,
+        ),
     },
     "Enriques surface": {
         "Canonical sextic  [Fig. 1]": Surface(
             "Enriques sextic (canonical, S₄ symmetry)",
-            enriques_figure_1, ENRIQUES_FIGURE_1_PARAMS,
+            enriques_figure_1, ENRIQUES_FIGURE_1_PARAMS, coarse_n=80,
         ),
         "Diagonal λ-family  [Fig. 2]": Surface(
             "Enriques sextic (diagonal λ-family)",
-            enriques_figure_2, ENRIQUES_FIGURE_2_PARAMS,
+            enriques_figure_2, ENRIQUES_FIGURE_2_PARAMS, coarse_n=80,
         ),
         "Cayley symmetroid  [Fig. 3]": Surface(
             "Cayley quartic symmetroid (Reye cover)",
-            enriques_figure_3, ENRIQUES_FIGURE_3_PARAMS,
+            enriques_figure_3, ENRIQUES_FIGURE_3_PARAMS, coarse_n=80,
         ),
         "Icosahedral sextic  [Fig. 4]": Surface(
             "Barth-style icosahedral sextic (A₅ symmetry)",
-            enriques_figure_4, ENRIQUES_FIGURE_4_PARAMS,
+            enriques_figure_4, ENRIQUES_FIGURE_4_PARAMS, coarse_n=80,
         ),
     },
     "Calabi–Yau 3-fold": {
@@ -1190,6 +1268,9 @@ VARIETIES: dict[str, dict[str, Surface]] = {
         # median of 7 runs at the ParamSpec default parameters): quintic ~39 ms,
         # cubic torus ~11 ms, asymmetric ~18 ms.  All well under the 80 ms
         # fast-path threshold, so all three render continuously during drag.
+        # AI-6 (e4b): Hanson generators MUST keep `coarse_n=0` (the default) —
+        # they are parametric and never go through marching cubes; a coarse
+        # `n` would be meaningless.
         "Hanson quintic  [Fig. 1]": Surface(
             "Hanson quintic CY cross-section (n=5)",
             calabi_yau_quintic, CALABI_YAU_QUINTIC_PARAMS,
@@ -1207,25 +1288,33 @@ VARIETIES: dict[str, dict[str, Surface]] = {
         ),
         "Dwork pencil  [Fig. 4]": Surface(
             "Dwork pencil real slice (ψ-family)",
-            calabi_yau_dwork, CALABI_YAU_DWORK_PARAMS,
+            calabi_yau_dwork, CALABI_YAU_DWORK_PARAMS, coarse_n=100,
         ),
     },
     "Fano 3-fold (ρ=1)": {
         "Klein cubic  [Fig. 1]": Surface(
             "Klein cubic threefold V₃ (PSL₂(11) symmetry)",
-            fano_klein_cubic, FANO_KLEIN_CUBIC_PARAMS,
+            fano_klein_cubic, FANO_KLEIN_CUBIC_PARAMS, coarse_n=80,
         ),
         "Segre cubic  [Fig. 2]": Surface(
             "Segre cubic (S₆ symmetry, max-nodal)",
-            fano_segre_cubic, FANO_SEGRE_CUBIC_PARAMS,
+            fano_segre_cubic, FANO_SEGRE_CUBIC_PARAMS, coarse_n=80,
         ),
         "Two-quadrics CI tube  [Fig. 3]": Surface(
+            # OPT-OUT (coarse_n=0): the ε-tube width (default ε=0.18) is
+            # close to the voxel spacing at any practical coarse floor — at
+            # n=100 the spacing is ~0.04, which produces swiss-cheese
+            # artifacts the existing ε<0.08 RuntimeWarning already calls out
+            # at production `n`.  Coarse-LOD would render a topologically
+            # misleading drag preview here, so this surface stays release-
+            # only (e4b agent-a brief §4.1).
             "Two-quadrics CI tube V₄ (ε-tube around Q₁∩Q₂, not the actual CI)",
             fano_two_quadrics, FANO_TWO_QUADRICS_PARAMS,
         ),
         "Sextic double solid  [Fig. 4]": Surface(
             "Sextic double solid V₁ (sign-flipped Fermat branch)",
             fano_sextic_double_solid, FANO_SEXTIC_DOUBLE_SOLID_PARAMS,
+            coarse_n=80,
         ),
     },
 }

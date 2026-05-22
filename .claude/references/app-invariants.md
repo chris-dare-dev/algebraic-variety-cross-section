@@ -167,6 +167,8 @@ A historical mis-attribution (Barth's 1996 surface ≠ his "classical 65-nodal" 
 
 **Implication:** any new variety / figure proposal must declare what mathematical object is actually being plotted, not the abstract variety it's named after.  Tooltips must include honest disclaimers when the relationship to the named variety is "birational" / "real slice" / "parametric shadow", not "this is the variety".
 
+**Fidelity disclaimers extend to transient previews.**  `realtime-variety-render-e4b` (CAND-3) added a coarse-preview LOD path for implicit surfaces during slider drag — the displayed mesh during a drag is a *lower-resolution approximation* of the true zero-set, not the production-resolution mesh.  AI-15 honesty requires the user can ALWAYS tell whether they're looking at a real-fidelity render or a preview: the status-bar **Preview badge** (`"Preview — {label} — NNN ms"`) is the load-bearing disclosure, persisting from the first coarse render until the full-resolution result replaces it (CONTEXT.md §8.19).  Suppress precise readouts (vertex / face counts, bbox extent) on the Preview branch — those values would be precise but transient, implying more fidelity than the rendered geometry has.  A new render-mode candidate that lacks a comparable user-visible fidelity disclosure is an AI-15 conflict.
+
 ---
 
 ## How the Challenger uses these
