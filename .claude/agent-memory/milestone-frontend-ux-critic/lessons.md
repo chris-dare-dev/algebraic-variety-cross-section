@@ -144,3 +144,23 @@
 ### Status-bar overflow is the recurring risk for narrow UX milestones
 - The Dwork warning path produces a 294-char status-bar message after this milestone. The ±max bbox suffix is the marginal factor that pushes the already-long warning message past visible bounds. Pattern to flag fast: whenever a suffix is appended to `base_msg`, also check the warning path `f"⚠ {_surface_warning}  |  {base_msg}"` — the warning text can be 145+ chars, so any suffix added to base_msg may be invisible on the warning path. This is MEDIUM (not HIGH) because the bbox is supplementary information, not safety-critical feedback.
 - The warning path overflow is a pre-existing structural issue; the bbox suffix makes it worse but doesn't create it. Attribute correctly when writing findings.
+
+## focus-ring-contrast-2026q2-e1 (UPL-4 FOCUS_RING accessibility) — 2026-05-22
+
+### Token-discipline near-misses
+- No short-hex or shorthand-enum in this diff. `#3c82c4` is 6-digit; no Qt enums added; no processEvents. All three axes disposed in one pass.
+- The "single shared value" framing for a per-theme token is not automatically good. When OLD light=2.60:1 (FAIL) and OLD dark=5.17:1 (PASS), darkening to fix light reduces dark from 5.17:1 to 3.78:1 — a net regression in dark headroom even though both ends pass the floor. Always report the delta for BOTH themes, not just "both PASS."
+
+### Contrast ratio comment accuracy
+- Both palette comment ratios (3.56:1 light, 3.78:1 dark) verified exactly. Good discipline continued from dark-mode-2026q2-e1.
+- Key discipline: "PASS" in a comment should be annotated with headroom when the margin is below ~20% above the floor. 3.56:1 on a 3:1 floor = 18.5% headroom — narrow enough that one-shade lightening reaches the boundary. Pattern: if ratio < 3.6:1 against a 3:1 floor, add "(narrow margin; do not lighten further)" to the comment.
+
+### Industry-comparison note (concrete recommendation generated)
+- macOS Sequoia default blue (#007aff) = 3.53:1 vs #f0f0f0; GNOME Adwaita (#3584e4) = 3.31:1. Both are in the same narrow-pass band as #3c82c4 (3.56:1). This is the "platform-conventional narrow-pass band" for cobalt-blue focus rings — it is not a design error, it is the peer norm. Quote this as "peer-calibrated narrow-pass" when a focus ring is challenged for thin headroom.
+- Windows 11 (#005499) and macOS proper focus ring (~#0058d0) are both darker (5.6–6.8:1 on light) — they use a noticeably deeper navy that trades visual weight for accessibility margin. If the app ever wants to improve headroom, that is the direction.
+
+### First-launch / section-9 regressions
+- No first-launch regression possible from a palette-token-only diff. Fast check: does the diff touch any constructor default, any QColor() init, or any value flowing into `_render_current`? If not, section-9.3 is clean.
+
+### Negative test as machine-readable design intent
+- The docstring-only deterrent ("do NOT widen this assertion set") is a recurring pattern risk. Whenever a test has a "don't add X" docstring caveat, the stronger fix is a complementary NEGATIVE test (assert < threshold) that makes the intent machine-readable. Flag any "do not include" docstring caveat on a test as LOW and suggest a companion negative-assertion test.

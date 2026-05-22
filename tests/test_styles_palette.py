@@ -437,6 +437,49 @@ def test_dark_non_text_borders_meet_wcag_aa_on_bg_panel_dark() -> None:
         )
 
 
+def test_light_structural_borders_intentionally_below_3_1() -> None:
+    """Machine-readable companion to the docstring caveat in
+    ``test_light_non_text_focus_ring_meets_wcag_aa_on_bg_panel``: the four
+    structural border tokens in PALETTE_LIGHT (BORDER_GROUP_BOX,
+    BORDER_DOCK_HEADER, BORDER_CAMERA_BTN, BORDER_RESET_BTN) are
+    INTENTIONALLY low-contrast (<3:1) on BG_PANEL_LIGHT — they are internal
+    structural separators, not user-interface component boundaries against
+    the panel ground subject to WCAG 2.1 §1.4.11.  Their dark twins in
+    PALETTE_DARK were intentionally darkened to clear 3:1 on dark
+    (BORDER_GROUP_BOX dark is #777777 → 3.42:1), but the light values were
+    kept at their original soft-separator values (~1.1-1.4:1).
+
+    This test exists to PREVENT well-intentioned-but-wrong "harmonization"
+    of the light test with the dark test.  If a future maintainer
+    "completes" the light WCAG suite by widening the assertion set in the
+    sibling test, they will then see these four tokens fail and may try to
+    fix them by darkening PALETTE_LIGHT["BORDER_*"] values.  That would
+    silently degrade the intentional soft-separator chrome.  This test
+    fires LOUDLY on any such attempt: if PALETTE_LIGHT["BORDER_*"] is
+    darkened to clear 3:1, this test fails with a message naming the
+    architectural intent, forcing a deliberate design decision.
+
+    Added in focus-ring-contrast-2026q2-e1 (rectify pass, F-L2).
+    """
+    bg = styles.PALETTE_LIGHT["BG_PANEL"]
+    structural_tokens = (
+        "BORDER_GROUP_BOX",
+        "BORDER_DOCK_HEADER",
+        "BORDER_CAMERA_BTN",
+        "BORDER_RESET_BTN",
+    )
+    for token in structural_tokens:
+        r = _ratio(styles.PALETTE_LIGHT[token], bg)
+        assert r < 3.0, (
+            f"PALETTE_LIGHT[{token!r}] = {styles.PALETTE_LIGHT[token]} now "
+            f"measures {r:.2f}:1 vs BG_PANEL ({bg}) — clearing the WCAG 3:1 "
+            f"floor.  This token is INTENTIONALLY a soft structural "
+            f"separator (~1.1-1.4:1) on the light panel and should not have "
+            f"been darkened.  If the design intent has changed, lift this "
+            f"test deliberately; do not silently degrade panel chrome."
+        )
+
+
 def test_light_non_text_focus_ring_meets_wcag_aa_on_bg_panel() -> None:
     """WCAG 2.1 §1.4.11 — FOCUS_RING must clear >=3:1 on the light BG_PANEL
     (#f0f0f0).  Symmetric guard to

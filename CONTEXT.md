@@ -407,6 +407,14 @@ The same setting **breaks** every other variety family in the catalog:
 
 The fix is therefore **variety-level gated**, not universal.  `AppearancePanel.set_culling(value)` is the storage point; `MainWindow._on_variety_changed` sets it to `"back"` only when the active variety is `"Enriques surface"`, `None` otherwise (clears any stale Enriques state when switching families).
 
+### 8.14 `FOCUS_RING` failed WCAG 1.4.11 on the light panel — fix is per-theme, not single-shared
+
+The `FOCUS_RING` token shipped originally as `#5b9bd5`, measured at 2.60:1 against `BG_PANEL = #f0f0f0` (light) — **below the WCAG 2.1 §1.4.11 non-text 3:1 floor** for focus indicators.  The same value measured 5.17:1 on `BG_PANEL_DARK = #252526` (PASS), so the failure was light-only.  The `panel-refresh-2026q2-e2` (variety-palette / UPL-1) milestone surfaced the violation in adversary critique M4 but deferred the fix to preserve "every existing rendered color" per that milestone's acceptance signal.
+
+Closed by `focus-ring-contrast-2026q2-e1` with a per-theme split: `PALETTE_LIGHT["FOCUS_RING"] = #3c82c4` (3.56:1 — PASS, narrow margin), `PALETTE_DARK["FOCUS_RING"] = #5b9bd5` (5.17:1 — preserved).  The initial implementation proposed a single shared `#3c82c4` for both themes — clean architecturally but eroded the dark headroom from 5.17 to 3.78 (still PASSING but only 26% above floor instead of 72%); the frontend-ux critic flagged the regression and the rectify pass reverted PALETTE_DARK to the original value.  The "key-identical palettes" pattern from `dark-mode-2026q2-e1` means **same KEYS, values may differ** when contrast demands — same logic as `TEXT_VALUE`, `TEXT_MUTED`, `BORDER_GROUP_BOX`, all of which differ between light and dark.
+
+**Test guards:** `tests/test_styles_palette.py` ships both `test_light_non_text_focus_ring_meets_wcag_aa_on_bg_panel` (FOCUS_RING-only assertion against light BG_PANEL) and `test_light_structural_borders_intentionally_below_3_1` (machine-readable negative guard against well-intentioned-but-wrong "harmonization" of the test with the dark twin — the four structural light border tokens measure ~1.1-1.4:1 by design and should not be darkened).
+
 The four Enriques subtypes do NOT all share double-curve topology — be precise:
 
 - **Fig. 1 (canonical sextic)** + **Fig. 2 (Diagonal λ-family)** — degree-6 surfaces with genuine double-curve singularities along the coordinate-tetrahedron edges.  Culling is **beneficial**: removes the white zipper noise from alternating front/back triangles at the near-degenerate ridge (verified: Fig. 1 96627B → 82864B; Fig. 2 46020B → 41433B in off-screen renders).
