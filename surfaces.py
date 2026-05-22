@@ -110,6 +110,7 @@ def _marching_cubes_to_polydata(
     bounds: float,
     level: float = 0.0,
     smooth_iter: int = 20,
+    second_smooth_iter: int = 0,
 ) -> pv.PolyData:
     """Extract the level set of *field* as a smooth PolyData.
 
@@ -127,7 +128,17 @@ def _marching_cubes_to_polydata(
       2. ``smooth_taubin()`` for *volume-preserving* smoothing. Plain
          Laplacian smoothing shrinks the surface; Taubin's twin-coefficient
          scheme lets us iterate ~20× without losing scale or features.
-      3. ``compute_normals()`` re-derives normals after smoothing so
+      3. Optional **second** Taubin pass with a lower pass-band
+         (``n_iter=second_smooth_iter, pass_band=0.05``) STACKING on top
+         of the first — used only when callers pass ``second_smooth_iter > 0``
+         (AI-6: stacks, does NOT replace the first pass).  This second
+         pass attenuates double-curve sawtooth-ridge artifacts on the
+         Enriques figs 1+2 family at the cost of ~138ms (spike measured
+         in enriques-taubin-spike-2026q2-e1); see CONTEXT.md §8.16 for
+         the budget rationale and per-figure scope.  Default ``0``
+         preserves the existing single-pass behavior for all other
+         generators (K3, Hanson CY3, Dwork, Fano, Enriques figs 3+4).
+      4. ``compute_normals()`` re-derives normals after smoothing so
          shading stays consistent with the new vertex positions.
 
     Note: unlike ``skimage.measure.marching_cubes``, ``vtkFlyingEdges3D``
@@ -190,6 +201,13 @@ def _marching_cubes_to_polydata(
         # Taubin (lambda > 0, mu < 0) is volume-preserving — unlike vanilla
         # Laplacian which shrinks the surface every iteration.
         mesh = mesh.smooth_taubin(n_iter=smooth_iter, pass_band=0.1)
+    if second_smooth_iter > 0 and mesh.n_points > 0:
+        # enriques-hq-smoothing-2026q3-e1: optional second Taubin pass
+        # with a lower pass-band (more aggressive low-frequency smoothing).
+        # STACKS on top of the first pass per AI-6 — do NOT replace.
+        # Caller controls activation via the opt-in kwarg in the generator
+        # (see enriques_figure_1 / enriques_figure_2 hq_smoothing param).
+        mesh = mesh.smooth_taubin(n_iter=second_smooth_iter, pass_band=0.05)
     if mesh.n_points > 0:
         mesh = mesh.compute_normals(
             cell_normals=False, point_normals=True,
@@ -507,6 +525,7 @@ def enriques_figure_1(
     c: float = 1.0,
     n: int = 240,
     bounds: float = 1.89,
+    hq_smoothing: bool = False,
 ) -> pv.PolyData:
     """**Figure 1** — Canonical Enriques sextic (Wikipedia / MathWorld form).
 
@@ -531,7 +550,13 @@ def enriques_figure_1(
     g = np.linspace(-bounds, bounds, n)
     F = np.empty((n, n, n), dtype=np.float64)
     _enriques_fig1_field_kernel(g, c, F)
-    return _marching_cubes_to_polydata(F, bounds)
+    # enriques-hq-smoothing-2026q3-e1: opt-in second Taubin pass for the
+    # double-curve sawtooth artifact.  hq_smoothing=False keeps the baseline;
+    # hq_smoothing=True activates the +138ms quality bump.  Gated upstream by
+    # MainWindow (only fires for Enriques fig 1+2).
+    return _marching_cubes_to_polydata(
+        F, bounds, second_smooth_iter=40 if hq_smoothing else 0
+    )
 
 
 ENRIQUES_FIGURE_1_PARAMS = [
@@ -546,6 +571,7 @@ def enriques_figure_2(
     c: float = 1.0,
     n: int = 240,
     bounds: float = 1.89,
+    hq_smoothing: bool = False,
 ) -> pv.PolyData:
     """**Figure 2** — Diagonal Enriques sextic (Dolgachev λ-family).
 
@@ -574,7 +600,10 @@ def enriques_figure_2(
         + c * (X * Y * Z) * (1.0 + X2 + Y2 + Z2)
     )
     F = np.clip(F, -10.0, 10.0)
-    return _marching_cubes_to_polydata(F, bounds)
+    # enriques-hq-smoothing-2026q3-e1: see enriques_figure_1 for the rationale.
+    return _marching_cubes_to_polydata(
+        F, bounds, second_smooth_iter=40 if hq_smoothing else 0
+    )
 
 
 ENRIQUES_FIGURE_2_PARAMS = [

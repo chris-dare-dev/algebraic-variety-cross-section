@@ -185,6 +185,9 @@ def test_icons_return_valid_qicons_with_qapplication() -> None:
         # qtawesome-icons-2026q2-e2 (UPL-4 v1) — display toggles
         (icons.wireframe_icon, "wireframe_icon"),
         (icons.show_edges_icon, "show_edges_icon"),
+        # enriques-hq-smoothing-2026q3-e1 (UPL-18-followup) — opt-in
+        # second-Taubin display-toggle icon.
+        (icons.hq_smoothing_icon, "hq_smoothing_icon"),
     )
     for fn, name in targets:
         for theme in ("dark", "light"):
@@ -289,6 +292,7 @@ def test_display_toggle_icons_correct_names_and_colors() -> None:
     toggle_bindings = (
         (icons.wireframe_icon,  "mdi6.grid"),
         (icons.show_edges_icon, "mdi6.border-outside"),
+        (icons.hq_smoothing_icon, "mdi6.auto-fix"),
     )
 
     with patch.object(icons, "_qta", mock_qta):
@@ -325,4 +329,19 @@ def test_wireframe_and_edges_icons_are_distinct_names() -> None:
     )
     assert icons.SHOW_EDGES_ICON_NAME.startswith("mdi6."), (
         f"SHOW_EDGES_ICON_NAME ({icons.SHOW_EDGES_ICON_NAME!r}) is not mdi6.*"
+    )
+    # enriques-hq-smoothing-2026q3-e1 (rect F-M3): HQ smoothing joins
+    # the same Display group — its icon must be distinct from both
+    # siblings so the three toggles are visually orthogonal at 16px.
+    assert icons.HQ_SMOOTHING_ICON_NAME != icons.WIREFRAME_ICON_NAME, (
+        f"HQ_SMOOTHING_ICON_NAME ({icons.HQ_SMOOTHING_ICON_NAME!r}) "
+        f"must differ from WIREFRAME_ICON_NAME — three sibling display "
+        f"toggles in the same group must use visually orthogonal glyphs."
+    )
+    assert icons.HQ_SMOOTHING_ICON_NAME != icons.SHOW_EDGES_ICON_NAME, (
+        f"HQ_SMOOTHING_ICON_NAME ({icons.HQ_SMOOTHING_ICON_NAME!r}) "
+        f"must differ from SHOW_EDGES_ICON_NAME."
+    )
+    assert icons.HQ_SMOOTHING_ICON_NAME.startswith("mdi6."), (
+        f"HQ_SMOOTHING_ICON_NAME ({icons.HQ_SMOOTHING_ICON_NAME!r}) is not mdi6.*"
     )
