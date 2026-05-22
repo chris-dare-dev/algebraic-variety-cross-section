@@ -1,0 +1,50 @@
+{
+  "id": "appearance-panel-layout-pass-2026q3-e2",
+  "created_at": "2026-05-22T21:55:43Z",
+  "updated_at": "2026-05-22T22:01:09Z",
+  "phase": "implement-running",
+  "phase_history": [
+    {
+      "phase": "init",
+      "at": "2026-05-22T21:55:43Z"
+    },
+    {
+      "phase": "research-running",
+      "at": "2026-05-22T21:55:55Z"
+    },
+    {
+      "phase": "research-complete",
+      "at": "2026-05-22T22:00:39Z"
+    },
+    {
+      "phase": "implement-running",
+      "at": "2026-05-22T22:00:39Z"
+    }
+  ],
+  "milestone_brief": "Close the deferred F-M2 + F-L2 findings from display-toggles-checkable-button-2026q3-e1. Two coordinated layout improvements in the Appearance panel: (a) text-align consistency across the Colors and Display groups (currently the Display group's QPushButton(checkable=True) toggles for Wireframe / Show edges / HQ smoothing have setProperty('role', 'display-toggle') + QSS text-align: left from the v1 critic's F-M2; the Colors group's Surface\u2026 / Background\u2026 QPushButton instances inherit Qt's default center-alignment \u2014 creating a visible vertical-rhythm fracture across the group boundary on narrow panels ~200px); (b) the Display group header is generic \u2014 Blender uses 'Overlay' or 'Shading', 3D Slicer uses 'Display Type', ParaView uses 'Representation' \u2014 propose a more specific label like 'Render Mode' or 'Surface Style'. Research the right combined approach: either (1) extend text-align:left to the global QPushButton rule (broadest fix; might regress Reset Defaults / Reset Camera which are intentionally outside the role-property pattern) or (2) add a 'colors-button' role to Surface\u2026 / Background\u2026 so they pick up the same left-align treatment as display-toggle WITHOUT cascading to all QPushButton, OR (3) re-evaluate whether the display-toggles should actually be center-aligned to match Colors (the reverse fix). Researcher should evaluate visual rhythm by looking at the rendered panel chrome (use the existing .claude/scripts/frontend-uplift/render-panel-chrome.py captures), and pick the option that best matches the established scientific-viz convention (Blender/Slicer/ParaView). For the header rename, audit Blender / 3D Slicer / ParaView terminology and propose. AI invariants: AI-2 (tests stay Qt-free), AI-11 (any new role-property strings are pure data \u2014 no enum exposure), AI-13 (no new color tokens if reusing the established role-property pattern). Surface preservation: the actual click behavior of Surface\u2026 / Background\u2026 (color picker) and the display toggles (wireframe state, edges state, HQ state) MUST NOT change \u2014 this is a pure visual-alignment + header-label pass.",
+  "research_mode": "single",
+  "oss_scout_requested": false,
+  "research_briefs": [
+    ".claude/notes/milestones/appearance-panel-layout-pass-2026q3-e2/research/agent-solo-brief.md"
+  ],
+  "research_synthesis": "Option 2: setProperty('role', 'colors-button') on surf_btn + bg_btn in _build_color_group; new QPushButton[role=colors-button] QSS rule with text-align: left + padding/border-radius to force QStyleSheetStyle on macOS. QGroupBox('Display') \u2192 QGroupBox('Render Mode') per MeshLab peer convention. ~19 LOC across appearance_panel.py + styles.py. No signal/slot/color/icon changes. 3 new source-grep tests (AI-2 compliant).",
+  "implementation_path": "inline",
+  "implementation_plan": ".claude/notes/milestones/appearance-panel-layout-pass-2026q3-e2/artifacts/implementation-plan.md",
+  "implementation_base": "c42fbeb5026894c3045f89f0a29b79b134f847d0",
+  "implementation_commit_range": null,
+  "implementation_commits": [],
+  "implementation_branch": null,
+  "critique_path": null,
+  "critics_run": [],
+  "critique_finding_counts": {
+    "critical": 0,
+    "high": 0,
+    "medium": 0,
+    "low": 0
+  },
+  "rectification_commit": null,
+  "fixed_findings": [],
+  "deferred_findings": [],
+  "invalidated_findings": [],
+  "regression_tests_added": []
+}

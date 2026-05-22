@@ -160,6 +160,12 @@ class AppearancePanel(QWidget):
         self._surf_swatch = _make_swatch(self._surface_color)
         surf_btn = QPushButton("Surface…")
         surf_btn.setToolTip("Choose the surface fill color")
+        # appearance-panel-layout-pass-2026q3-e2 (F-M2 closure): tag the
+        # color-picker buttons with the `colors-button` role so they pick
+        # up the `text-align: left` QSS rule and visually align with the
+        # display-toggle buttons in the Render Mode group below.  See
+        # CONTEXT.md §4.3a for the role-property pattern.
+        surf_btn.setProperty("role", "colors-button")
         surf_btn.clicked.connect(self._pick_surface_color)
         surf_row.addWidget(self._surf_swatch)
         surf_row.addWidget(surf_btn, stretch=1)
@@ -171,6 +177,9 @@ class AppearancePanel(QWidget):
         self._bg_swatch = _make_swatch(self._bg_color)
         bg_btn = QPushButton("Background…")
         bg_btn.setToolTip("Choose the viewport background color")
+        # appearance-panel-layout-pass-2026q3-e2 (F-M2 closure): same as
+        # the Surface… button — left-align via colors-button role.
+        bg_btn.setProperty("role", "colors-button")
         bg_btn.clicked.connect(self._pick_bg_color)
         bg_row.addWidget(self._bg_swatch)
         bg_row.addWidget(bg_btn, stretch=1)
@@ -179,7 +188,16 @@ class AppearancePanel(QWidget):
         return box
 
     def _build_toggles_group(self) -> QGroupBox:
-        box = QGroupBox("Display")
+        # appearance-panel-layout-pass-2026q3-e2 (F-L2 closure):
+        # "Render Mode" replaces the generic "Display" header.  MeshLab
+        # uses this exact term for its wireframe/solid/flat toggle set,
+        # which is the closest peer to AVC's Wireframe / Show edges / HQ
+        # smoothing trio.  Blender uses "Viewport Overlays" / "Shading";
+        # ParaView uses "Representation"; 3D Slicer uses "Display Type"
+        # within a "Display" section.  "Render Mode" was the more
+        # specific option the prior milestone's frontend critic
+        # recommended (F-L2).
+        box = QGroupBox("Render Mode")
         vl = QVBoxLayout(box)
         vl.setSpacing(4)
 

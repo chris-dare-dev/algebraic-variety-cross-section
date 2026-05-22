@@ -171,3 +171,19 @@
 - Per-subtype enable/disable (not just per-variety) requires TWO gating sites: `_on_variety_changed` (clear on variety switch) AND `_on_subtype_changed` (enable/disable per eligible subtype). A variety-level gate alone would leave the toggle enabled on figs 3+4.
 - For boolean quality opts-in, hardcode the parameter value (n_iter=40) at the generator level rather than exposing it as a slider — avoids `IntParamSpec` surface entirely and matches the pre-committed spike value.
 - Timing regression tests with `time.perf_counter` in the pytest suite are environment-dependent. For pure-overhead assertions (<250ms), document the spike-measured baseline in the test docstring and consider `@pytest.mark.slow` if the repo has that convention. Don't omit the test entirely — a 10x regression would still fail it.
+
+## appearance-panel-layout-pass-2026q3-e2 (2026-05-22)
+
+### Brief-extraction patterns
+- "Close deferred F-M2 + F-L2" briefs are pure QSS/widget-property milestones — the architecture decision (option 1 vs 2 vs 3) is always the central question, not math. Grep the original adversary critique for the finding text; it usually already names the options and signals a preferred direction.
+- "Layout consistency" briefs resolve to role-property narrowing (Option 2) when the broader fix (Option 1, global rule) has documented regression risk for named-rule buttons. The brief's explicit "could regress X" language is the strongest signal to prefer the targeted fix.
+
+### Prior-art discovery
+- `render-panel-chrome.py` captures are essential for layout milestones. Run it immediately and Read the PNG to confirm the alignment fracture is real before analyzing the code. For this milestone the fracture was immediately visible: Colors group center-aligned, Display group left-aligned.
+- For header rename milestones, the grep pattern `QGroupBox(` in `appearance_panel.py` (or the target panel) gives the current name in one search. Peer-tool terminology audit: MeshLab "Render Mode" was the exact match for wireframe+edges+quality toggle group.
+- When a QSS fix needs to force `QStyleSheetStyle` on macOS (for `text-align: left` to be honored), the rule MUST include at least one box-model property (padding, border, or background). This is a recurring macOS-QSS footgun — always check whether the new role rule includes a triggering property.
+
+### AI-N conflict heuristics
+- AI-11: `setProperty("role", "string-value")` is NEVER an AI-11 concern. AI-11 covers fully-qualified Qt enum forms (`Qt.AlignmentFlag`, etc.) only. Don't false-flag property string calls.
+- AI-13: text-align changes have zero PyVista color-flow impact. Only check AI-13 if new hex literals are introduced.
+- AI-2: New tests for QSS/role-property changes are always source-text grep tests (count the `setProperty` calls, grep the rendered stylesheet string). Never need `QApplication` for these. Use `count >= N` not `in` for multi-instance checks (the M1 finding from display-toggles captured this lesson already).
