@@ -152,3 +152,24 @@
 
 ### State-reset-on-navigate UX
 - Unconditional `setChecked(False)` on `set_hq_smoothing_eligible(False)` is the "clear" pattern. This is defensible (avoids dangling-enabled bugs) but is the minority peer pattern (ParaView / SageMath both preserve per-object state). Flag as LOW when the state-clear has no status-bar feedback — the user cannot observe the reset happened.
+
+---
+
+## appearance-panel-layout-pass-2026q3-e2 — 2026-05-22
+
+### Token-discipline near-misses
+- No short-hex, no shorthand enum, no processEvents, no pv.add_mesh() color args. Fast dispose in one sentence: diff adds zero QColor literals, zero Qt.Align* shorthands, zero processEvents calls — AI-9/AI-11/AI-12/AI-13 all clear.
+- **`background:` missing from QSS role rule** is NOT an AI-13 issue (no PyVista) but IS a platform-bypass bug: on macOS Aqua (no `setStyle("Fusion")` in `main()`), `text-align` is silently ignored unless `background:` forces full QSS paint mode. The companion `display-toggle` rule correctly includes `background: transparent` for exactly this reason. Fast check for any future QSS `text-align` rule on QPushButton: confirm `background:` is also present, or confirm `setStyle("Fusion")` is called at app start.
+
+### Industry-comparison surprises
+- **MeshLab "Render Mode"** applies exclusively to display-pipeline controls (Wireframe/Solid/Points) — NO generation-time quality toggles. The F-L2 recommendation to use "Render Mode" was made before HQ smoothing was added to the group. When a group gains a member that is categorically different from its label (mesh regeneration vs actor display), the label needs a follow-on revision. Quote: "MeshLab Render Mode = display-pipeline only; HQ smoothing is a regeneration toggle — the label broke when the group gained a new category member."
+- **ParaView 5.13** separates "Representation" (display) from "Advanced" (quality/generation controls) in collapsed sections. This is the concrete peer model for splitting AVC's mixed-category "Render Mode" group into "Display" + "Quality". Quote when MEDIUM-2 is acted on.
+
+### First-launch / section-9 regressions
+- Clean: `_build_toggles_group` and `_build_color_group` are called from `_build_ui` → `__init__` only; no path to `_render_current` or combo boxes. Section-9.3 fast check: look for `_render_current`, `variety_combo`, `subtype_combo` in the new method — none found.
+
+### Group-label precision pattern (new recurring check)
+- When a QGroupBox label is renamed, ask: "Does the new label accurately describe ALL members of the group?" A label correct for 2/3 members that silently misclassifies the third is a LOW-MEDIUM finding (MEDIUM-2 here). Fast check: enumerate the group's children, classify each as "label-category-compliant" or "outlier." One outlier at a functionally different latency class = MEDIUM.
+
+### QSS `text-align` on macOS native QPushButton — canonical fix
+- `text-align: left` is silently ignored on macOS Aqua unless at least one of `background:`, `color:` (non-inherited), or `image:` is also set (forces QSS paint mode). `padding` and `border-radius` alone do NOT force paint mode on Aqua. The `display-toggle` rule's `background: transparent` is the proof that this was known — but `colors-button` was added without it. For any future `QPushButton` QSS rule that relies on `text-align`, confirm `background:` is present.

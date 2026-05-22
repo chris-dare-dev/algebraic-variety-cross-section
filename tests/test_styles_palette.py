@@ -706,6 +706,28 @@ def test_dark_stylesheet_includes_role_selectors() -> None:
             f"display-toggle role — without it, Wireframe + Show-edges "
             f"buttons have no visual indication of their active state."
         )
+        # appearance-panel-layout-pass-2026q3-e2 rect M3: verify the
+        # `colors-button` rule actually carries `text-align: left` and
+        # `background: transparent` in its rule body — not just that
+        # the selector exists in the stylesheet.  A future refactor
+        # could hollow out the rule (delete the body declarations while
+        # keeping the selector) and the basic presence check would not
+        # catch it.  Substring scan starting at the selector index
+        # captures the rule body up to the closing brace (~150 chars
+        # is enough for our 4-declaration rule).
+        sel_idx = qss.index('QPushButton[role="colors-button"]')
+        rule_body = qss[sel_idx:sel_idx + 200]
+        assert 'text-align: left' in rule_body, (
+            f"{name}: QPushButton[role='colors-button'] rule body is "
+            f"missing `text-align: left` — the functional payload of "
+            f"the F-M2 alignment fix.  Selector alone is not enough."
+        )
+        assert 'background: transparent' in rule_body, (
+            f"{name}: QPushButton[role='colors-button'] rule body is "
+            f"missing `background: transparent` — the macOS Aqua paint-"
+            f"mode trigger (rect F-M1).  Without it the alignment is a "
+            f"silent no-op on Aqua-style platforms."
+        )
 
 
 def test_bg_toggle_checked_token_is_six_digit_hex_in_both_palettes() -> None:

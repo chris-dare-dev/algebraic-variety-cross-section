@@ -152,7 +152,14 @@ class AppearancePanel(QWidget):
     def _build_color_group(self) -> QGroupBox:
         box = QGroupBox("Colors")
         vl = QVBoxLayout(box)
-        vl.setSpacing(6)
+        # appearance-panel-layout-pass-2026q3-e2 rect F-L2: 6→4 to match
+        # the Render Mode group's intra-row spacing.  The 6px was a
+        # holdover from center-aligned buttons (extra spacing to
+        # compensate for sparse-text feel); after left-align the
+        # discontinuity vs the 4px Render Mode group below reads as a
+        # rhythm break across the group boundary.  Blender 4.x N-panel
+        # uses uniform 4px intra-row spacing across all sub-sections.
+        vl.setSpacing(4)
 
         # Surface color row
         surf_row = QHBoxLayout()
@@ -164,7 +171,8 @@ class AppearancePanel(QWidget):
         # color-picker buttons with the `colors-button` role so they pick
         # up the `text-align: left` QSS rule and visually align with the
         # display-toggle buttons in the Render Mode group below.  See
-        # CONTEXT.md §4.3a for the role-property pattern.
+        # CONTEXT.md §4.3b for the role-property pattern (NOT §4.3a —
+        # rect M1 citation fix).
         surf_btn.setProperty("role", "colors-button")
         surf_btn.clicked.connect(self._pick_surface_color)
         surf_row.addWidget(self._surf_swatch)
@@ -261,12 +269,13 @@ class AppearancePanel(QWidget):
         self._hq_smoothing_cb.setToolTip(
             "Apply a second Taubin smoothing pass (n_iter=40, pass_band=0.05) "
             "to reduce the double-curve sawtooth-ridge artifact on Enriques "
-            "figs 1 and 2.  Adds roughly +31% generate time — about +140 ms "
-            "on a reference dev machine at default grid resolution; absolute "
-            "cost is hardware-dependent.  Disabled (greyed out) on other "
-            "surfaces — the second pass targets double-curve topology "
-            "specifically and gives no benefit on K3 / CY3 / Fano / Enriques "
-            "figs 3+4."
+            "figs 1 and 2.  Unlike Wireframe / Show edges (display-only "
+            "toggles), this triggers a full mesh regeneration — adds roughly "
+            "+31% generate time, about +140 ms on a reference dev machine at "
+            "default grid resolution; absolute cost is hardware-dependent.  "
+            "Disabled (greyed out) on other surfaces — the second pass "
+            "targets double-curve topology specifically and gives no benefit "
+            "on K3 / CY3 / Fano / Enriques figs 3+4."
         )
         self._hq_smoothing_cb.setProperty("role", "display-toggle")
         self._hq_smoothing_cb.toggled.connect(self._on_hq_smoothing_toggled)

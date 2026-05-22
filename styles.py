@@ -490,9 +490,20 @@ QPushButton {{
    QSS on macOS Fusion native QPushButton style ignores `text-align`
    UNLESS at least one box-model property triggers `QStyleSheetStyle` to
    take over widget painting.  Both rules carry the same values; the
-   restatement is mechanical, not visual.  See the F-M2 docstring in the
-   prior milestone's adversary critique for the platform-style
-   behavioral note.
+   restatement is mechanical, not visual.
+
+   `background: transparent` is the load-bearing macOS Aqua bypass
+   (rect F-M1).  Aqua (the DEFAULT style when `setStyle("Fusion")` is
+   NOT called in `main()` — confirmed: AVC does not opt into Fusion)
+   ignores ALL QSS text-alignment on QPushButton regardless of
+   box-model properties because Aqua's native button renderer draws
+   the label at a hardcoded position inside a pre-composited native
+   bead.  Setting `background:` to ANY value (transparent is visually
+   a no-op vs the base rule's missing background) forces full-QSS-
+   paint mode and bypasses the native Aqua renderer entirely.  The
+   existing `display-toggle` rule uses this technique; without it
+   here, the alignment fix is a silent no-op on the team's primary
+   development platform.
 
    Scoped via [role="colors-button"] dynamic-property selector rather than
    extending the global QPushButton text-align (which would cascade to
@@ -504,6 +515,7 @@ QPushButton[role="colors-button"] {{
     text-align: left;
     padding: 3px 8px;
     border-radius: 3px;
+    background: transparent;
 }}
 
 /* --- Reset-to-defaults button -- visually distinct from primary actions */
