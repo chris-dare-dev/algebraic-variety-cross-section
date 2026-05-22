@@ -1,0 +1,79 @@
+{
+  "id": "variety-palette-2026q2-e1",
+  "created_at": "2026-05-21T23:41:25Z",
+  "updated_at": "2026-05-22T00:03:10Z",
+  "phase": "rectify-running",
+  "phase_history": [
+    {
+      "phase": "init",
+      "at": "2026-05-21T23:41:25Z"
+    },
+    {
+      "phase": "research-running",
+      "at": "2026-05-21T23:41:33Z"
+    },
+    {
+      "phase": "research-complete",
+      "at": "2026-05-21T23:47:23Z"
+    },
+    {
+      "phase": "implement-running",
+      "at": "2026-05-21T23:47:49Z"
+    },
+    {
+      "phase": "implement-complete",
+      "at": "2026-05-21T23:51:46Z"
+    },
+    {
+      "phase": "critique-running",
+      "at": "2026-05-21T23:51:46Z"
+    },
+    {
+      "phase": "critique-complete",
+      "at": "2026-05-22T00:00:35Z"
+    },
+    {
+      "phase": "rectify-running",
+      "at": "2026-05-22T00:00:35Z"
+    }
+  ],
+  "milestone_brief": "Fill the VARIETY_DEFAULT_COLOR: dict[str, str] = {} stub at styles.py:99-107 (placeholder reserved for UPL-5, the original uplift's id; this milestone is its execution). Source: .claude/notes/frontend-uplifts/2026q2-graph-and-window/artifacts/final-report.md UPL-2; challenger MINOR at .claude/notes/frontend-uplifts/2026q2-graph-and-window/artifacts/challenge.md.\n\nScope:\n\n1. styles.py \u2014 Add 4 dict entries to VARIETY_DEFAULT_COLOR, one per variety family. Keys MUST match surfaces.py VARIETIES dict VERBATIM (the existing comment at styles.py:102 enforces this). The 4 families are: 'K3 surface', 'Enriques surface', 'Calabi-Yau 3-fold', 'Fano 3-fold (\u03c1=1)'. Hex values must:\n(a) be 6-digit hex (AI-13);\n(b) pass WCAG 4.5:1 against BG_VIEWPORT=#2f2f2f \u2014 the surface name appears in the status bar in this color, so it IS text contrast, not just non-text. The challenger's MINOR specifically called out that #5e7fb8 fails (3.4:1) and #b89878 is borderline (4.5:1). Re-audit and lighten.\n(c) be distinguishable from each other under typical viewing conditions (a researcher switching K3 \u2192 Enriques \u2192 CY3 \u2192 Fano should see a clear hue change, not three-shades-of-blue);\n(d) feel research-credible \u2014 restrained scientific palette, not marketing-grade saturation. 3Blue1Brown / Quanta-magazine register.\n\nSuggested starting palette from the synthesis (re-audit per b):\nK3: #7a92b8 (cool slate) \u2014 marginal at 4.7:1, may need to lighten\nEnriques: #b89878 \u2192 consider #c4a888 (warm amber)\nCY3: #5e7fb8 \u2192 MUST lighten to e.g. #7a96c8 or #8aa5d2 (cobalt; Elegant Universe register)\nFano: #7ba872 (mathematical green) \u2014 marginal at 3.7:1, lighten\n\nFinal selection is the researcher's call subject to (a)-(d).\n\n2. appearance_panel.py \u2014 Add a public method set_default_color(hex_str) on AppearancePanel that sets self._surface_color and refreshes the swatch. Wire app.py to call this on variety/subtype switch (in _on_variety_changed / _on_subtype_changed handlers) with VARIETY_DEFAULT_COLOR.get(variety_key, BG_SURFACE_DEFAULT). User override via the existing 'Surface...' color swatch still wins \u2014 the per-variety default only applies on switch, not on re-render.\n\n3. tests/test_styles_palette.py \u2014 Add 4 test entries verifying each VARIETY_DEFAULT_COLOR value clears 4.5:1 against PALETTE_LIGHT['BG_VIEWPORT'] (the existing palette-audit module's contrast helpers should cover this; if not, add the helper).\n\nAI invariants:\n- AI-13: 6-digit hex only (no #abc shorthand into PyVista).\n- AI-12: WCAG 4.5:1 minimum for text (status bar surface name is text); 3:1 for non-text (surface itself).\n- AI-9: no new processEvents(); the variety-switch callback already runs under the _computing guard.\n\nForward-compat for UPL-1 dark mode (next milestone): once this dict ships, UPL-1 will add a parallel VARIETY_DEFAULT_COLOR_DARK with key-identical entries tuned for the dark-mode panel background. Phase 1 researcher should propose where dark variants will fit (likely a styles.py constant alongside PALETTE_DARK placeholder) so this milestone's structure is forward-compatible.\n\nV0 scope: per-variety colors apply on surface switch; do NOT persist user overrides across sessions (that's UPL-25). When the user picks K3 then overrides to red, then switches to Enriques and back to K3, K3 should re-seed from the family default, not the user's prior red override. This matches the simpler / less-state interpretation.\n\nValidation: after implementation, .venv/bin/python -m pytest tests/ -q passes (must include the new palette-audit entries); manually verify by running app.py and switching varieties \u2014 each family shows a distinct surface color.",
+  "research_mode": "single",
+  "oss_scout_requested": false,
+  "research_briefs": [
+    ".claude/notes/milestones/variety-palette-2026q2-e1/research/agent-solo-brief.md"
+  ],
+  "research_synthesis": "Solo Sonnet researcher proposed 4 WCAG-verified hex values (K3 #8e9ed4 at 5.09:1, Enriques #c4a882 at 5.91:1, CY3 #85b5d0 at 6.07:1, Fano #8fbe85 at 6.29:1) \u2014 all clear the 4.5:1 text-contrast threshold against BG_VIEWPORT=#2f2f2f with comfortable margin. Hue separations >25 degrees pairwise. Unicode key risk surfaced: Calabi-Yau uses U+2013 en-dash and Fano 3-fold uses U+03C1 rho \u2014 keys must be copy-pasted from surfaces.py:946,950,968,986 verbatim, not retyped. Stub test at tests/test_styles_palette.py:133-138 must be REPLACED (asserts == {}); add 4 new test functions with luminance/ratio helpers extracted to module level. Wire set_default_color() on AppearancePanel + call from BOTH _on_variety_changed and _on_subtype_changed in app.py (researcher's preferred symmetric coverage). Forward-compat: add comment-only VARIETY_DEFAULT_COLOR_DARK hook for UPL-4; do not populate.",
+  "implementation_path": "inline",
+  "implementation_plan": ".claude/notes/milestones/variety-palette-2026q2-e1/artifacts/implementation-plan.md",
+  "implementation_base": "ae2b70d9428e2f977c9e2ecee6253e8dc1e30a97",
+  "implementation_commit_range": "ae2b70d9428e2f977c9e2ecee6253e8dc1e30a97..b976674a9761e66743a109dc7c3719de2447d1c9",
+  "implementation_commits": [
+    "b976674a9761e66743a109dc7c3719de2447d1c9"
+  ],
+  "implementation_branch": null,
+  "critique_path": ".claude/notes/milestones/variety-palette-2026q2-e1/artifacts/adversary-critique.md",
+  "critics_run": [
+    "adversary",
+    "frontend-ux"
+  ],
+  "critique_finding_counts": {
+    "critical": 0,
+    "high": 1,
+    "medium": 3,
+    "low": 2
+  },
+  "rectification_commit": null,
+  "fixed_findings": [
+    "H1",
+    "M1",
+    "M2",
+    "L1",
+    "LF2"
+  ],
+  "deferred_findings": [
+    "MF1"
+  ],
+  "invalidated_findings": [],
+  "regression_tests_added": []
+}

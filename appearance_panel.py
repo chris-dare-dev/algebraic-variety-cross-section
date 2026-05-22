@@ -79,7 +79,10 @@ class AppearancePanel(QWidget):
         # Default colors come from the central palette tokens (UPL-1):
         #   BG_SURFACE_DEFAULT — lightsteelblue mesh fill
         #   BG_VIEWPORT        — dark grey viewport background
-        # UPL-5 will override _surface_color per-variety via apply_to_actor().
+        # On variety/subtype switch, MainWindow calls self.set_default_color()
+        # (added in variety-palette-2026q2-e1) to seed _surface_color from
+        # styles.VARIETY_DEFAULT_COLOR — see the method below.  User overrides
+        # via the "Surface…" swatch still win for the rest of the session.
         self._surface_color = QColor(BG_SURFACE_DEFAULT)
         self._bg_color = QColor(BG_VIEWPORT)
         self._wireframe = False

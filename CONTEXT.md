@@ -133,6 +133,13 @@ _on_subtype_changed  → _render_current(reset_camera=True)
 
 Critical: **the raw mesh is cached**. `_on_domain_changed` (sphere/cube clip slider release) calls `_apply_domain_and_render` directly without regenerating the mesh — only the clip is recomputed. This makes the radius slider snappy.
 
+### 4.3a AppearancePanel public API
+
+`AppearancePanel` exposes two outbound entry points:
+
+- `apply_to_actor(actor)` — invoked at the end of every render path (see §4.3 above). Sets `actor.prop.color`, `style`, `show_edges`, `opacity`, `interpolation` from stored panel state. Also unconditionally calls `apply_background()` to push the chosen viewport background. Safe to call with `actor=None` (background-only path; used on first launch before any mesh).
+- `set_default_color(hex_str)` — invoked from `_on_variety_changed` and `_on_subtype_changed` on every variety/subtype switch (variety-palette-2026q2-e1 / UPL-2). Seeds `_surface_color` from `styles.VARIETY_DEFAULT_COLOR[variety]` and refreshes the swatch chip in the Appearance dock. **Does NOT trigger a render** — the caller flows naturally into `_render_current` → `apply_to_actor` which reads the updated color. AI-9 safe (no `processEvents`). The user's subsequent override via the "Surface…" swatch wins for the rest of the session, but switching surfaces re-seeds from the family default (V0 scope; sticky overrides are UPL-25's home).
+
 ### 4.4 Re-entrancy guard
 
 `_render_current` calls `QApplication.processEvents()` (to keep the status bar responsive during ~0.5 s mesh generation). This drains the Qt event queue, which can re-enter via slider release → `_on_params_changed` → `_render_current`. Guarded by `self._computing: bool` set at the top of `_render_current` and cleared in a `finally` block. **If you add another `processEvents` call elsewhere, audit re-entrancy.**

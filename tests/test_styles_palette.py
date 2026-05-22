@@ -219,32 +219,88 @@ def test_variety_default_color_keys_match_surfaces_varieties() -> None:
         )
 
 
+# ---------------------------------------------------------------------------
+# AppearancePanel.set_default_color() direct unit tests
+# ---------------------------------------------------------------------------
+#
+# These tests exercise the pure-Python logic of set_default_color() without
+# instantiating a QApplication, by calling the unbound method against a
+# lightweight shim that mimics the relevant attributes.  This keeps the
+# tests AI-2 compliant (no pytest-qt, no QApplication required) — QColor is
+# a pure data type from QtGui and does not require an event loop.
+#
+# Rectifies adversary critique M1 for variety-palette-2026q2-e1: the four
+# tests above exercise the dict as data, but the new public API method that
+# consumes the dict had no direct coverage.  These tests close that gap.
+
+
+def test_set_default_color_updates_surface_color() -> None:
+    """Calling set_default_color with a valid hex updates _surface_color and
+    invokes _apply_swatch_color to refresh the chip.
+    """
+    from unittest.mock import MagicMock, patch
+    from PySide6.QtGui import QColor
+    import appearance_panel
+
+    # Lightweight shim that mimics the AppearancePanel attributes
+    # set_default_color reads/writes — no full panel construction needed.
+    class _Shim:
+        def __init__(self) -> None:
+            self._surface_color = QColor("#000000")  # prior color
+            self._surf_swatch = MagicMock()
+
+    shim = _Shim()
+    with patch.object(appearance_panel, "_apply_swatch_color") as mock_apply:
+        appearance_panel.AppearancePanel.set_default_color(shim, "#8e9ed4")
+
+    assert shim._surface_color.name() == "#8e9ed4", (
+        "_surface_color should be updated to the new hex"
+    )
+    mock_apply.assert_called_once()
+    # Verify the swatch was refreshed with the new color (not the old one)
+    call_args = mock_apply.call_args
+    swatch_arg, color_arg = call_args[0]
+    assert swatch_arg is shim._surf_swatch
+    assert color_arg.name() == "#8e9ed4"
+
+
+def test_set_default_color_ignores_invalid_hex() -> None:
+    """Invalid hex strings (failed QColor.isValid()) silently preserve the
+    existing color rather than corrupting _surface_color.
+    """
+    from unittest.mock import MagicMock, patch
+    from PySide6.QtGui import QColor
+    import appearance_panel
+
+    class _Shim:
+        def __init__(self) -> None:
+            self._surface_color = QColor("#abc123")  # valid prior color
+            self._surf_swatch = MagicMock()
+
+    shim = _Shim()
+    prior_name = shim._surface_color.name()
+
+    with patch.object(appearance_panel, "_apply_swatch_color") as mock_apply:
+        appearance_panel.AppearancePanel.set_default_color(shim, "not-a-hex")
+
+    assert shim._surface_color.name() == prior_name, (
+        "Invalid hex should leave _surface_color unchanged"
+    )
+    mock_apply.assert_not_called()
+
+
 def test_critical_text_tokens_meet_wcag_aa_on_bg_panel() -> None:
     """TEXT_MUTED and TEXT_VALUE must clear >=4.5:1 contrast on BG_PANEL
     for WCAG AA normal-text compliance (AI-12).
 
-    Computes relative luminance per WCAG 2.x and the resulting contrast
-    ratio.  TEXT_DISABLED is intentionally low (per WCAG exception for
-    disabled UI state) and skipped here.
+    Uses the module-level ``_ratio`` helper (single source of truth for the
+    WCAG 2.x formula).  TEXT_DISABLED is intentionally low (per WCAG
+    exception for disabled UI state) and skipped here.
     """
-    def luminance(hex_color: str) -> float:
-        h = hex_color.lstrip("#")
-        r, g, b = (int(h[i:i + 2], 16) / 255.0 for i in (0, 2, 4))
-
-        def channel(c: float) -> float:
-            return c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4
-
-        return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b)
-
-    def ratio(fg: str, bg: str) -> float:
-        l1, l2 = luminance(fg), luminance(bg)
-        lighter, darker = max(l1, l2), min(l1, l2)
-        return (lighter + 0.05) / (darker + 0.05)
-
     bg = styles.PALETTE_LIGHT["BG_PANEL"]
-    assert ratio(styles.PALETTE_LIGHT["TEXT_MUTED"], bg) >= 4.5, (
+    assert _ratio(styles.PALETTE_LIGHT["TEXT_MUTED"], bg) >= 4.5, (
         "TEXT_MUTED on BG_PANEL fails WCAG AA (need >=4.5:1)"
     )
-    assert ratio(styles.PALETTE_LIGHT["TEXT_VALUE"], bg) >= 4.5, (
+    assert _ratio(styles.PALETTE_LIGHT["TEXT_VALUE"], bg) >= 4.5, (
         "TEXT_VALUE on BG_PANEL fails WCAG AA (need >=4.5:1)"
     )

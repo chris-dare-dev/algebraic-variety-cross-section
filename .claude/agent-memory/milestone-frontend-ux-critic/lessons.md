@@ -33,3 +33,20 @@
 
 ### Scope discipline
 - Three files changed, only one (`app.py`) is on the Qt-panel critique surface. Scout-script changes (`.claude/scripts/`) and reference-template changes (`.claude/references/`) are internal tooling with no user-visible UX surface. Explicitly dispose of them per-axis as "not applicable" — do not manufacture UX findings on tooling-only changes.
+
+## variety-palette-2026q2-e1 (UPL-2 per-variety surface palette) — 2026-05-21
+
+### Token-discipline near-misses
+- No short-hex or shorthand-enum slip in this diff. All four VARIETY_DEFAULT_COLOR entries are verified 6-digit. `QColor.name()` always returns 7-char `#rrggbb` — never short-hex — so the `actor.prop.color = color.name()` write path is inherently AI-13 safe. Make this check fast: confirm `QColor.name()` → 7-char output rather than tracing the hex through the call chain.
+- Stale forward-ref comments ("UPL-5 will populate") survived the diff because the block-level comment was updated but the module docstring was not. Pattern to flag fast: when a dict stub is populated in a milestone, grep for ALL comments that reference the stub by name and update them in the same pass.
+
+### Contrast ratio comment accuracy
+- Researcher-annotated ratios (5.09 / 5.91 / 6.07 / 6.29) verified correct against BG_VIEWPORT (#2f2f2f). However, hue-separation claim ">=25° pairwise" was false: K3 vs CY3 measured 24.69° (float HSV). The integer HSV rounding (226° vs 202° = 24°) makes it even further below the claim. Always verify float HSV, not integer, when checking hue-separation specs.
+- The dual-surface contrast check pattern (colors pass against dark viewport; fail against light panel) is a recurring pattern for any palette milestone. Check BOTH backgrounds: BG_VIEWPORT for rendered mesh legibility AND BG_PANEL for swatch chip legibility. These are separate WCAG assessments (mesh = non-text at scale ≥3:1; swatch chip = non-text UI component ≥3:1). Mid-lightness pastels chosen for dark-viewport legibility will always fail the light-panel check.
+
+### Industry-comparison note (concrete recommendation generated)
+- ParaView 5.12 color-preset swatch: rendered on a dark chip matching the render view background — this is exactly the V1 fix for the MEDIUM swatch-contrast finding. When a swatch shows a color meant for a dark viewport, the swatch chip should also use a dark background so the viewport-calibrated contrast applies. "Dark-chip swatch inset" is the ParaView-validated recommendation; quote it by name in future uplift candidates involving color swatches on light panels.
+
+### First-launch / section-9 regressions
+- No regression in this diff. The call-site guard pattern (`if name in VARIETIES:` before `set_default_color`) ensures the color seed only fires after a real variety is selected, never on `-- Select --`. Fast check: trace `set_default_color` to `_render_current` — they must NOT be on the same synchronous call path unless a subtype is selected. In this diff, `_render_current` is only in `_on_subtype_changed`, which is a separate handler from `_on_variety_changed` where the first `set_default_color` call lives.
+- Re-seed on subtype switch (second call in `_on_subtype_changed`) is the correct design for V0 (no sticky overrides, reset-on-switch). This is the intentional "re-seed on switch-back" semantic documented in the UPL-25 forward-ref comment. Flag any future change that adds QSettings persistence for `self._surface_color` as an AI-9 / section-9.1 scope question (explicit non-goal).

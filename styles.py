@@ -19,8 +19,12 @@ Palette structure (UPL-1, panel-refresh-2026q2-e2):
     PALETTE_LIGHT       — single source of truth for every hex color in the
                           light theme.  Downstream UPL-4 (dark mode) will
                           add a parallel PALETTE_DARK with identical keys.
-    VARIETY_DEFAULT_COLOR — empty stub; UPL-5 will populate with per-variety
-                          default surface colors keyed by variety family name.
+    VARIETY_DEFAULT_COLOR — per-variety default surface colors keyed by
+                          variety family name.  Populated in
+                          variety-palette-2026q2-e1 (UPL-2 from the
+                          2026q2-graph-and-window uplift).  UPL-4 will add a
+                          parallel VARIETY_DEFAULT_COLOR_DARK; the active
+                          dict is chosen by theme.
     COLOR_*, BG_*, etc. — named exports computed from PALETTE_LIGHT.  Kept
                           for backward-compat (zero call-site changes) and
                           for cases where importing the named constant is
@@ -43,8 +47,9 @@ Palette structure (UPL-1, panel-refresh-2026q2-e2):
 # fails 4.5:1 on a dark panel ground; UPL-4 must provide TEXT_MUTED_DARK)
 # carry a comment marker.
 #
-# UPL-5 (per-variety surface color) will populate VARIETY_DEFAULT_COLOR
-# from this same module.
+# Per-variety surface colors are populated below in VARIETY_DEFAULT_COLOR
+# (variety-palette-2026q2-e1, closing UPL-2).  UPL-4 (dark mode) will add a
+# parallel VARIETY_DEFAULT_COLOR_DARK with identical keys.
 
 PALETTE_LIGHT: dict[str, str] = {
     # === Core viewport + panel backgrounds ===
@@ -117,8 +122,10 @@ PALETTE_LIGHT: dict[str, str] = {
 #   Enriques  #c4a882  5.91:1  (warm ochre — classical-geometry register)
 #   CY3       #85b5d0  6.07:1  (teal-cobalt — Elegant Universe / Hanson)
 #   Fano      #8fbe85  6.29:1  (sage green — distinct from the three blues)
-# Hue separations are >=25° pairwise (perceptually distinct even under
-# mild color-vision deficiency).
+# Hue separations are >=24° pairwise (K3-CY3 is the tightest pair at
+# ~24.7°, perceptually distinct under mild color-vision deficiency due
+# to saturation difference: K3 0.33 vs CY3 0.36).  All other pairs
+# comfortably exceed 25°.
 VARIETY_DEFAULT_COLOR: dict[str, str] = {
     "K3 surface":          "#8e9ed4",
     "Enriques surface":    "#c4a882",

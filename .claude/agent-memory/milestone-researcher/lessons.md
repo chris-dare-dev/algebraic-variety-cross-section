@@ -20,3 +20,12 @@
 - Bare `QDockWidget` outside `QMainWindow` is explicitly cleared by AI-3's clarifying paragraph — safe for offscreen panel grabs. The QSS `QDockWidget::title` rule fires on standalone dock widgets, which is the entire point of UPL-27.
 - For `add_mesh` lighting kwargs (ambient/diffuse), check whether `appearance_panel.apply_to_actor()` overrides VTK actor properties post-add — if it calls `SetAmbient`/`SetDiffuse` the `add_mesh` kwargs would be overwritten. Check this before implementing any lighting-param candidate.
 - When a milestone touches `render-panel-chrome.py` and `agent-prompts.md` in the same PR, sequence the agent-prompts.md edit first (simpler, no Qt import changes) then the chrome script (has import and call-site changes).
+
+## variety-palette-2026q2-e1 (2026-05-21)
+- For pure palette/wiring milestones, skip arXiv and OSS web searches entirely — all signal is in repo-local files and numerically-computed contrast ratios.
+- WCAG contrast computation for variety colors: "surface color on dark viewport" uses the 4.5:1 text threshold (not 3:1 non-text) because the surface-family name appears as rendered text in the status bar using the same color token. Confirm what threshold applies before computing candidates.
+- Unicode key identity is a silent failure mode for VARIETY_DEFAULT_COLOR: "Calabi–Yau 3-fold" uses U+2013 en-dash (not ASCII hyphen), "Fano 3-fold (ρ=1)" uses U+03C1. The only safe approach is copy-paste from surfaces.py, confirmed at surfaces.py:968 and surfaces.py:986.
+- Hue separation ≥25 degrees (HSV) between all variety color pairs is the minimum for perceptual distinguishability. Pairwise luminance ratios near 1.0 are fine if hue angles differ sufficiently — don't mistake near-equal luminance for near-equal appearance.
+- The stub test `test_variety_default_color_is_stub_for_upl5` asserts `== {}` and must be DELETED (not supplemented) when the dict is populated — otherwise the test suite contains a guaranteed contradiction.
+- `set_default_color` on AppearancePanel must NOT call render — the caller flows naturally into `_render_current` → `apply_to_actor`. Calling render inside `set_default_color` would be premature (no mesh exists yet on variety-combo change before subtype is selected).
+- BG_SURFACE_DEFAULT is the correct fallback in `VARIETY_DEFAULT_COLOR.get(name, BG_SURFACE_DEFAULT)` — it's already exported from styles.py but may not be imported at the call site in app.py; check import line first.
