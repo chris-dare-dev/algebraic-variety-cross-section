@@ -437,6 +437,41 @@ def test_dark_non_text_borders_meet_wcag_aa_on_bg_panel_dark() -> None:
         )
 
 
+def test_light_non_text_focus_ring_meets_wcag_aa_on_bg_panel() -> None:
+    """WCAG 2.1 §1.4.11 — FOCUS_RING must clear >=3:1 on the light BG_PANEL
+    (#f0f0f0).  Symmetric guard to
+    ``test_dark_non_text_borders_meet_wcag_aa_on_bg_panel_dark`` but
+    deliberately scoped to FOCUS_RING only — see the docstring caveat below
+    for why the four structural border tokens are NOT included.
+
+    Closes the deferred M4 finding from panel-refresh-2026q2-e2
+    (variety-palette / UPL-1 adversary critique): FOCUS_RING was 2.60:1 on
+    BG_PANEL_LIGHT — below the WCAG 1.4.11 non-text 3:1 floor for focus
+    indicators.  Fixed by focus-ring-contrast-2026q2-e1 by darkening to
+    ``#3c82c4`` (3.56:1 on light, 3.78:1 on dark — single shared value).
+
+    Caveat on token scope (do NOT widen this assertion set):  the dark twin
+    above includes BORDER_GROUP_BOX, BORDER_DOCK_HEADER, BORDER_CAMERA_BTN,
+    and BORDER_RESET_BTN because their PALETTE_DARK values were intentionally
+    darkened to clear 3:1 against BG_PANEL_DARK.  The PALETTE_LIGHT values
+    of those same tokens are intentionally LOWER-contrast (#d0d0d0,
+    #c5cdd8, #b0bec5, #d4b4b4 — ~1.1-1.4:1 on #f0f0f0) because on light
+    they serve as structural internal separators, not user-interface
+    component boundaries against the panel ground.  Asserting 3:1 on those
+    light values would be a false-positive regression — they were never
+    designed to clear that threshold.  Only FOCUS_RING bears WCAG 1.4.11
+    on the light panel.
+    """
+    bg = styles.PALETTE_LIGHT["BG_PANEL"]
+    r = _ratio(styles.PALETTE_LIGHT["FOCUS_RING"], bg)
+    assert r >= 3.0, (
+        f"PALETTE_LIGHT['FOCUS_RING'] = {styles.PALETTE_LIGHT['FOCUS_RING']} "
+        f"fails non-text 3:1 against BG_PANEL ({bg}): measured {r:.2f}:1.  "
+        f"Darken FOCUS_RING to at least #3c82c4 (3.56:1) — see "
+        f"focus-ring-contrast-2026q2-e1."
+    )
+
+
 def test_app_stylesheet_dark_no_raw_hex() -> None:
     """APP_STYLESHEET_DARK must use only hex values from PALETTE_DARK — no
     inline literals.  Parallels test_app_stylesheet_substitutes_no_raw_hex_outside_palette

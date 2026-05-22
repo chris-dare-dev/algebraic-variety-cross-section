@@ -80,12 +80,14 @@ PALETTE_LIGHT: dict[str, str] = {
     "TEXT_RESET_BTN":           "#5a3a3a",   # dark reddish on reset-btn pink bg (8.37:1 on BG_RESET_BTN — AA pass)
 
     # === Focus ===
-    # Measured 2.60:1 on BG_PANEL — below WCAG AA 3:1 for non-text UI.  Flagged
-    # for UPL-4 / accessibility pass to darken to e.g. #3c82c4 (~3.1:1) or to
-    # rely on the focus indicator's outline width for visibility.  Kept as-is
-    # in UPL-1 to preserve every existing rendered color (milestone acceptance
-    # signal).  Measured 4.52:1 on BG_VIEWPORT (dark) — passes there.
-    "FOCUS_RING":               "#5b9bd5",   # keyboard focus outline (2.60:1 on BG_PANEL — see note)
+    # WCAG 2.1 §1.4.11 non-text contrast — focus indicators require >=3:1
+    # against the adjacent background.  Fixed in focus-ring-contrast-2026q2-e1
+    # (UPL-4): darkened from #5b9bd5 (2.60:1 on BG_PANEL — FAIL, below the
+    # 3:1 floor) to #3c82c4 (3.56:1 — PASS).  Shared with PALETTE_DARK where
+    # the same value measures 3.78:1 on BG_PANEL_DARK (#252526) — also PASS.
+    # Single shared value satisfies both themes; closes the deferred M4
+    # finding from panel-refresh-2026q2-e2 (variety-palette / UPL-1).
+    "FOCUS_RING":               "#3c82c4",   # keyboard focus outline (3.56:1 on BG_PANEL light, 3.78:1 on BG_PANEL_DARK — both PASS)
 
     # === Dock + group-box structure ===
     "BG_DOCK_HEADER":           "#e8edf2",   # dock title bar background
@@ -220,9 +222,12 @@ PALETTE_DARK: dict[str, str] = {
     "TEXT_RESET_BTN":            "#ffc0c0",   # 9.32:1 vs BG_RESET_BTN dark — light pink on dark wine
 
     # === Focus ring (3:1 floor vs BG_PANEL for non-text UI) ===
-    # FOCUS_RING #5b9bd5 measured 5.17:1 vs #252526 (PASS).  Reuse light
-    # value — the focus ring blue happens to be dark-mode-compatible.
-    "FOCUS_RING":                "#5b9bd5",   # 5.17:1 vs BG_PANEL — PASS for non-text 3:1
+    # FOCUS_RING #3c82c4 measured 3.78:1 vs #252526 (PASS).  Shared with
+    # PALETTE_LIGHT where it measures 3.56:1 on BG_PANEL (#f0f0f0) — PASS.
+    # Updated in focus-ring-contrast-2026q2-e1; prior value #5b9bd5 was
+    # 2.60:1 on the light panel (FAIL) even though it passed dark at 5.17:1.
+    # Single shared value preserves the key-identical palette pattern.
+    "FOCUS_RING":                "#3c82c4",   # 3.78:1 vs BG_PANEL_DARK, 3.56:1 vs BG_PANEL_LIGHT — both PASS
 
     # === Dock + group-box structure ===
     # BG_DOCK_HEADER is structural (1.18:1 vs panel); the BORDER_DOCK_HEADER
