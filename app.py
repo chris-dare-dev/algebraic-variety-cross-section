@@ -38,7 +38,6 @@ from styles import (
     APP_STYLESHEET_DARK,
     BG_SURFACE_DEFAULT,
     COLOR_WIREFRAME_OVERLAY,
-    VARIETY_DEFAULT_COLOR,
     get_variety_default_colors,
 )
 from surfaces import VARIETIES, VARIETY_TOOLTIPS, SUBTYPE_TOOLTIPS, Surface
@@ -549,11 +548,12 @@ class MainWindow(QMainWindow):
         style_hints = QGuiApplication.styleHints()
 
         # Disconnect any prior follow-system subscription before re-deciding.
+        # No try/except: the `is not None` guard already ensures a live
+        # connection object, and QGuiApplication.styleHints() is a process-
+        # lifetime singleton — neither RuntimeError nor TypeError can occur.
+        # (dark-mode-2026q2-e1 rect L1: simplified per the adversary critic.)
         if self._system_theme_connection is not None:
-            try:
-                style_hints.colorSchemeChanged.disconnect(self._system_theme_connection)
-            except (RuntimeError, TypeError):
-                pass  # already disconnected; safe to ignore
+            style_hints.colorSchemeChanged.disconnect(self._system_theme_connection)
             self._system_theme_connection = None
 
         if name == "follow":
@@ -583,6 +583,15 @@ class MainWindow(QMainWindow):
                     current_variety, BG_SURFACE_DEFAULT
                 )
             )
+            # dark-mode-2026q2-e1 rect MEDIUM-3: push the new color through to
+            # the live actor immediately so the viewport doesn't lag behind
+            # the swatch on theme switch.  V0 light/dark colors are identical
+            # so this is a no-op visual change today, but it establishes the
+            # correct pattern for any future milestone that diverges the dark
+            # variety palette (e.g. desaturating for depth perception).
+            if self._actor is not None:
+                self.appearance_panel.apply_to_actor(self._actor)
+                self.plotter.render()
 
     def _apply_system_theme(self, scheme) -> None:
         """Handler for QStyleHints.colorSchemeChanged when 'Follow system'
@@ -603,10 +612,26 @@ class MainWindow(QMainWindow):
                     current_variety, BG_SURFACE_DEFAULT
                 )
             )
+            # dark-mode-2026q2-e1 rect MEDIUM-3: mirror the actor-refresh in
+            # _on_theme_changed so live-OS-theme-change also propagates to
+            # the viewport without a user interaction.
+            if self._actor is not None:
+                self.appearance_panel.apply_to_actor(self._actor)
+                self.plotter.render()
 
     # --- lifecycle ---------------------------------------------------------
 
     def closeEvent(self, event):
+        # dark-mode-2026q2-e1 rect L2: disconnect the follow-system signal
+        # if active.  Harmless in the current single-window main() pattern
+        # (process exits after app.exec()), but the lambda captures `self` —
+        # disconnecting before destruction prevents a dangling reference if
+        # the app ever gains multi-window / session-restore behaviour.
+        if self._system_theme_connection is not None:
+            QGuiApplication.styleHints().colorSchemeChanged.disconnect(
+                self._system_theme_connection
+            )
+            self._system_theme_connection = None
         self.plotter.close()
         super().closeEvent(event)
 

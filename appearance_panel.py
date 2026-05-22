@@ -190,7 +190,10 @@ class AppearancePanel(QWidget):
 
         self._opacity_label = QLabel(f"{self._opacity}%")
         self._opacity_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self._opacity_label.setStyleSheet(VALUE_MONO_STYLE)
+        # dark-mode-2026q2-e1 rect: use QSS role property so the active theme's
+        # color cascades from APP_STYLESHEET / APP_STYLESHEET_DARK (was
+        # `setStyleSheet(VALUE_MONO_STYLE)` which hardcoded the light color).
+        self._opacity_label.setProperty("role", "value-mono")
         vl.addWidget(self._opacity_label)
 
         return box

@@ -279,6 +279,17 @@ LABEL_STYLE = "font-size: 12px;"
 SMALL_LABEL_STYLE = "font-size: 11px;"
 
 # Muted small text — descriptions, hints — WCAG AA-compliant contrast
+# DEPRECATED (dark-mode-2026q2-e1 rect H1): these inline-style constants
+# hardcode PALETTE_LIGHT colors and bypass the dark QSS cascade when applied
+# via widget.setStyleSheet(). New call sites MUST use the QSS role-property
+# pattern instead:
+#     label.setProperty("role", "muted")        # was: setStyleSheet(MUTED_TEXT_STYLE)
+#     label.setProperty("role", "value-mono")   # was: setStyleSheet(VALUE_MONO_STYLE)
+#     label.setProperty("role", "range-label")  # was: setStyleSheet(RANGE_LABEL_STYLE)
+# The QSS role selectors in _render_stylesheet handle color + font for both
+# themes automatically.  These constants remain as backward-compat exports
+# only — every in-repo call site was migrated to setProperty in the same
+# milestone.  Test guard: test_no_inline_color_styles_in_panel_files.
 MUTED_TEXT_STYLE = f"color: {COLOR_MUTED}; font-size: 10px;"
 
 # Monospace value readout — slider current value, parameter value
@@ -318,12 +329,46 @@ def _render_stylesheet(palette: dict[str, str]) -> str:
     one place; both themes automatically pick them up.
     """
     return f"""
+/* --- Base widget defaults --------------------------------------------- */
+/* dark-mode-2026q2-e1 rect: explicit text color on QLabel/QWidget so the
+   OS QPalette doesn't leak through when QApplication.setStyleSheet swaps
+   to the dark theme.  Without this, light-OS users running our Dark theme
+   see Qt's QPalette.WindowText (near-black) on dark backgrounds. */
+QWidget {{
+    color: {palette["TEXT_VALUE"]};
+}}
+QLabel {{
+    color: {palette["TEXT_VALUE"]};
+}}
+
+/* --- Role-based label styling (theme-aware via QSS cascade) ----------- */
+/* dark-mode-2026q2-e1 rect H1: panels set `label.setProperty("role", X)`
+   instead of `label.setStyleSheet(INLINE_STYLE)` so theme switching is
+   automatic when QApplication.setStyleSheet swaps light↔dark.  Each role
+   captures the size + family that the legacy MUTED_TEXT_STYLE /
+   VALUE_MONO_STYLE / RANGE_LABEL_STYLE constants used to inline. */
+QLabel[role="muted"] {{
+    color: {palette["TEXT_MUTED"]};
+    font-size: 10px;
+}}
+QLabel[role="value-mono"] {{
+    font-family: monospace;
+    font-size: 11px;
+    color: {palette["TEXT_VALUE"]};
+}}
+QLabel[role="range-label"] {{
+    font-family: monospace;
+    font-size: 9px;
+    color: {palette["TEXT_MUTED"]};
+}}
+
 /* --- Dock widget title bars ------------------------------------------ */
 QDockWidget {{
     font-size: 12px;
 }}
 QDockWidget::title {{
     background: {palette["BG_DOCK_HEADER"]};
+    color: {palette["TEXT_VALUE"]};
     border-bottom: 1px solid {palette["BORDER_DOCK_HEADER"]};
     padding: 4px 8px;
     font-weight: bold;
@@ -384,9 +429,15 @@ QAbstractButton:focus, QComboBox:focus, QSlider:focus {{
 }}
 
 /* --- Status bar -------------------------------------------------------- */
+/* dark-mode-2026q2-e1 rect H2: explicit background so the OS QPalette
+   doesn't leak through (light-OS user on Dark theme would otherwise see
+   the muted text on platform-light QPalette.Window — well below the
+   WCAG AA 4.5:1 floor).  See the milestone critique for the exact
+   contrast measurement. */
 QStatusBar {{
     font-size: 11px;
     color: {palette["TEXT_MUTED"]};
+    background: {palette["BG_PANEL"]};
 }}
 """
 

@@ -440,8 +440,14 @@ def test_variety_default_color_dark_wcag_on_bg_viewport() -> None:
     BG_VIEWPORT (shared between themes — the canvas is always dark).  Same
     threshold as the light dict because the surface fills enough of the dark
     canvas to function as a text-level identity cue.
+
+    Reads BG_VIEWPORT from PALETTE_DARK (not PALETTE_LIGHT) — the values are
+    intentionally identical (verified by test_palette_dark_pyvista_bound_tokens_match_light),
+    but reading from the theme-correct dict makes intent explicit and would
+    surface a meaningful failure if the two were ever intentionally diverged.
+    (dark-mode-2026q2-e1 rect L3.)
     """
-    bg = styles.PALETTE_LIGHT["BG_VIEWPORT"]  # shared between themes
+    bg = styles.PALETTE_DARK["BG_VIEWPORT"]
     for variety, color in styles.VARIETY_DEFAULT_COLOR_DARK.items():
         r = _ratio(color, bg)
         assert r >= 4.5, (
@@ -484,6 +490,108 @@ def test_variety_default_color_dark_keys_match_surfaces_varieties() -> None:
 
 
 # --- get_variety_default_colors() accessor tests ---------------------------
+
+
+def test_no_inline_color_styles_in_panel_files() -> None:
+    """dark-mode-2026q2-e1 rect M2: panel files (appearance_panel.py,
+    view_panel.py, parameters_panel.py) must NOT call
+    `widget.setStyleSheet(MUTED_TEXT_STYLE)` /
+    `setStyleSheet(VALUE_MONO_STYLE)` /
+    `setStyleSheet(RANGE_LABEL_STYLE)` — these inline styles hardcode
+    PALETTE_LIGHT colors and override the dark QSS cascade, producing
+    near-invisible text (1.21-2.22:1) when the user is in Dark theme.
+
+    All call sites were migrated to ``widget.setProperty("role", X)`` in
+    this milestone; the QSS role selectors in ``_render_stylesheet``
+    handle color + font for both themes via theme-aware cascade.  This
+    test catches any future re-introduction of the inline-style pattern.
+
+    The legacy constants (MUTED_TEXT_STYLE, VALUE_MONO_STYLE,
+    RANGE_LABEL_STYLE) remain in styles.py as backward-compat exports
+    only — they are not consumed in-repo after this rectification.
+    """
+    from pathlib import Path
+    forbidden = (
+        "setStyleSheet(MUTED_TEXT_STYLE)",
+        "setStyleSheet(VALUE_MONO_STYLE)",
+        "setStyleSheet(RANGE_LABEL_STYLE)",
+    )
+    repo_root = Path(__file__).resolve().parent.parent
+    panel_files = (
+        "appearance_panel.py",
+        "view_panel.py",
+        "parameters_panel.py",
+    )
+    for panel_name in panel_files:
+        panel_path = repo_root / panel_name
+        # Scan line-by-line, skipping Python comments — comments that
+        # discuss the deprecated pattern (as the migrated call sites do)
+        # are legitimate documentation, not actual calls.
+        for ln_num, raw_line in enumerate(
+            panel_path.read_text().splitlines(), start=1
+        ):
+            line = raw_line.split("#", 1)[0]  # strip Python comment
+            for pattern in forbidden:
+                assert pattern not in line, (
+                    f"{panel_name}:{ln_num} contains inline-style call "
+                    f"{pattern!r} (non-comment code).  Replace with "
+                    f"`widget.setProperty(\"role\", X)` so the QSS role "
+                    f"selector handles theme-aware color cascade."
+                )
+
+
+def test_dark_stylesheet_includes_role_selectors() -> None:
+    """dark-mode-2026q2-e1 rect M2: APP_STYLESHEET_DARK must include the
+    role-property selectors that replace the inline-style constants.
+    Without these rules, panel labels with `setProperty("role", "muted")`
+    etc. would get no color/font override and fall back to QPalette
+    defaults — re-opening the AI-12 dark-on-dark failure.
+    """
+    required_selectors = (
+        'QLabel[role="muted"]',
+        'QLabel[role="value-mono"]',
+        'QLabel[role="range-label"]',
+    )
+    for sel in required_selectors:
+        assert sel in styles.APP_STYLESHEET_DARK, (
+            f"APP_STYLESHEET_DARK missing role selector {sel!r}; "
+            f"_render_stylesheet must emit this rule so role-property "
+            f"labels render correctly in dark mode."
+        )
+        assert sel in styles.APP_STYLESHEET, (
+            f"APP_STYLESHEET missing role selector {sel!r}; "
+            f"light theme also depends on it."
+        )
+
+
+def test_dark_stylesheet_dock_title_has_explicit_color() -> None:
+    """dark-mode-2026q2-e1 rect HIGH-1: QDockWidget::title must set color:
+    explicitly in the dark stylesheet — otherwise Qt falls back to
+    QPalette.WindowText (near-black on light OS) and the dark dock header
+    background renders dock titles at ~1.62:1.
+    """
+    # The rendered CSS will contain `color: <hex>;` inside the
+    # `QDockWidget::title` block.  Match permissively (any whitespace).
+    assert (
+        'QDockWidget::title' in styles.APP_STYLESHEET_DARK
+        and 'color:' in styles.APP_STYLESHEET_DARK.split('QDockWidget::title')[1].split('}')[0]
+    ), "QDockWidget::title block in APP_STYLESHEET_DARK must set `color:` explicitly"
+
+
+def test_dark_stylesheet_statusbar_has_explicit_background() -> None:
+    """dark-mode-2026q2-e1 rect HIGH-2: QStatusBar must set background:
+    explicitly so the dark text doesn't render on the platform's light
+    QPalette.Window on light-OS systems (would be #a0a0a0 on ~#ececec ≈
+    2.21:1, an AI-12 fail).
+    """
+    statusbar_block = (
+        styles.APP_STYLESHEET_DARK.split('QStatusBar')[1].split('}')[0]
+        if 'QStatusBar' in styles.APP_STYLESHEET_DARK else ''
+    )
+    assert 'background:' in statusbar_block, (
+        "QStatusBar block in APP_STYLESHEET_DARK must set `background:` "
+        "explicitly so dark text is legible on light-OS platforms"
+    )
 
 
 def test_get_variety_default_colors_returns_correct_dict() -> None:

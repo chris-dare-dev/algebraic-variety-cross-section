@@ -151,6 +151,18 @@ The app ships two palettes — `PALETTE_LIGHT` and `PALETTE_DARK` in [styles.py]
 - "Follow system" on macOS uses Qt's `colorScheme()` enum; high-contrast or other non-Light/Dark values map to Dark as a safe fallback.
 - The named constants (`COLOR_MUTED`, `BG_VIEWPORT`, etc.) remain `PALETTE_LIGHT` aliases for backward-compat — the theme swap goes through `_render_stylesheet`, not through these constants.
 
+**Theme-aware label styling — use QSS role properties, NOT `setStyleSheet(MUTED_TEXT_STYLE)`:**
+
+Panel files must NEVER do `label.setStyleSheet(MUTED_TEXT_STYLE | VALUE_MONO_STYLE | RANGE_LABEL_STYLE)` — those constants hardcode `PALETTE_LIGHT` colors and OVERRIDE the dark QSS cascade (widget-level styles win over `QApplication`-level rules in Qt's style cascade).  Use the canonical Qt theme-aware pattern instead:
+
+```python
+label.setProperty("role", "muted")        # was: setStyleSheet(MUTED_TEXT_STYLE)
+label.setProperty("role", "value-mono")   # was: setStyleSheet(VALUE_MONO_STYLE)
+label.setProperty("role", "range-label")  # was: setStyleSheet(RANGE_LABEL_STYLE)
+```
+
+The QSS role selectors in `_render_stylesheet` handle color + font for both themes via theme-aware cascade.  This was the H1 finding in this milestone's rectification pass — without it, dark-mode numeric readouts dropped to 1.21:1 contrast.  The legacy `MUTED_TEXT_STYLE` / `VALUE_MONO_STYLE` / `RANGE_LABEL_STYLE` constants remain in `styles.py` as backward-compat exports but are not consumed in-repo after `dark-mode-2026q2-e1`'s rectification commit.  The `test_no_inline_color_styles_in_panel_files` test in `tests/test_styles_palette.py` guards against re-introduction.
+
 WCAG verification is per-token, per-theme.  `tests/test_styles_palette.py` carries a dark twin for every text-contrast assertion and a parallel non-text contrast suite for the dark panel borders, focus ring, and reset button.  The MF1 swatch-chip finding deferred from variety-palette-2026q2-e1 is closed by the dark default: all four variety colors clear 3:1 on `BG_PANEL_DARK = #252526` (measured 5.83-7.20:1).
 
 ### 4.4 Re-entrancy guard

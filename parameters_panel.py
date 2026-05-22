@@ -40,8 +40,9 @@ class ParametersPanel(QWidget):
 
         # Context hint banner — shown only when a variety provides extra context
         # (e.g. CY3 parametric surfaces).  Hidden by default.
+        # dark-mode-2026q2-e1 rect: QSS role property (was MUTED_TEXT_STYLE inline).
         self._hint_label = QLabel("")
-        self._hint_label.setStyleSheet(MUTED_TEXT_STYLE)
+        self._hint_label.setProperty("role", "muted")
         self._hint_label.setWordWrap(True)
         self._hint_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
         self._hint_label.hide()
@@ -51,8 +52,9 @@ class ParametersPanel(QWidget):
         self._content_layout.setSpacing(10)
         self._root.addLayout(self._content_layout)
 
+        # dark-mode-2026q2-e1 rect: QSS role property (was MUTED_TEXT_STYLE inline).
         self._empty_label = QLabel("(no parameters for this surface)")
-        self._empty_label.setStyleSheet(MUTED_TEXT_STYLE)
+        self._empty_label.setProperty("role", "muted")
         self._empty_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._content_layout.addWidget(self._empty_label)
 
@@ -137,8 +139,9 @@ class ParametersPanel(QWidget):
         name_lbl.setToolTip(spec.description or spec.label)
         header.addWidget(name_lbl)
         header.addStretch(1)
+        # dark-mode-2026q2-e1 rect: QSS role property (was VALUE_MONO_STYLE inline).
         value_lbl = QLabel(self._format_value(spec.default, spec))
-        value_lbl.setStyleSheet(VALUE_MONO_STYLE)
+        value_lbl.setProperty("role", "value-mono")
         value_lbl.setToolTip("Current value")
         header.addWidget(value_lbl)
         outer.addLayout(header)
@@ -159,11 +162,12 @@ class ParametersPanel(QWidget):
         # Min / max range labels flanking below the slider
         range_row = QHBoxLayout()
         range_row.setContentsMargins(0, 0, 0, 0)
+        # dark-mode-2026q2-e1 rect: QSS role property (was RANGE_LABEL_STYLE inline).
         min_lbl = QLabel(f"{spec.minimum:g}{spec.suffix}")
-        min_lbl.setStyleSheet(RANGE_LABEL_STYLE)
+        min_lbl.setProperty("role", "range-label")
         min_lbl.setToolTip("Minimum value")
         max_lbl = QLabel(f"{spec.maximum:g}{spec.suffix}")
-        max_lbl.setStyleSheet(RANGE_LABEL_STYLE)
+        max_lbl.setProperty("role", "range-label")
         max_lbl.setToolTip("Maximum value")
         max_lbl.setAlignment(Qt.AlignmentFlag.AlignRight)
         range_row.addWidget(min_lbl)
@@ -172,8 +176,9 @@ class ParametersPanel(QWidget):
         outer.addLayout(range_row)
 
         if spec.description:
+            # dark-mode-2026q2-e1 rect: QSS role property (was MUTED_TEXT_STYLE inline).
             desc = QLabel(spec.description)
-            desc.setStyleSheet(MUTED_TEXT_STYLE)
+            desc.setProperty("role", "muted")
             desc.setWordWrap(True)
             outer.addWidget(desc)
 

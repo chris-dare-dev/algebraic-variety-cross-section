@@ -29,3 +29,15 @@
 - The stub test `test_variety_default_color_is_stub_for_upl5` asserts `== {}` and must be DELETED (not supplemented) when the dict is populated — otherwise the test suite contains a guaranteed contradiction.
 - `set_default_color` on AppearancePanel must NOT call render — the caller flows naturally into `_render_current` → `apply_to_actor`. Calling render inside `set_default_color` would be premature (no mesh exists yet on variety-combo change before subtype is selected).
 - BG_SURFACE_DEFAULT is the correct fallback in `VARIETY_DEFAULT_COLOR.get(name, BG_SURFACE_DEFAULT)` — it's already exported from styles.py but may not be imported at the call site in app.py; check import line first.
+
+## dark-mode-2026q2-e1 (2026-05-22)
+- For dark-mode stylesheet milestones, compute WCAG ratios numerically before writing a single token — ratio(candidate, BG_PANEL_DARK) must be explicit; "passes qualitatively" is not sufficient for the AI-12 sub-task the challenger MAJOR-flagged.
+- BG_PANEL_DARK = #252526 is the right anchor: dark but not pitch-black, leaves room for structural separation (dock header), and is in the Quanta/3Blue1Brown/VS Code dark register confirmed by synthesis.md.
+- Structural background tokens (BG_DOCK_HEADER, BG_RESET_BTN, BG_CAMERA_BTN_HOVER) do NOT need 3:1 vs BG_PANEL because they are not UI component boundaries — the BORDER token carries the WCAG 1.4.11 obligation. Document this explicitly to prevent the implementer from flagging them as failures.
+- QGuiApplication.styleHints().colorScheme() (Qt 6.5+, guaranteed by the >=6.6 pin) provides native follow-system detection with a colorSchemeChanged signal — no darkdetect dep needed. darkdetect is BSD-3-Clause but polling-only; the Qt native API wins.
+- APP_STYLESHEET_DARK naming is load-bearing: render-panel-chrome.py detects it via getattr(styles, "APP_STYLESHEET_DARK", None) (styles.py:151-157). Do NOT rename.
+- _render_stylesheet(palette: dict) approach avoids all drift risk from duplicate f-string templates. Every palette token must be referenced as palette["TOKEN"] inside the function, not via named constants (which are bound to PALETTE_LIGHT at module load).
+- VARIETY_DEFAULT_COLOR_DARK is identical to VARIETY_DEFAULT_COLOR: all four light-mode colors clear 3:1 (swatch chip) and 4.5:1 (canvas) against BG_PANEL_DARK (#252526) and BG_VIEWPORT (#2f2f2f) respectively. Reuse verbatim — close the MF1 deferred finding with a test assertion, not new hex values.
+- Pattern A (styles.get_variety_default_colors(theme) in app.py) keeps AppearancePanel decoupled from theme state. AppearancePanel.set_default_color() signature stays hex-string-only. No change to appearance_panel.py beyond ~5 LOC for the import of the new accessor.
+- TEXT_DISABLED_DARK must NOT have a WCAG test — it intentionally uses WCAG §1.4.3 disabled exception. Document in the dict comment, not a test assertion. Same pattern as light mode TEXT_DISABLED = #aaaaaa.
+- For dark-mode milestones, LOC estimate splits: ~270 LOC total (styles.py ~75, app.py ~55, appearance_panel.py ~5, tests ~110, CONTEXT.md ~25). This fits the inline (non-delegated) path.

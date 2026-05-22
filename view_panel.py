@@ -81,7 +81,8 @@ class ViewPanel(QWidget):
         )
         help_label.setWordWrap(True)
         help_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
-        help_label.setStyleSheet(MUTED_TEXT_STYLE)
+        # dark-mode-2026q2-e1 rect: QSS role property (was MUTED_TEXT_STYLE inline).
+        help_label.setProperty("role", "muted")
         help_label.setToolTip(
             "Mouse controls for the 3D viewport:\n"
             "  Left-drag      — rotate\n"
@@ -176,7 +177,8 @@ class ViewPanel(QWidget):
         radius_header.addWidget(self._radius_label)
         radius_header.addStretch(1)
         self._radius_value = QLabel("2.50")
-        self._radius_value.setStyleSheet(VALUE_MONO_STYLE)
+        # dark-mode-2026q2-e1 rect: QSS role property (was VALUE_MONO_STYLE inline).
+        self._radius_value.setProperty("role", "value-mono")
         self._radius_value.setToolTip("Current clip radius / half-side length")
         radius_header.addWidget(self._radius_value)
         layout.addLayout(radius_header)
@@ -195,10 +197,11 @@ class ViewPanel(QWidget):
         # Range labels
         range_row = QHBoxLayout()
         range_row.setContentsMargins(0, 0, 0, 0)
+        # dark-mode-2026q2-e1 rect: QSS role property (was RANGE_LABEL_STYLE inline).
         _min_lbl = QLabel("0.10")
-        _min_lbl.setStyleSheet(RANGE_LABEL_STYLE)
+        _min_lbl.setProperty("role", "range-label")
         _max_lbl = QLabel("10.00")
-        _max_lbl.setStyleSheet(RANGE_LABEL_STYLE)
+        _max_lbl.setProperty("role", "range-label")
         _max_lbl.setAlignment(Qt.AlignmentFlag.AlignRight)
         range_row.addWidget(_min_lbl)
         range_row.addStretch(1)
