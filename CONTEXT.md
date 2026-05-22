@@ -52,10 +52,10 @@ These choices were made early by an Opus research agent. Don't relitigate them w
 
 - **PySide6** over PyQt6 — LGPL is friendlier than GPL for redistribution. API is identical.
 - **PyVista + pyvistaqt** — `QtInteractor` widget drops a real VTK render window into a `QMainWindow`, native trackball rotate/zoom/pan come for free. Toggling wireframe / colors / background is one-line property assignments.
-- **scikit-image's `measure.marching_cubes`** for implicit surfaces — proven, fast, returns vertices + faces + analytic gradient normals.
+- **VTK Flying Edges (`vtkFlyingEdges3D`)** for implicit surfaces — `pv.ImageData(...).contour([level], method="flying_edges")`. SMP-threaded, ~3-4× faster than `skimage.measure.marching_cubes` on the isocontour step (measured n=240: 298 ms → 98 ms), mathematically identical. Replaced scikit-image in realtime-variety-render-e6 / CAND-1; scikit-image is no longer a dependency.
 - **Adaptive bounds** for the Fermat quartic family — the box is computed from `c` and `γ` so axial arms always fit. Don't hard-code box sizes for new generators with wide parameter ranges.
-- **Taubin smoothing post-marching-cubes** — `mesh.smooth_taubin(n_iter=20, pass_band=0.1)` is volume-preserving; vanilla Laplacian shrinks geometry.
-- **Gradient-based normals from marching_cubes** — the analytic normals are far smoother than face-averaged ones near high-curvature regions. We attach them BEFORE Taubin smoothing as a seed, then `compute_normals()` rederives after smoothing.
+- **Taubin smoothing post-isocontour** — `mesh.smooth_taubin(n_iter=20, pass_band=0.1)` is volume-preserving; vanilla Laplacian shrinks geometry.
+- **Gradient-based normals seeded by the contour** — `contour(..., compute_normals=True)` seeds analytic gradient normals from the scalar field; `compute_normals()` rederives per-vertex normals after Taubin smoothing for shading consistency.
 - **qtawesome for button icons** — MIT-licensed icon font wrapper (PySide6-compatible since v1.4.1). Lazy-imported via [`icons.py`](icons.py) so the ~150-200ms font-cache cold-boot fires at first icon paint, not at app launch. Icon color resolves from the active palette's `TEXT_VALUE` token so the same icon works in both themes. Added in qtawesome-icons-2026q2-e1 (UPL-4 from the 2026q2-graph-and-window uplift); covers Reset Camera / Screenshot / Reset Defaults at v0; the camera-preset grid + display toggles defer to a follow-up milestone.
 
 **Avoid:**
@@ -104,11 +104,10 @@ The dropdown shows the **outer keys** (variety) → **inner keys** (subtype). Th
 ### 4.2 Generator function contract
 
 Every generator returns a `pyvista.PolyData`. Implicit generators use `_marching_cubes_to_polydata(field, bounds)` which:
-1. Validates the field has a zero-crossing (raises `ValueError("No real zero set...")` if not).
-2. Calls `skimage.measure.marching_cubes`, captures gradient normals.
-3. `mesh.clean()` to weld duplicate vertices.
-4. `mesh.smooth_taubin(n_iter=20, pass_band=0.1)` for volume-preserving smoothing.
-5. `mesh.compute_normals(...)` to refresh after smoothing.
+1. Validates the field has a zero-crossing (raises `ValueError("No real zero set...")` if not), and re-asserts that contract after contouring (a 0-point mesh also raises).
+2. Contours via VTK Flying Edges — `pv.ImageData(...).contour([level], method="flying_edges")` (realtime-variety-render-e6 / CAND-1; replaced `skimage.measure.marching_cubes`). The scalar field is raveled in **Fortran order** because `np.meshgrid(..., indexing="ij")` and VTK `ImageData` disagree on axis order.
+3. `mesh.smooth_taubin(n_iter=20, pass_band=0.1)` for volume-preserving smoothing. **No `clean()` pass** — Flying Edges already emits a watertight shared-vertex mesh, and a `clean()` here regresses shading (see §8.15).
+4. `mesh.compute_normals(...)` to refresh after smoothing.
 
 Parametric generators (CY3 Hanson family) skip this and use `_grid_to_polydata(X, Y, Z)` + `_concat_polydata(meshes)` to assemble triangulated patches directly. Note: Hanson cross-sections **intentionally skip Taubin smoothing** — the parametric grid is already C², and smoothing would smear patch boundaries.
 
@@ -365,7 +364,7 @@ See section 4.4. Without a guard, `processEvents` during status-bar update can r
 
 ### 8.6 marching_cubes raises cryptically on all-positive fields
 
-`skimage.measure.marching_cubes` raises `ValueError: Surface level must be within volume data range` if the field has no zero crossing. We pre-check `field.min() > level or field.max() < level` and raise our own `ValueError("No real zero set in the sampling box for these parameters. ...")` with the actual field range. The MainWindow `except ValueError` catches this and shows it in the status bar; **and clears `self._raw_mesh = None`** so subsequent domain clips don't apply to a stale mesh.
+A field with no zero crossing produces no isosurface. We pre-check `field.min() > level or field.max() < level` and raise our own `ValueError("No real zero set in the sampling box for these parameters. ...")` with the actual field range. VTK Flying Edges (unlike the old `skimage.measure.marching_cubes`, which raised `ValueError: Surface level must be within volume data range`) returns a **silent 0-point mesh** instead of erroring — including for a degenerate uniform field that slips past the strict-inequality pre-check — so `_marching_cubes_to_polydata` also raises on `mesh.n_points == 0` after contouring. The MainWindow `except ValueError` catches this and shows it in the status bar; **and clears `self._raw_mesh = None`** so subsequent domain clips don't apply to a stale mesh.
 
 ### 8.7 Hanson disconnected-patch lighting
 
@@ -426,6 +425,10 @@ The variety-level gate is correct anyway because culling is **harmless across al
 Also note: the Enriques wing-tip truncation visible at the edge of the rendered viewport is a sampling-bounds artifact (surface extends past the marching-cubes grid), not a culling effect.  Culling is orthogonal to bounds-clipping.
 
 The user's `apply_to_actor` path pushes `actor.prop.culling = self._culling or "none"` so Wireframe / Show-edges / Flat-shading toggles in the Appearance dock don't fight the culling state (the cull persists across appearance changes within the same surface session).
+
+### 8.15 `clean()` after VTK Flying Edges collapses cells → inside-out shading
+
+When `_marching_cubes_to_polydata` was switched from `skimage.measure.marching_cubes` to VTK Flying Edges (`realtime-variety-render-e6` / CAND-1), an interim version kept a `mesh.clean()` pass for vertex-merge hygiene. It regressed shading badly: `clean()` merges the handful of near-coincident points Flying Edges emits, which **collapses incident triangles into zero-area degenerate cells**. `vtkPolyDataNormals`' orientation-consistency walk cannot cross a degenerate cell, so the mesh splits into orientation islands — half the Enriques canonical sextic shaded inside-out (large black patches in off-screen renders). The fix is simply **no `clean()`**: `vtkFlyingEdges3D` is contractually a watertight, shared-vertex, all-triangle extractor with nothing to merge. Guarded by `test_mesh_generators.py::test_*_consistent_winding` (every directed edge traversed at most once). **Do not re-add `clean()` to the Flying Edges path.**
 
 ---
 

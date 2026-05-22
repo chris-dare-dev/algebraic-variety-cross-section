@@ -43,6 +43,20 @@ def test_kummer_surface_below_one_third_boundary():
         kummer_surface(mu_squared=1.0 / 3.0)
 
 
+def test_uniform_field_at_level_raises():
+    """A field that is uniformly equal to the contour level has no isosurface.
+
+    Regression guard for realtime-variety-render-e6: ``field.min() ==
+    field.max() == level`` slips past the strict-inequality pre-check
+    (``0 > 0`` and ``0 < 0`` are both False), and vtkFlyingEdges3D then
+    returns a silent 0-point PolyData. The post-contour ``n_points == 0``
+    guard must re-assert the AI-14 ValueError contract.
+    """
+    field = np.zeros((10, 10, 10), dtype=float)
+    with pytest.raises(ValueError, match="No real zero set"):
+        _marching_cubes_to_polydata(field, bounds=1.0, level=0.0)
+
+
 def test_field_with_zero_crossing_does_not_raise():
     """A field that crosses zero should NOT raise ValueError."""
     # Simple plane: F[i,j,k] = i - n//2, zero crossing at the midplane

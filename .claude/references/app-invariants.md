@@ -70,7 +70,7 @@ mesh.clip_scalar(scalars="_dist", value=r, invert=True)
 
 ## AI-6 — Implicit surfaces use marching cubes; parametric surfaces do NOT
 
-Implicit surface generators (Fermat, Kummer, all Enriques figures, Dwork pencil) sample a scalar field on a cubic grid and call `_marching_cubes_to_polydata(field, bounds)` which pre-validates the field has a zero crossing (raises `ValueError("No real zero set...")` if not), calls `skimage.measure.marching_cubes` with `gradient_direction`, runs `mesh.clean()`, applies **Taubin smoothing** (`smooth_taubin(n_iter=20, pass_band=0.1)` — volume-preserving), then `compute_normals()` to refresh after smoothing.
+Implicit surface generators (Fermat, Kummer, all Enriques figures, Dwork pencil) sample a scalar field on a cubic grid and call `_marching_cubes_to_polydata(field, bounds)` which pre-validates the field has a zero crossing (raises `ValueError("No real zero set...")` if not, and again on a 0-point contour result), contours via VTK Flying Edges (`pv.ImageData(...).contour([level], method="flying_edges")` — replaced `skimage.measure.marching_cubes` in realtime-variety-render-e6), applies **Taubin smoothing** (`smooth_taubin(n_iter=20, pass_band=0.1)` — volume-preserving), then `compute_normals()` to refresh after smoothing. No `clean()` pass — Flying Edges emits a watertight shared-vertex mesh and a `clean()` regresses shading (CONTEXT.md §8.15).
 
 Parametric surfaces (Hanson cross-sections — quintic, cubic torus, asymmetric) skip marching cubes; they build `(X, Y, Z)` 2D arrays and call `_grid_to_polydata(X, Y, Z)` + `_concat_polydata(meshes)` to assemble triangulated patches directly.  Hanson cross-sections **intentionally skip Taubin smoothing** — the parametric grid is already C², and smoothing would smear patch boundaries.
 
@@ -141,7 +141,7 @@ PyVista's color parser requires named colors, full 6-digit hex (`#888888`), or R
 
 ## AI-14 — Generator function contract: `pv.PolyData` or `ValueError`
 
-Every generator returns a `pv.PolyData`.  Implicit generators raise `ValueError("No real zero set in the sampling box for these parameters. ...")` when the field has no zero crossing (pre-checked before calling `skimage.measure.marching_cubes`).  `MainWindow._render_current` catches `ValueError` and:
+Every generator returns a `pv.PolyData`.  Implicit generators raise `ValueError("No real zero set in the sampling box for these parameters. ...")` when the field has no zero crossing (pre-checked before contouring, and re-checked on a 0-point Flying Edges result).  `MainWindow._render_current` catches `ValueError` and:
 
 1. Surfaces the message in the status bar.
 2. Sets `self._raw_mesh = None` so subsequent domain clips don't apply to a stale mesh.

@@ -96,8 +96,9 @@ def _marching_cubes_to_polydata(
          'flying_edges')``) on the sampled scalar field. Flying Edges is
          VTK's modern, SMP-threaded isocontouring algorithm — geometrically
          identical to classic marching cubes to machine precision but
-         ~7-10× faster on the marching-cubes step at production resolutions
-         (realtime-variety-render-e6 / CAND-1). ``compute_normals=True``
+         ~3-4× faster on the isocontour step at production resolutions
+         (measured n=240: 298 ms → 98 ms; realtime-variety-render-e6 /
+         CAND-1). ``compute_normals=True``
          seeds gradient-based normals from the scalar field; they are
          re-derived in step 3 after smoothing anyway, so this is only a
          convenience seed.
@@ -150,6 +151,15 @@ def _marching_cubes_to_polydata(
         compute_normals=True,
         compute_scalars=False,
     )
+    # vtkFlyingEdges3D returns a 0-point mesh (not an error) for a degenerate
+    # field whose range collapses exactly onto the contour level
+    # (field.min() == field.max() == level) — the strict-inequality pre-check
+    # above cannot catch that case.  Re-assert the AI-14 ValueError contract.
+    if mesh.n_points == 0:
+        raise ValueError(
+            "No real zero set in the sampling box for these parameters. "
+            "Try adjusting the sliders to a different parameter combination."
+        )
     # No clean()/triangulate() pass: vtkFlyingEdges3D is contractually an
     # all-triangle, shared-vertex, watertight extractor — there is nothing to
     # merge or re-triangulate. Adding clean() here regresses shading (see the

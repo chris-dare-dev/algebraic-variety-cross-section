@@ -1,8 +1,8 @@
 {
   "id": "realtime-variety-render-e6",
   "created_at": "2026-05-22T15:48:47Z",
-  "updated_at": "2026-05-22T15:57:39Z",
-  "phase": "implement-running",
+  "updated_at": "2026-05-22T16:33:09Z",
+  "phase": "rectify-running",
   "phase_history": [
     {
       "phase": "init",
@@ -19,6 +19,22 @@
     {
       "phase": "implement-running",
       "at": "2026-05-22T15:56:42Z"
+    },
+    {
+      "phase": "implement-complete",
+      "at": "2026-05-22T16:24:03Z"
+    },
+    {
+      "phase": "critique-running",
+      "at": "2026-05-22T16:24:19Z"
+    },
+    {
+      "phase": "critique-complete",
+      "at": "2026-05-22T16:28:56Z"
+    },
+    {
+      "phase": "rectify-running",
+      "at": "2026-05-22T16:29:03Z"
     }
   ],
   "milestone_brief": "Implement roadmap epic realtime-variety-render-e6 -- VTK Flying Edges marching-cubes replacement (CAND-1). Replace skimage.measure.marching_cubes in surfaces.py:_marching_cubes_to_polydata with VTK vtkFlyingEdges3D via pv.ImageData(...).contour([level], method='flying_edges'). SMP-threaded, mathematically identical to MC, zero new deps. Implicit pipeline ONLY (Fermat, Kummer, Enriques x4, Dwork) -- Hanson parametric pipeline untouched (AI-6). Address challenger MINOR objections: (1) Flying Edges drops skimage analytic gradient normals -- derive via compute_normals() post-extraction; add off-screen visual comparison on Kummer + Enriques canonical sextic to confirm no shading regression on high-curvature surfaces; (2) measure real before/after speedup on this machine via the CAND-12 telemetry shipped in e1. Constraints: AI-1, AI-3, AI-6, AI-13, AI-14; tests/test_mesh_generators.py smoke tests guard regressions. Predecessor e1 (CAND-12 telemetry) shipped directly in commit 3e40ddf -- treat the e1 dependency as satisfied.",
@@ -32,19 +48,29 @@
   "implementation_path": "inline",
   "implementation_plan": ".claude/notes/milestones/realtime-variety-render-e6/artifacts/implementation-plan.md",
   "implementation_base": "42b6c1712603de1032e930dcdb615e44d58d7def",
-  "implementation_commit_range": null,
-  "implementation_commits": [],
+  "implementation_commit_range": "42b6c17..864337f",
+  "implementation_commits": [
+    "864337fbcbdd49ae5c7a7a7a598fa0181d20c61d"
+  ],
   "implementation_branch": null,
-  "critique_path": null,
-  "critics_run": [],
+  "critique_path": ".claude/notes/milestones/realtime-variety-render-e6/artifacts/adversary-critique.md",
+  "critics_run": [
+    "adversary"
+  ],
   "critique_finding_counts": {
     "critical": 0,
     "high": 0,
-    "medium": 0,
-    "low": 0
+    "medium": 3,
+    "low": 2
   },
   "rectification_commit": null,
-  "fixed_findings": [],
+  "fixed_findings": [
+    "M1",
+    "M2",
+    "M3",
+    "L1",
+    "L2"
+  ],
   "deferred_findings": [],
   "invalidated_findings": [],
   "regression_tests_added": []

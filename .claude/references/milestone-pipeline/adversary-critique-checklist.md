@@ -49,19 +49,21 @@ Implicit and parametric pipelines are different and must not mix.
 
 **Concrete checks:**
 
-- New implicit-surface generator that skips `_marching_cubes_to_polydata` and calls `skimage.measure.marching_cubes` directly?  AI-6, MEDIUM (loses the zero-crossing pre-check, the Taubin smoothing, and the gradient normals).
+- New implicit-surface generator that skips `_marching_cubes_to_polydata` and contours directly (`pv.ImageData(...).contour(...)` or a bare `skimage.measure.marching_cubes`)?  AI-6, MEDIUM (loses the zero-crossing pre-check, the Taubin smoothing, and the gradient normals).
 - New parametric generator that goes through `_marching_cubes_to_polydata`?  AI-6, HIGH (no scalar field to march on).
 - Parametric generator that calls `smooth_taubin(...)` after `_concat_polydata`?  AI-6, HIGH (smears patch boundaries; Hanson grid is already C^2).
 - Generator that uses `_grid_to_polydata` without `_concat_polydata` for multi-patch surfaces?  MEDIUM (each patch becomes a disconnected component anyway -- this is fine -- but the normal mode must match per AI-7).
 - Hanson normal mode regressed to `consistent_normals=True, auto_orient_normals=True`?  AI-7, HIGH (per-patch lighting flips).
 
 **Anchor (CONTEXT.md section 4.2):** `_marching_cubes_to_polydata` runs a
-fixed sequence: zero-crossing pre-check -> `marching_cubes` with
-`gradient_direction` -> `mesh.clean()` -> `smooth_taubin(n_iter=20,
-pass_band=0.1)` -> `compute_normals()`.  Skipping any of these breaks
-parity with the existing K3/Enriques/Dwork generators.  Use
-`grep -n "_marching_cubes_to_polydata\|skimage.measure.marching_cubes"
-surfaces.py` -- the bare skimage call should only appear inside the helper.
+fixed sequence: zero-crossing pre-check -> VTK Flying Edges
+(`pv.ImageData(...).contour([level], method="flying_edges")`, F-order
+ravel) -> 0-point re-check -> `smooth_taubin(n_iter=20, pass_band=0.1)` ->
+`compute_normals()`.  There is deliberately **no `clean()`** pass — it
+regresses shading (CONTEXT.md section 8.15).  Skipping any of the kept
+steps breaks parity with the existing K3/Enriques/Dwork generators.  Use
+`grep -n "_marching_cubes_to_polydata\|\.contour(" surfaces.py` -- the bare
+contour call should only appear inside the helper.
 
 ---
 
