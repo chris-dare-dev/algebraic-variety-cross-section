@@ -36,12 +36,24 @@ def count_root_files() -> int:
     return sum(1 for p in REPO_ROOT.iterdir() if p.is_file() and not p.name.startswith("."))
 
 
+# Paths excluded from all source-tree-scanning checks.  .claude/ and .github/
+# are OUT OF SCOPE per the /repository-architect user brief.
+def _is_out_of_scope(rel: str) -> bool:
+    return (
+        rel.startswith(".venv/")
+        or rel.startswith(".git/")
+        or rel.startswith(".claude/")
+        or rel.startswith(".github/")
+        or "__pycache__" in rel
+    )
+
+
 def find_utils_files_over(loc_threshold: int) -> list[tuple[str, int]]:
     out = []
     for name in ("utils.py", "helpers.py", "common.py", "misc.py"):
         for p in REPO_ROOT.rglob(name):
             rel = p.relative_to(REPO_ROOT).as_posix()
-            if rel.startswith(".venv/") or rel.startswith(".git/"):
+            if _is_out_of_scope(rel):
                 continue
             try:
                 loc = sum(1 for _ in p.open("r", encoding="utf-8", errors="replace"))
@@ -56,7 +68,7 @@ def find_files_over(loc_threshold: int) -> list[tuple[str, int]]:
     out = []
     for p in REPO_ROOT.rglob("*.py"):
         rel = p.relative_to(REPO_ROOT).as_posix()
-        if rel.startswith(".venv/") or rel.startswith(".git/") or ".claude/worktrees/" in rel:
+        if _is_out_of_scope(rel):
             continue
         try:
             loc = sum(1 for _ in p.open("r", encoding="utf-8", errors="replace"))
@@ -72,7 +84,7 @@ def has_star_imports() -> list[str]:
     pattern = re.compile(r"^\s*from\s+[\w.]+\s+import\s+\*\s*$")
     for p in REPO_ROOT.rglob("*.py"):
         rel = p.relative_to(REPO_ROOT).as_posix()
-        if rel.startswith(".venv/") or rel.startswith(".git/") or ".claude/worktrees/" in rel:
+        if _is_out_of_scope(rel):
             continue
         try:
             text = p.read_text(encoding="utf-8", errors="replace")
@@ -209,15 +221,28 @@ def c10():
 
 @register(11, "Importable code under a named package")
 def c11():
-    pkgs = [d for d in REPO_ROOT.iterdir() if d.is_dir() and (d / "__init__.py").exists()]
+    # Tests/docs/etc are NOT source packages even if they have __init__.py.
+    # The check is whether application source lives in a real package, not
+    # whether ANY directory has __init__.py.
+    EXCLUDED_PACKAGE_NAMES = {"tests", "test", "docs", "doc", "examples", "scripts", "tools", "benchmarks"}
+    pkgs = [
+        d for d in REPO_ROOT.iterdir()
+        if d.is_dir()
+        and (d / "__init__.py").exists()
+        and d.name not in EXCLUDED_PACKAGE_NAMES
+        and not d.name.startswith(".")
+    ]
     src_pkgs = []
     if (REPO_ROOT / "src").exists():
-        src_pkgs = [d for d in (REPO_ROOT / "src").iterdir() if d.is_dir() and (d / "__init__.py").exists()]
+        src_pkgs = [
+            d for d in (REPO_ROOT / "src").iterdir()
+            if d.is_dir() and (d / "__init__.py").exists()
+        ]
     all_pkgs = pkgs + src_pkgs
     flat_py = [p for p in REPO_ROOT.glob("*.py") if not p.name.startswith(".") and p.name != "setup.py"]
     if all_pkgs:
-        return True, f"package(s): {[p.name for p in all_pkgs]}"
-    return False, f"NO PACKAGE — {len(flat_py)} loose .py files at root"
+        return True, f"source package(s): {[p.name for p in all_pkgs]}"
+    return False, f"NO SOURCE PACKAGE -- {len(flat_py)} loose .py files at root (tests/ excluded from package detection)"
 
 
 @register(12, "No utils.py file over 200 LOC")
@@ -239,7 +264,7 @@ def c14():
     bad = []
     for p in REPO_ROOT.rglob("*.py"):
         rel = p.relative_to(REPO_ROOT).as_posix()
-        if rel.startswith(".venv/") or rel.startswith(".git/") or "__pycache__" in rel:
+        if _is_out_of_scope(rel):
             continue
         name = p.stem
         if name != name.lower() or "-" in name:

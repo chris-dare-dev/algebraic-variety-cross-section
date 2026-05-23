@@ -57,8 +57,20 @@ case "$PHASE" in
     SUMMARY="preflight complete: baseline captured at $BASE; dry-run report written"
     ;;
   execute-complete)
-    COMMITS=$(git -C "$REPO_ROOT" log --oneline HEAD 2>/dev/null | wc -l | tr -d ' ' || echo "?")
-    SUMMARY="execute complete: $COMMITS commit(s) since baseline; parity-diff.md written"
+    # Read restructure_base from state.json so we count commits SINCE the baseline,
+    # not the entire repo history.  Falls back to '?' if state read fails.
+    STATE="$DIR/state.json"
+    BASE=""
+    if [[ -f "$STATE" ]]; then
+      BASE=$("$REPO_ROOT/.venv/bin/python" -c "import json; s=json.load(open('$STATE')); print(s.get('restructure_base') or '')" 2>/dev/null || \
+             "$REPO_ROOT/.venv/Scripts/python.exe" -c "import json; s=json.load(open('$STATE')); print(s.get('restructure_base') or '')" 2>/dev/null || echo "")
+    fi
+    if [[ -n "$BASE" ]]; then
+      COMMITS=$(git -C "$REPO_ROOT" log --oneline "${BASE}..HEAD" 2>/dev/null | wc -l | tr -d ' ' || echo "?")
+    else
+      COMMITS="?"
+    fi
+    SUMMARY="execute complete: $COMMITS commit(s) since baseline (base=${BASE:0:12}); parity-diff.md written"
     ;;
   complete)
     SUMMARY="rectify complete: pipeline done"

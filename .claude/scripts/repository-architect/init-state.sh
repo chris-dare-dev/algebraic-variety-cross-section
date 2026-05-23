@@ -104,6 +104,16 @@ PY
   exit 0
 fi
 
+# Pre-flight deps check (closes adversary CRITICAL #3: libcst/pydeps/coverage
+# missing surfaces at minute 40 instead of second 1).  Non-fatal in --resume
+# mode (already gated above), but for a fresh restructure we ABORT here so
+# the user can install before any agent work begins.
+if ! bash "$(dirname "$0")/check-deps.sh"; then
+  echo >&2
+  echo "ABORT: required deps missing.  Install and re-run." >&2
+  exit 1
+fi
+
 mkdir -p "$DIR/cache" "$DIR/audit" "$DIR/design" "$DIR/preflight" "$DIR/execute" "$DIR/rectify"
 
 NOW=$("$PY" -c "from datetime import datetime, timezone; print(datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'))")

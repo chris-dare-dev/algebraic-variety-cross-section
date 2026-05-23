@@ -64,12 +64,18 @@ Verdict: GREEN / YELLOW / RED.
 
 ## Step 4 — Write PREFLIGHT.md + ROLLBACK.md
 
-Main session compiles `preflight/PREFLIGHT.md` (baseline + dry-run summary) and `preflight/ROLLBACK.md` (the rollback plan from PLAN.md §8 as a runnable artifact). ROLLBACK.md template:
+Main session compiles `preflight/PREFLIGHT.md` (baseline + dry-run summary) and `preflight/ROLLBACK.md` (the rollback plan from PLAN.md §8 as a runnable artifact). The orchestrator also creates a `git tag` for the baseline so the user can navigate via tag name (not just SHA) during a panic-rollback. Run this once at Step 4 entry:
+
+```bash
+git tag "refactor-baseline-{ID}" $(checkpoint.py {ID} --get restructure_base)
+```
+
+ROLLBACK.md template:
 
 ```markdown
 # Rollback plan — {ID}
 
-**Baseline tag:** refactor-baseline-{ID}
+**Baseline tag:** refactor-baseline-{ID}  (created by Phase 3 Step 4)
 **Baseline SHA:** {restructure_base}
 
 ## Tier 1 — whole-restructure revert
@@ -79,6 +85,10 @@ git commit -m "revert: roll back {ID}"
 ## Tier 3 — partial (per-module)
 git checkout {restructure_base} -- <path>
 git commit -m "revert: partial rollback of <module> from {ID}"
+
+## Alternate Tier 1 (via tag) — easier to remember weeks later
+git revert --no-commit refactor-baseline-{ID}..HEAD
+git commit -m "revert: roll back {ID}"
 
 ## What rollback does NOT restore
 - MOVES.md entries

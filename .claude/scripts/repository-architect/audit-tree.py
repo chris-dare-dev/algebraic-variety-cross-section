@@ -33,8 +33,10 @@ except (AttributeError, ValueError):
 
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-EXCLUDE_DIRS = {".venv", ".git", "__pycache__", ".pytest_cache"}
-EXCLUDE_PATH_FRAGMENTS = (".claude/worktrees/",)
+# .claude/ and .github/ are OUT OF SCOPE per the /repository-architect user brief
+# (standard tool folders that the pipeline must not touch).
+EXCLUDE_DIRS = {".venv", ".git", "__pycache__", ".pytest_cache", ".claude", ".github"}
+EXCLUDE_PATH_FRAGMENTS = (".claude/", ".github/")
 
 
 def cache_dir(rid: str) -> Path:

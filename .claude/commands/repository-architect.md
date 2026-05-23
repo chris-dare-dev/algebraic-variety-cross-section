@@ -351,8 +351,10 @@ Roll back to before batch <N>?  [y/n]
 
 ```
 Agent: repository-architect-anchor-updater
-Inputs: {ID}, {BATCH_NUMBER}, {SYMBOL_MAP_PATH}, {RESTRUCTURE_BASE}
+Inputs: {ID}, {BATCH_NUMBER}, {SYMBOL_MAP_PATH}, {RESTRUCTURE_BASE}, {PLAN_PATH}, {OUTPUT_PATH}=.claude/notes/repository-architect/<ID>/execute/anchor-updater-batch-{N}-report.md
 ```
+
+Failing to substitute `{OUTPUT_PATH}` results in literal `anchor-updater-batch-{N}-report.md` filenames — a clear regression signal. Failing to substitute `{PLAN_PATH}` makes the anchor-updater unable to check Section 6 of PLAN.md for CONTEXT.md / README.md edit authorization.
 
 After each batch, the anchor-updater:
 - Appends to repo-root `MOVES.md` (creates it if absent).  Format: `## YYYY-MM-DD — <batch operation>\n- old/path.py:line -> new/path.py:line (moved X LOC)`.
@@ -504,6 +506,9 @@ The `repository-architect-test-suggester` agent gets ONE additional documented s
 ## External-write boundary
 
 The `/repository-architect` pipeline enforces strict external-write boundaries.  In addition to the shared boundaries from `/milestone-pipeline`:
+
+- **No sub-agent may invoke `checkpoint.py` to write state.json.** State writes are orchestrator-only. Sub-agents READ state via `checkpoint.py --get` when needed but never WRITE. This is the load-bearing rule that makes Phase 1 (3 parallel auditors) and Phase 5 (2 parallel critics) race-free; the orchestrator serializes appends in its own turn after agents return.
+
 
 - **No `git mv` from any sub-agent except `repository-architect-implementer`** during its Phase 4 dispatch.
 - **No writes to `CONTEXT.md`, `README.md`, `requirements.txt`, `pytest.ini`** from any sub-agent — except the anchor-updater MAY edit CONTEXT.md/README.md ONLY when PLAN.md section 6 explicitly authorizes it.

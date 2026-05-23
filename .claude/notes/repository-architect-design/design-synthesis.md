@@ -134,7 +134,7 @@ These are NOT Claude Code hook events (no `settings.json` mutation). They are pi
 ├── execute/                            # Phase 4 outputs
 │   ├── implementer-batch-{N}-log.md
 │   ├── parity-verifier-batch-{N}-report.md
-│   ├── anchor-updater-report.md
+│   ├── anchor-updater-batch-{N}-report.md
 │   ├── post.collect.txt
 │   ├── post.coverage.xml
 │   └── parity-diff.md
