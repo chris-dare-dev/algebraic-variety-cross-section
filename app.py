@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import sys
 
-from PySide6.QtCore import Qt, QThreadPool, QTimer, Slot
+from PySide6.QtCore import Qt, QSettings, QSize, QThreadPool, QTimer, Slot
 from PySide6.QtGui import (
     QAction,
     QActionGroup,
@@ -24,12 +24,14 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QMainWindow,
+    QPushButton,
     QStatusBar,
     QVBoxLayout,
     QWidget,
 )
 from pyvistaqt import QtInteractor
 
+import icons
 from appearance_panel import AppearancePanel
 from parameters_panel import ParametersPanel
 from render_worker import MeshResult, MeshWorker, is_stale_result
@@ -154,6 +156,46 @@ class MainWindow(QMainWindow):
 
         self.setStatusBar(QStatusBar())
         self.statusBar().showMessage("Choose a variety to begin.")
+
+        # render-busy-spinner-2026q3-e1 (UPL-4 v2 — CONTEXT.md §9 deferral
+        # closed): visual companion to the "Computing {label} […]…" status
+        # message that already shows while a MeshWorker job is in flight.
+        # Two load-bearing implementation details:
+        #   1. QPushButton (flat, disabled) — NOT QLabel.  qtawesome's Spin
+        #      animation triggers via QIcon.paint() in paintEvent, which
+        #      only QAbstractButton subclasses call; QLabel.setPixmap()
+        #      captures a static frame and the animation dies.
+        #   2. addPermanentWidget — NOT addWidget.  addWidget slots get
+        #      obscured by showMessage() temporary messages, and this app
+        #      calls showMessage at every render event; the spinner would
+        #      be hidden at the exact moment it's most needed.  Permanent
+        #      widgets render on the RIGHT and are never obscured.
+        # The icon itself is set further down in _build_ui() after the
+        # other panel refresh_icons() calls, because qta.icon() requires a
+        # live QApplication (CONTEXT.md §8.12) — by the time __init__ runs
+        # it's guaranteed live, but the icon-setting line is grouped with
+        # its theme-refresh siblings for grep-ability.
+        self._render_busy_spinner = QPushButton()
+        self._render_busy_spinner.setFlat(True)
+        self._render_busy_spinner.setEnabled(False)
+        self._render_busy_spinner.setFixedSize(16, 16)
+        # render-busy-spinner-2026q3-e1 rect HIGH: explicit setIconSize
+        # mirrors the convention used by all 7 peer icon-bearing buttons
+        # (appearance_panel + view_panel).  Without it, Qt picks up
+        # QStyle::PM_SmallIconSize which is 16 on macOS Aqua/Fusion but
+        # can be 22px on Linux Fusion themes — the spinner arc would be
+        # rendered 22px inside a 16px frame and the rotation would clip.
+        self._render_busy_spinner.setIconSize(QSize(16, 16))
+        # render-busy-spinner-2026q3-e1 rect F-MEDIUM: tooltip is
+        # state-agnostic.  The original "Computing surface mesh — …"
+        # phrasing was misleading at idle (hovering the right edge before
+        # a render would claim a compute was in progress); the new wording
+        # is honest whether the spinner is spinning or hidden.
+        self._render_busy_spinner.setToolTip(
+            "Render activity indicator (not a progress bar)."
+        )
+        self._render_busy_spinner.setVisible(False)
+        self.statusBar().addPermanentWidget(self._render_busy_spinner)
 
         self._actor = None
         self._domain_overlay_actor = None
@@ -321,9 +363,40 @@ class MainWindow(QMainWindow):
         self.view_panel.refresh_icons(self._active_theme)
         self.parameters_panel.refresh_icons(self._active_theme)
         self.appearance_panel.refresh_icons(self._active_theme)
+        # render-busy-spinner-2026q3-e1 (UPL-4 v2): set the status-bar
+        # spinner icon AFTER QApplication is fully live.  Same constraint
+        # as the panel refresh_icons calls above — qta.icon() returns null
+        # without a live QApplication (CONTEXT.md §8.12).
+        self._render_busy_spinner.setIcon(
+            icons.render_busy_spinner_icon(
+                self._render_busy_spinner, self._active_theme
+            )
+        )
 
         # --- Keyboard shortcuts ----------------------------------------------
         self._setup_shortcuts()
+
+        # qsettings-persistence-v1-2026q3-e1 (UPL-25 partial — CONTEXT.md
+        # §9 V1 lift): restore geometry + dock layout + last-used variety
+        # and subtype.  MUST be called AFTER every addDockWidget /
+        # splitDockWidget / setStatusBar call above, otherwise the
+        # subsequent addDockWidget overrides the restored layout (Qt's
+        # restoreState contract).  Also AFTER _setup_shortcuts so the
+        # restored state can interact with shortcut-bound actions.
+        # First-launch (no saved state): guarded by schema_version check
+        # inside _restore_settings; method returns a no-op.
+        #
+        # rect MEDIUM-1 (frontend critic): MUST remain in __init__ (NOT
+        # showEvent).  The intermediate status-bar messages fired by
+        # setCurrentText during restore ("Variety: K3. Now choose a
+        # model.", "Computing Fermat quartic…") are INVISIBLE here
+        # because win.show() in main() hasn't been called yet — the
+        # window isn't yet on screen, so no paint events fire for the
+        # status bar.  Moving _restore_settings to showEvent would make
+        # those messages flash visibly on every second launch, which is
+        # the classic Qt persistence-flash UX bug pythonguis.com warns
+        # about.
+        self._restore_settings()
 
     # --- keyboard shortcuts ------------------------------------------------
 
@@ -351,6 +424,23 @@ class MainWindow(QMainWindow):
         self.subtype_combo.clear()
         self.subtype_combo.addItem(_PLACEHOLDER)
         if name in VARIETIES:
+            # qsettings-persistence-v1-2026q3-e1 (live write-back):
+            # persist the chosen variety the instant it's selected so
+            # the last choice survives a process kill that bypasses
+            # closeEvent (SIGKILL, crash).  Synchronous; no signal
+            # re-emission; AI-9 safe (no _render_current re-entry).
+            #
+            # rect MEDIUM (adversary critic): explicit sync() flushes
+            # the in-memory cache to the per-OS backing store.  Without
+            # it, Qt's deferred-sync behavior leaves the value in the
+            # cache only — a SIGKILL/crash before the next implicit
+            # sync window would lose the write, contradicting the
+            # SIGKILL-safety claim above.  Cost is small (single small-
+            # key write to ~/.config or registry); fires only on user
+            # action (variety swap), not in a hot loop.
+            _settings = QSettings()
+            _settings.setValue("LastSession/variety", name)
+            _settings.sync()
             subtypes = list(VARIETIES[name].keys())
             self.subtype_combo.addItems(subtypes)
             # Attach per-subtype tooltips
@@ -505,6 +595,18 @@ class MainWindow(QMainWindow):
         self.appearance_panel.set_hq_smoothing_eligible(is_hq_eligible)
         # Repopulate the parameters panel for the new surface.
         self.parameters_panel.set_specs(surface.params)
+        # qsettings-persistence-v1-2026q3-e1 (live write-back): persist
+        # the chosen subtype the instant it's selected — same crash-
+        # safety rationale as the variety write-back above.  Written
+        # AFTER the parameters_panel.set_specs so a slot triggered by
+        # set_specs that errors would NOT leave the saved subtype out-
+        # of-sync with what's actually selected.
+        #
+        # rect MEDIUM (adversary critic): explicit sync() — see the
+        # mirror block in _on_variety_changed for the full rationale.
+        _settings = QSettings()
+        _settings.setValue("LastSession/subtype", name)
+        _settings.sync()
         self._render_current(reset_camera=True)
 
     def _on_params_changed(self, _values: dict) -> None:
@@ -724,14 +826,17 @@ class MainWindow(QMainWindow):
         )
         if _is_hq_active:
             params["hq_smoothing"] = True
-        # enriques-hq-smoothing-2026q3-e1 rect F-M2: derive the [HQ]
-        # status-bar attribution label once and thread it through both
-        # the "Computing…" message AND (via self._inflight_hq_label) the
-        # final success/warning messages in _on_mesh_ready — users see
-        # "Computing Enriques surface [HQ]…" then "… [HQ] · … · 587 ms"
-        # so the longer render time is causally attributable to the
-        # toggle.
-        _hq_label = " [HQ]" if _is_hq_active else ""
+        # enriques-hq-smoothing-2026q3-e1 rect F-M2: derive the
+        # [Double-pass] status-bar attribution label once and thread it
+        # through both the "Computing…" message AND (via
+        # self._inflight_hq_label) the final success/warning messages in
+        # _on_mesh_ready — users see "Computing Enriques surface
+        # [Double-pass]…" then "… [Double-pass] · … · 587 ms" so the
+        # longer render time is causally attributable to the toggle.
+        # hq-smoothing-label-rename-2026q3-e1 (F-L1 closure): suffix
+        # renamed from "[HQ]" → "[Double-pass]" — variable name
+        # `_hq_label` STAYS (internal symbol).
+        _hq_label = " [Double-pass]" if _is_hq_active else ""
 
         # Capture the job context on the instance.  The result slot uses THESE
         # — not `_current_surface` / a fresh `parameters_panel.values()` —
@@ -739,6 +844,11 @@ class MainWindow(QMainWindow):
         # while the worker is in flight, and the slot must describe the
         # surface that was actually generated.
         self._computing = True
+        # render-busy-spinner-2026q3-e1: show the status-bar spinner the
+        # moment we hand work to the worker thread; mirrored to False in
+        # _on_mesh_ready's finally block below.  Pure setVisible() — no
+        # processEvents, no signal re-emit; AI-9 safe.
+        self._render_busy_spinner.setVisible(True)
         self._generation += 1
         self._inflight_surface = surface
         self._inflight_params = params
@@ -925,8 +1035,10 @@ class MainWindow(QMainWindow):
             # generate() time as a trailing "NNN ms" token after the bbox.
             # enriques-hq-smoothing-2026q3-e1 rect F-M2: `hq_label`
             # appended right after the surface label so users see
-            # "Enriques surface [HQ] · … · 587 ms" when the toggle is on
-            # — the longer render time is causally attributable.
+            # "Enriques surface [Double-pass] · … · 587 ms" when the
+            # toggle is on — the longer render time is causally
+            # attributable.  (Suffix renamed [HQ] → [Double-pass] by
+            # hq-smoothing-label-rename-2026q3-e1.)
             base_msg = (
                 f"{surface.label}{hq_label}  ·  {self._raw_mesh.n_points:,} verts, "
                 f"{self._raw_mesh.n_cells:,} faces{param_str}"
@@ -953,6 +1065,11 @@ class MainWindow(QMainWindow):
         finally:
             QApplication.restoreOverrideCursor()
             self._computing = False
+            # render-busy-spinner-2026q3-e1: paired with the setVisible(True)
+            # call at _render_current's self._computing = True line — hide
+            # the spinner as the same atomic step that flips _computing
+            # back to False.  Pure setVisible(); AI-9 safe.
+            self._render_busy_spinner.setVisible(False)
             self._active_worker = None
             # CAND-5: if a render was requested while this worker was in
             # flight, schedule exactly one catch-up.  `QTimer.singleShot(0, ...)`
@@ -1111,9 +1228,13 @@ class MainWindow(QMainWindow):
         """Construct the menu bar's Theme menu (Light / Dark / Follow system).
 
         Dark is the launch default (the viewport is always #2f2f2f, so dark
-        chrome is the coherent baseline).  Theme choice is V0-scope only:
-        the next launch returns to dark.  Persisting the user's pick is
-        UPL-25's territory (QSettings dock + theme state).
+        chrome is the coherent baseline).  Theme persistence remains V2 /
+        UPL-25 scope — qsettings-persistence-v1-2026q3-e1 shipped only the
+        geometry + dock-layout + last-variety/subtype slice (CONTEXT.md §9
+        V1 lift); the user's theme choice still resets to dark on every
+        launch.  Lifting that to a fourth V2 key (`LastSession/theme`)
+        would be one additional `setValue` + read pair in `_save_settings`
+        / `_restore_settings`.
         """
         theme_menu = self.menuBar().addMenu("Theme")
         # AI-11: fully qualified Qt enums.  QAction + QActionGroup live in
@@ -1190,10 +1311,16 @@ class MainWindow(QMainWindow):
         # the new theme's TEXT_VALUE color so all button glyphs match the
         # new chrome.  Synchronous; AI-9 safe (no processEvents involved).
         # appearance_panel added in v1 for the Wireframe + Show-edges
-        # display-toggle icons.
+        # display-toggle icons.  render-busy-spinner-2026q3-e1 added the
+        # status-bar spinner refresh.
         self.view_panel.refresh_icons(self._active_theme)
         self.parameters_panel.refresh_icons(self._active_theme)
         self.appearance_panel.refresh_icons(self._active_theme)
+        self._render_busy_spinner.setIcon(
+            icons.render_busy_spinner_icon(
+                self._render_busy_spinner, self._active_theme
+            )
+        )
 
         # Re-seed the appearance panel's variety-default color from the active
         # theme's dict — without this, switching theme while a variety is
@@ -1232,10 +1359,14 @@ class MainWindow(QMainWindow):
         # qtawesome-icons-2026q2-e1 (UPL-4) + e2 (v1): mirror the
         # refresh_icons calls from _on_theme_changed so OS-driven theme
         # changes also re-render icons across all three icon-bearing
-        # panels.  Synchronous; AI-9 safe.
+        # panels.  render-busy-spinner-2026q3-e1: same mirror for the
+        # status-bar spinner.  Synchronous; AI-9 safe.
         self.view_panel.refresh_icons(resolved)
         self.parameters_panel.refresh_icons(resolved)
         self.appearance_panel.refresh_icons(resolved)
+        self._render_busy_spinner.setIcon(
+            icons.render_busy_spinner_icon(self._render_busy_spinner, resolved)
+        )
         current_variety = self.variety_combo.currentText()
         if current_variety in VARIETIES:
             self.appearance_panel.set_default_color(
@@ -1252,7 +1383,121 @@ class MainWindow(QMainWindow):
 
     # --- lifecycle ---------------------------------------------------------
 
+    # qsettings-persistence-v1-2026q3-e1 (UPL-25 partial — CONTEXT.md §9 V1
+    # lift): save+restore window geometry, dock layout, and last-used
+    # variety+subtype across launches.  See CONTEXT.md §4.4a for the full key
+    # schema and save/restore timing contract.  V2/V3 scope (per-subtype
+    # slider values, theme preference, surface/bg colors, camera pose,
+    # clip state) is explicitly OUT-OF-SCOPE for this V1 milestone and
+    # remains §9-deferred.
+
+    _SETTINGS_SCHEMA_VERSION = 1
+
+    def _save_settings(self) -> None:
+        """Persist window geometry, dock layout, and current variety+subtype.
+
+        Called from :meth:`closeEvent` BEFORE the system-theme signal
+        disconnect and BEFORE ``_render_pool.waitForDone`` — the GUI must
+        still be live (``saveGeometry`` reads the current window state) and
+        the save must complete before any teardown blocks the event loop.
+
+        ``settings.sync()`` flushes to the per-OS backing store synchronously
+        so the save survives a force-kill of the parent process immediately
+        after ``closeEvent`` returns.
+        """
+        settings = QSettings()
+        settings.setValue("Window/geometry", self.saveGeometry())
+        settings.setValue("Window/state", self.saveState())
+        settings.setValue("Window/schema_version", self._SETTINGS_SCHEMA_VERSION)
+        # LastSession/variety and LastSession/subtype are written live in
+        # _on_variety_changed / _on_subtype_changed so they survive even a
+        # SIGKILL before closeEvent.  No need to re-write them here.
+        settings.sync()
+
+    def _restore_settings(self) -> None:
+        """Restore geometry, dock layout, and last variety+subtype.
+
+        Called at the END of :meth:`__init__`, AFTER all ``addDockWidget``,
+        ``splitDockWidget``, ``setStatusBar``, and menu-bar setup — Qt
+        documents that ``restoreState`` returns silently false if a dock
+        listed in the saved blob isn't yet added at restore time, OR if a
+        subsequent ``addDockWidget`` call overrides the restored geometry.
+        Adding the restore at the tail of ``__init__`` is the canonical
+        order (Qt Forum, pythonguis.com — both cited in the research brief).
+
+        Schema-version guard: if no V1 state is present (``schema_version <
+        1`` — default 0 on a fresh launch with no settings file), the
+        method returns immediately as a no-op.  Forward-compat: V2 can read
+        the schema_version and migrate / discard older state.
+        """
+        settings = QSettings()
+        schema = settings.value("Window/schema_version", 0, type=int)
+        if schema < self._SETTINGS_SCHEMA_VERSION:
+            return  # No saved state, or pre-V1 state — graceful no-op.
+
+        geom = settings.value("Window/geometry", None)
+        if geom is not None:
+            self.restoreGeometry(geom)
+
+        state = settings.value("Window/state", None)
+        if state is not None:
+            self.restoreState(state)
+
+        saved_variety = settings.value("LastSession/variety", "", type=str)
+        if saved_variety and saved_variety in VARIETIES:
+            # setCurrentText fires _on_variety_changed, which writes
+            # LastSession/variety back to QSettings (a no-op same-value
+            # write).  Synchronous; no processEvents; AI-9 safe.  The
+            # handler also rebuilds subtype_combo's items, so the
+            # subsequent setCurrentText on subtype_combo can find the
+            # saved subtype if it's still in the registry.
+            self.variety_combo.setCurrentText(saved_variety)
+            saved_subtype = settings.value("LastSession/subtype", "", type=str)
+            if saved_subtype and saved_subtype in VARIETIES[saved_variety]:
+                # setCurrentText fires _on_subtype_changed which triggers
+                # _render_current.  _computing is False at this point
+                # (no worker in flight); dispatch is queued via the
+                # existing MeshWorker path; no re-entrancy.
+                self.subtype_combo.setCurrentText(saved_subtype)
+        elif saved_variety:
+            # rect MEDIUM-2 (frontend critic): explicit user feedback
+            # when a previously-saved variety has been pruned from the
+            # registry (e.g. an experimental variety removed in a later
+            # release).  Silent fallback to the first-launch state would
+            # leave the user wondering whether their settings were lost.
+            # The message is fired here (NOT via showMessage with a
+            # timeout) so it persists until the user selects a variety.
+            # Empty saved_variety (the genuine first-launch case) stays
+            # silent — only the "saved-but-stale" branch surfaces a
+            # message.
+            self.statusBar().showMessage(
+                f"Last session: variety ‘{saved_variety}’ is no "
+                "longer available. Please choose a variety."
+            )
+
     def closeEvent(self, event):
+        # qsettings-persistence-v1-2026q3-e1: persist FIRST — must run
+        # while GUI is still live (saveGeometry/saveState read current
+        # window state) and before _render_pool.waitForDone potentially
+        # blocks for up to 30 s.
+        #
+        # rect HIGH (frontend critic): wrap in try/except.  QSettings.sync()
+        # can raise OSError / PermissionError on disk-full, read-only FS
+        # mount, macOS sandbox deny, or Windows registry ACL.  An unguarded
+        # raise here would skip the system-theme signal disconnect AND
+        # _render_pool.waitForDone(30000) below — the latter is the
+        # cross-thread teardown guard documented in CONTEXT.md §4.4 (a
+        # MeshWorker still building a pv.PolyData while plotter.close()
+        # tears down the VTK context is exactly the hazard the e3 spike
+        # flagged).  Save is best-effort: the live write-back in
+        # _on_variety_changed / _on_subtype_changed (with explicit sync())
+        # already covers the SIGKILL-safety claim for LastSession/*; the
+        # closeEvent save is the geometry/dock-layout flush only, and
+        # losing those degrades to the same UX as a fresh first launch.
+        try:
+            self._save_settings()
+        except OSError:
+            pass  # Backing-store write failed — proceed with teardown.
         # dark-mode-2026q2-e1 rect L2: disconnect the follow-system signal
         # if active.  Harmless in the current single-window main() pattern
         # (process exits after app.exec()), but the lambda captures `self` —
@@ -1288,6 +1533,17 @@ def main() -> int:
     QApplication.setAttribute(
         Qt.ApplicationAttribute.AA_EnableToolTipsOnDisabledWidgets, True
     )
+    # qsettings-persistence-v1-2026q3-e1 (UPL-25 partial — CONTEXT.md §9
+    # V1 lift): set the organization + application name BEFORE any
+    # QSettings construction.  The no-arg QSettings() form (used at
+    # every call site below) inherits these as its scope identifiers,
+    # so the saved state lands in the canonical per-OS backing store:
+    #   Linux: ~/.config/AVC/AlgebraicVarietyCrossSection.ini
+    #   macOS: ~/Library/Preferences/AVC.AlgebraicVarietyCrossSection.plist
+    #   Windows: HKCU\\Software\\AVC\\AlgebraicVarietyCrossSection
+    # See CONTEXT.md §4.4a for the key schema and save/restore timing.
+    QApplication.setOrganizationName("AVC")
+    QApplication.setApplicationName("AlgebraicVarietyCrossSection")
     app = QApplication(sys.argv)
     # dark-mode-2026q2-e1 (UPL-1): dark is the launch default because the
     # VTK viewport is always #2f2f2f.  Users can toggle to Light or Follow

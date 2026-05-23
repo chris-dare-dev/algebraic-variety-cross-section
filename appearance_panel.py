@@ -153,12 +153,14 @@ class AppearancePanel(QWidget):
         box = QGroupBox("Colors")
         vl = QVBoxLayout(box)
         # appearance-panel-layout-pass-2026q3-e2 rect F-L2: 6→4 to match
-        # the Render Mode group's intra-row spacing.  The 6px was a
+        # the Display & Quality group's intra-row spacing.  The 6px was a
         # holdover from center-aligned buttons (extra spacing to
         # compensate for sparse-text feel); after left-align the
-        # discontinuity vs the 4px Render Mode group below reads as a
-        # rhythm break across the group boundary.  Blender 4.x N-panel
+        # discontinuity vs the 4px Display & Quality group below reads as
+        # a rhythm break across the group boundary.  Blender 4.x N-panel
         # uses uniform 4px intra-row spacing across all sub-sections.
+        # (Group renamed Render Mode → Display & Quality by
+        # appearance-panel-render-mode-split-2026q3-e3, F-M2 closure.)
         vl.setSpacing(4)
 
         # Surface color row
@@ -170,9 +172,9 @@ class AppearancePanel(QWidget):
         # appearance-panel-layout-pass-2026q3-e2 (F-M2 closure): tag the
         # color-picker buttons with the `colors-button` role so they pick
         # up the `text-align: left` QSS rule and visually align with the
-        # display-toggle buttons in the Render Mode group below.  See
-        # CONTEXT.md §4.3b for the role-property pattern (NOT §4.3a —
-        # rect M1 citation fix).
+        # display-toggle buttons in the Display & Quality group below.
+        # See CONTEXT.md §4.3b for the role-property pattern (NOT §4.3a
+        # — rect M1 citation fix).
         surf_btn.setProperty("role", "colors-button")
         surf_btn.clicked.connect(self._pick_surface_color)
         surf_row.addWidget(self._surf_swatch)
@@ -197,15 +199,26 @@ class AppearancePanel(QWidget):
 
     def _build_toggles_group(self) -> QGroupBox:
         # appearance-panel-layout-pass-2026q3-e2 (F-L2 closure):
-        # "Render Mode" replaces the generic "Display" header.  MeshLab
-        # uses this exact term for its wireframe/solid/flat toggle set,
-        # which is the closest peer to AVC's Wireframe / Show edges / HQ
-        # smoothing trio.  Blender uses "Viewport Overlays" / "Shading";
-        # ParaView uses "Representation"; 3D Slicer uses "Display Type"
-        # within a "Display" section.  "Render Mode" was the more
-        # specific option the prior milestone's frontend critic
-        # recommended (F-L2).
-        box = QGroupBox("Render Mode")
+        # "Render Mode" replaced the generic "Display" header.  MeshLab
+        # uses that exact term for its wireframe/solid/flat toggle set,
+        # which was the closest peer to AVC's Wireframe / Show edges /
+        # Double-pass-smooth trio.  Blender uses "Viewport Overlays" /
+        # "Shading"; ParaView uses "Representation"; 3D Slicer uses
+        # "Display Type" within a "Display" section.
+        #
+        # appearance-panel-render-mode-split-2026q3-e3 (F-M2 closure):
+        # "Display & Quality" supersedes "Render Mode".  Double-pass
+        # smooth is NOT a render-mode toggle — it triggers a full mesh
+        # regeneration (the second Taubin pass moves every vertex), so
+        # the prior label misclassified it.  "Display & Quality"
+        # acknowledges both axes: Wireframe / Show edges are display-
+        # pipeline toggles (change `actor.prop.*`); Double-pass smooth
+        # is a quality toggle (changes mesh fidelity).  Single-group-
+        # multiple-axes pattern matches ParaView's Display tab.  The
+        # `&&` is the Qt literal-ampersand escape — `QGroupBox` inherits
+        # the `&` mnemonic interpretation from `QLabel`, so a single
+        # `&` would underline `Q` and bind it as an Alt+Q accelerator.
+        box = QGroupBox("Display && Quality")
         vl = QVBoxLayout(box)
         vl.setSpacing(4)
 
@@ -262,20 +275,31 @@ class AppearancePanel(QWidget):
         # CONTEXT.md §8.13 audit).  Figs 3+4 and all other varieties keep
         # the toggle greyed out — the +138ms second-pass cost is not
         # justified at their A₁-node topology.
-        self._hq_smoothing_cb = QPushButton("HQ smoothing")
+        # hq-smoothing-label-rename-2026q3-e1 (F-L1 closure): the user-
+        # visible label is "Double-pass smooth" — descriptive of the actual
+        # implementation (two Taubin passes total).  Internal symbol names
+        # (`_hq_smoothing_cb`, `hq_smoothing_changed`, etc.) stay as-is
+        # to avoid blast-radius churn — only the rendered text and the
+        # status-bar "[HQ]" → "[Double-pass]" suffix renamed.
+        self._hq_smoothing_cb = QPushButton("Double-pass smooth")
         self._hq_smoothing_cb.setCheckable(True)
         self._hq_smoothing_cb.setChecked(False)
         self._hq_smoothing_cb.setEnabled(False)
         self._hq_smoothing_cb.setToolTip(
+            # hq-smoothing-label-rename-2026q3-e1 rect MEDIUM-1: imperative
+            # verb form ("Apply", not "Applies") per Qt / Apple HIG tooltip
+            # convention.  Peer tooltips throughout this panel use imperative
+            # or noun-phrase form; "Applies" reads as if a parenthetical
+            # "(this control)" is implied — awkward and inconsistent.
             "Apply a second Taubin smoothing pass (n_iter=40, pass_band=0.05) "
-            "to reduce the double-curve sawtooth-ridge artifact on Enriques "
-            "figs 1 and 2.  Unlike Wireframe / Show edges (display-only "
-            "toggles), this triggers a full mesh regeneration — adds roughly "
-            "+31% generate time, about +140 ms on a reference dev machine at "
-            "default grid resolution; absolute cost is hardware-dependent.  "
-            "Disabled (greyed out) on other surfaces — the second pass "
-            "targets double-curve topology specifically and gives no benefit "
-            "on K3 / CY3 / Fano / Enriques figs 3+4."
+            "— two passes total — to reduce the double-curve sawtooth-ridge "
+            "artifact on Enriques figs 1 and 2.  Unlike Wireframe / Show edges "
+            "(display-only toggles), this triggers a full mesh regeneration — "
+            "adds roughly +31% generate time, about +140 ms on a reference dev "
+            "machine at default grid resolution; absolute cost is hardware-"
+            "dependent.  Disabled (greyed out) on other surfaces — the second "
+            "pass targets double-curve topology specifically and gives no "
+            "benefit on K3 / CY3 / Fano / Enriques figs 3+4."
         )
         self._hq_smoothing_cb.setProperty("role", "display-toggle")
         self._hq_smoothing_cb.toggled.connect(self._on_hq_smoothing_toggled)
@@ -537,10 +561,11 @@ class AppearancePanel(QWidget):
         Read by ``MainWindow._render_current`` to inject the
         ``hq_smoothing=True`` kwarg into ``enriques_figure_1`` /
         ``enriques_figure_2`` when the user has toggled the
-        "HQ smoothing" button.  Default ``False`` preserves the
-        ~449 ms Enriques generate-time baseline (see CONTEXT.md §8.16
-        for the spike timing log that justified the deferral / opt-in
-        design).
+        "Double-pass smooth" button (formerly "HQ smoothing"; relabeled
+        by ``hq-smoothing-label-rename-2026q3-e1``).  Default ``False``
+        preserves the ~449 ms Enriques generate-time baseline (see
+        CONTEXT.md §8.16 for the spike timing log that justified the
+        deferral / opt-in design).
         """
         return self._hq_smoothing
 

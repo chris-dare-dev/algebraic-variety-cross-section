@@ -169,16 +169,20 @@ def test_hq_smoothing_toggle_is_checkable_qpushbutton_in_appearance_panel() -> N
     ).read_text(encoding="utf-8")
 
     # Negative assertion: no QCheckBox construction for the HQ toggle.
-    assert 'QCheckBox("HQ smoothing")' not in src, (
-        "appearance_panel.py constructs QCheckBox('HQ smoothing') — "
+    assert 'QCheckBox("Double-pass smooth")' not in src, (
+        "appearance_panel.py constructs QCheckBox('Double-pass smooth') — "
         "F-M2 regression.  Must use QPushButton(checkable=True) per "
         "CONTEXT.md §8.15."
     )
 
     # Positive assertions: the new pattern is present.
-    assert 'QPushButton("HQ smoothing")' in src, (
-        "appearance_panel.py is missing QPushButton('HQ smoothing') — "
-        "the opt-in toggle from enriques-hq-smoothing-2026q3-e1."
+    # hq-smoothing-label-rename-2026q3-e1 (F-L1 closure): user-visible
+    # label renamed from "HQ smoothing" → "Double-pass smooth".  Internal
+    # symbol names (_hq_smoothing_cb, hq_smoothing_changed) STAY.
+    assert 'QPushButton("Double-pass smooth")' in src, (
+        "appearance_panel.py is missing QPushButton('Double-pass smooth') — "
+        "the opt-in toggle from enriques-hq-smoothing-2026q3-e1, relabeled "
+        "by hq-smoothing-label-rename-2026q3-e1."
     )
 
     # The mesh-vs-actor signal pattern: hq_smoothing_changed Signal must
@@ -323,15 +327,115 @@ def test_hq_smoothing_disabled_by_default_in_appearance_panel() -> None:
     ).read_text(encoding="utf-8")
     # Match the specific button's setEnabled(False) — the line must
     # appear in the same block as the QPushButton construction.
-    hq_block_idx = src.find('QPushButton("HQ smoothing")')
-    assert hq_block_idx > 0, "HQ smoothing button not found in source"
+    # hq-smoothing-label-rename-2026q3-e1 (F-L1 closure): label is
+    # "Double-pass smooth" (not "HQ smoothing").
+    hq_block_idx = src.find('QPushButton("Double-pass smooth")')
+    assert hq_block_idx > 0, (
+        "Double-pass smooth button not found in source — F-L1 regression: "
+        "the user-visible label must be 'Double-pass smooth'."
+    )
     # Check the next ~600 chars (the button construction block) for
     # setEnabled(False).
     hq_block = src[hq_block_idx:hq_block_idx + 600]
     assert "setEnabled(False)" in hq_block, (
-        "HQ-smoothing button is missing setEnabled(False) in its "
+        "Double-pass-smooth button is missing setEnabled(False) in its "
         "construction block — without it the toggle is enabled at launch "
         "before any Enriques subtype is selected, allowing the user to "
         "click it for K3 / CY3 / Fano (where the kwarg isn't accepted "
         "and would raise TypeError)."
+    )
+
+
+# ---------------------------------------------------------------------------
+# hq-smoothing-label-rename-2026q3-e1 (F-L1 closure) regression guards
+# ---------------------------------------------------------------------------
+
+
+def test_appearance_panel_uses_double_pass_smooth_label() -> None:
+    """The Display & Quality group's third button must read 'Double-pass
+    smooth' (not 'HQ smoothing').  F-L1 closure: marketing-tone label
+    replaced with a descriptive name that names the implementation
+    (two Taubin passes total).  Group renamed Render Mode → Display &
+    Quality by appearance-panel-render-mode-split-2026q3-e3.
+    """
+    src = (
+        pathlib.Path(__file__).resolve().parent.parent / "appearance_panel.py"
+    ).read_text(encoding="utf-8")
+    assert 'QPushButton("Double-pass smooth")' in src, (
+        "appearance_panel.py is missing QPushButton('Double-pass smooth') — "
+        "the relabeled opt-in toggle from hq-smoothing-label-rename-2026q3-e1."
+    )
+
+
+def test_appearance_panel_does_not_use_old_hq_smoothing_label() -> None:
+    """Regression guard: the old user-visible label 'HQ smoothing' must
+    NOT appear anywhere in appearance_panel.py as a QPushButton arg.
+    Internal symbol names like `_hq_smoothing_cb` are unaffected — this
+    test specifically guards the user-rendered label string.
+    """
+    src = (
+        pathlib.Path(__file__).resolve().parent.parent / "appearance_panel.py"
+    ).read_text(encoding="utf-8")
+    assert 'QPushButton("HQ smoothing")' not in src, (
+        "appearance_panel.py still contains QPushButton('HQ smoothing') — "
+        "regression: the F-L1 label rename to 'Double-pass smooth' did not "
+        "apply.  Internal symbol names (_hq_smoothing_cb, etc.) are NOT "
+        "tested here — only the user-visible button label string."
+    )
+
+
+def test_app_status_bar_uses_double_pass_suffix() -> None:
+    """The status-bar attribution suffix must read '[Double-pass]' (not
+    '[HQ]') when the toggle is active.  Threaded through both the
+    'Computing…' message and the success-message in _on_mesh_ready
+    via the `_hq_label` variable (variable name retained per F-L1 brief).
+    """
+    src = (
+        pathlib.Path(__file__).resolve().parent.parent / "app.py"
+    ).read_text(encoding="utf-8")
+    assert '" [Double-pass]"' in src, (
+        "app.py is missing the ' [Double-pass]' status-bar suffix string — "
+        "hq-smoothing-label-rename-2026q3-e1 must update _hq_label."
+    )
+
+
+def test_app_status_bar_does_not_use_old_hq_suffix() -> None:
+    """Regression guard: the old status-bar suffix literal ' [HQ]' must
+    NOT appear in app.py.  The variable name `_hq_label` is exempt
+    (internal symbol); only the user-rendered string literal is tested.
+    """
+    src = (
+        pathlib.Path(__file__).resolve().parent.parent / "app.py"
+    ).read_text(encoding="utf-8")
+    assert '" [HQ]"' not in src, (
+        "app.py still contains the ' [HQ]' status-bar string literal — "
+        "regression: the F-L1 suffix rename to ' [Double-pass]' did not "
+        "apply.  Variable name `_hq_label` is exempt; only string literals "
+        "guarded here."
+    )
+
+
+def test_double_pass_smooth_tooltip_uses_imperative_verb() -> None:
+    """Regression guard for hq-smoothing-label-rename-2026q3-e1 rect MEDIUM-1.
+
+    The Double-pass-smooth tooltip must open with the imperative verb
+    ``Apply`` (not the third-person-singular ``Applies``).  Qt and Apple
+    HIG both specify imperative-or-noun-phrase form for tooltips, and
+    every other tooltip in ``appearance_panel.py`` already follows the
+    imperative pattern.
+    """
+    src = (
+        pathlib.Path(__file__).resolve().parent.parent / "appearance_panel.py"
+    ).read_text(encoding="utf-8")
+    # The tooltip first phrase must use the imperative "Apply".
+    assert '"Apply a second Taubin smoothing pass' in src, (
+        "appearance_panel.py is missing the imperative tooltip phrase "
+        '\'"Apply a second Taubin smoothing pass\' — rect MEDIUM-1 regression: '
+        "the Qt / Apple HIG convention requires imperative verbs in tooltips."
+    )
+    # And must NOT use the third-person-singular "Applies".
+    assert '"Applies a second Taubin smoothing pass' not in src, (
+        "appearance_panel.py contains the third-person-singular tooltip "
+        'phrase \'"Applies a second Taubin smoothing pass\' — rect MEDIUM-1 '
+        "regression: revert to the imperative \"Apply\" form."
     )

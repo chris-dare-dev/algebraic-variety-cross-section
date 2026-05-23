@@ -54,10 +54,13 @@ filled-outer-border of ``mdi6.border-outside`` reads "solid with edges
 drawn on top".  At 16px both icons are perceptually distinct (verified
 via the test_wireframe_and_edges_icons_are_distinct_names guard).
 
-Spinner / render-busy icon — DEFERRED to a v2 milestone.  ``QMovie.updated``
-signals can fire during ``QApplication.processEvents()`` inside
-``_render_current``, touching the AI-9 re-entrancy surface that
-``self._computing`` guards.  See CONTEXT.md §9 for the deferral rationale.
+Spinner / render-busy icon — shipped in ``render-busy-spinner-2026q3-e1``
+(UPL-4 v2).  The original deferral rationale (``QMovie.updated`` signals
+firing during ``QApplication.processEvents()`` in ``_render_current``) was
+mooted by ``realtime-variety-render-e4``: that milestone moved
+``surface.generate()`` onto a ``QThreadPool`` worker and removed the
+synchronous ``processEvents()`` call entirely.  See ``render_busy_spinner_icon()``
+below for the implementation; uses ``mdi6.loading`` + ``qta.Spin``.
 """
 from __future__ import annotations
 
@@ -186,6 +189,9 @@ def reset_defaults_icon(theme: str = "dark") -> QIcon:
 WIREFRAME_ICON_NAME = "mdi6.grid"
 SHOW_EDGES_ICON_NAME = "mdi6.border-outside"
 HQ_SMOOTHING_ICON_NAME = "mdi6.auto-fix"
+# render-busy-spinner-2026q3-e1 (UPL-4 v2 — closes CONTEXT.md §9 deferral):
+# circular loading arc spun by qta.Spin in the status-bar QPushButton.
+RENDER_BUSY_SPINNER_ICON_NAME = "mdi6.loading"
 
 
 def preset_plus_x_icon(theme: str = "dark") -> QIcon:
@@ -291,3 +297,77 @@ def hq_smoothing_icon(theme: str = "dark") -> QIcon:
     Wireframe + Show-edges both carried icons.
     """
     return _get_qta().icon(HQ_SMOOTHING_ICON_NAME, color=_icon_color(theme))
+
+
+def render_busy_spinner_icon(widget, theme: str = "dark") -> QIcon:
+    """Activity-indicator icon for the status-bar render-busy spinner widget.
+
+    render-busy-spinner-2026q3-e1 (UPL-4 v2): closes the CONTEXT.md §9
+    deferral.  The original blocker (``QMovie.updated`` signals firing
+    during ``QApplication.processEvents()`` re-entering ``_render_current``)
+    is structurally obsolete since ``realtime-variety-render-e4`` moved
+    ``surface.generate()`` onto a ``QThreadPool`` worker (see
+    ``render_worker.py``) and removed all ``processEvents()`` calls from
+    the render path.
+
+    Icon: ``mdi6.loading`` (MDI6 codepoint 0xf0772) — a partial circular
+    arc that, when spun, reads as the canonical "compute in progress"
+    indicator.  Alternatives considered and rejected:
+
+    - ``mdi6.sync`` (bidirectional arrows): implies sync / transfer, not
+      compute.
+    - ``mdi6.progress-clock`` (clock face): implies elapsed time, not
+      activity.
+    - ``fa5s.circle-notch`` / ``fa5s.spinner``: would mix font families
+      (this app uses ``mdi6`` throughout) — adds a second cold-boot font
+      load on first icon construction.
+
+    Animation: ``qta.Spin(widget, interval=10, step=6)`` produces one
+    360° rotation per ~600 ms — visually energetic enough to read as
+    "busy" without distracting during the 0.5–1.5 s compute window.  The
+    default ``step=1`` (3.6 s/rotation) is imperceptibly slow.
+
+    **AI-9 audit:** ``qta.Spin`` creates a ``QTimer`` parented to
+    ``widget`` on the first ``paintEvent`` inside ``Spin.setup()``.  The
+    timer fires ``timeout`` → ``widget.update()`` → ``paintEvent`` — a
+    pure paint path with no business-logic re-emission, no
+    ``processEvents()``, no signal connection back into
+    ``_render_current``.  The existing ``self._computing`` re-entrancy
+    guard remains the source of truth for in-flight detection; this
+    spinner is a pure visual companion.
+
+    **AI-15 attestation:** this indicator communicates compute *activity*
+    only — not percent-complete progress.  Flying Edges and Taubin
+    smoothing emit no intermediate progress signal, so the actual
+    percentage of the mesh-generation that is complete at any moment is
+    unknowable.  The status-bar text
+    ``statusBar().showMessage("Computing {surface.label}{_hq_label}…")``
+    is the ground truth for what is being computed; the spinner glyph is
+    a visual companion.  This docstring, the tooltip, and the
+    ``render_busy_spinner_icon`` factory MUST NOT be changed to claim
+    "X % done" semantics.
+
+    Args:
+        widget: the host ``QPushButton`` (flat, disabled) that owns the
+            animation.  ``QPushButton`` is required because qtawesome's
+            ``Spin`` triggers via ``QIcon.paint()`` in ``paintEvent``,
+            which only ``QAbstractButton`` subclasses call; ``QLabel``
+            uses ``setPixmap()`` which captures a single static frame
+            and the animation dies.  Passing the right owner widget
+            ensures the ``QTimer`` is parented correctly (auto-deleted
+            when the host widget is destroyed).
+        theme: ``"light"`` or ``"dark"``; routed through ``_icon_color``
+            so the spinner picks up the active palette's ``TEXT_VALUE``
+            color and re-resolves on theme swap.
+
+    Requires a live ``QApplication`` (``qta.icon()`` returns a null icon
+    + UserWarning without one — CONTEXT.md §8.12).  Call from
+    ``MainWindow.__init__`` after the panels are built, NOT from
+    ``__init__`` before ``QApplication.exec()`` has been entered.
+    """
+    qta = _get_qta()
+    return qta.icon(
+        RENDER_BUSY_SPINNER_ICON_NAME,
+        color=_icon_color(theme),
+        animation=qta.Spin(widget, interval=10, step=6),
+    )

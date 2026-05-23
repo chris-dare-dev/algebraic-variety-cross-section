@@ -1,0 +1,86 @@
+{
+  "id": "render-busy-spinner-2026q3-e1",
+  "created_at": "2026-05-23T02:32:17Z",
+  "updated_at": "2026-05-23T03:03:58Z",
+  "phase": "complete",
+  "phase_history": [
+    {
+      "phase": "init",
+      "at": "2026-05-23T02:32:17Z"
+    },
+    {
+      "phase": "research-running",
+      "at": "2026-05-23T02:32:27Z"
+    },
+    {
+      "phase": "research-complete",
+      "at": "2026-05-23T02:44:49Z"
+    },
+    {
+      "phase": "implement-running",
+      "at": "2026-05-23T02:45:08Z"
+    },
+    {
+      "phase": "implement-complete",
+      "at": "2026-05-23T02:51:59Z"
+    },
+    {
+      "phase": "critique-running",
+      "at": "2026-05-23T02:52:08Z"
+    },
+    {
+      "phase": "critique-complete",
+      "at": "2026-05-23T03:00:32Z"
+    },
+    {
+      "phase": "rectify-running",
+      "at": "2026-05-23T03:00:52Z"
+    },
+    {
+      "phase": "complete",
+      "at": "2026-05-23T03:03:58Z"
+    }
+  ],
+  "milestone_brief": "Lift the CONTEXT.md \u00a79 deferral of the render-busy spinner icon during mesh generation. The original blocker \u2014 \"QMovie.updated signals can fire during QApplication.processEvents() in _render_current, touching the AI-9 re-entrancy surface\" \u2014 is OBSOLETE: realtime-variety-render-e4 moved surface.generate() onto a QThreadPool worker (MeshWorker in render_worker.py, dispatched at app.py:592-594 via QueuedConnection), so the spinner can no longer race with synchronous mesh generation on the GUI thread. The status bar already shows \"Computing {surface.label}{_hq_label}\u2026\" via self.statusBar().showMessage in _render_current; the spinner is a visual companion (left of the status text) that pulses while self._computing == True and hides on idle. Scope: app.py (add a QLabel for the spinner widget; show/hide in _on_mesh_started / _on_mesh_ready or via a self._computing setter; left-align in the QStatusBar permanent-widget slot to avoid being clipped by the long bbox/timing message); icons.py (add a render_busy_spinner_icon factory using qtawesome qta.icon with animation=qta.Spin(widget) \u2014 the standard qtawesome spin pattern; pin the same mdi6 icon family used elsewhere for visual coherence \u2014 mdi6.loading or mdi6.sync are the natural picks). The spinner MUST stay AI-9-safe \u2014 no processEvents calls in the show/hide path; no signal connection that re-enters _render_current. Pure visual feedback. Tests: pure-Python source-text greps (AI-2) asserting the spinner widget is constructed, added to the status bar as a permanent widget (not a temporary message), and toggled via the _computing setter; off-screen render NOT applicable (status-bar widget is Qt-chrome, not a VTK render path). AI-15 honesty: the spinner indicates compute activity, not progress (mesh generation is opaque \u2014 no percent-complete signal). The status-bar text already gives ground truth.",
+  "research_mode": "single",
+  "oss_scout_requested": false,
+  "research_briefs": [
+    ".claude/notes/milestones/render-busy-spinner-2026q3-e1/research/agent-solo-brief.md"
+  ],
+  "research_synthesis": "AI-9 blocker confirmed OBSOLETE (zero processEvents in render path post-realtime-variety-render-e4; surface.generate runs on QThreadPool worker). LOAD-BEARING researcher catches: (1) widget MUST be QPushButton(flat=True, disabled), NOT QLabel \u2014 qtawesome Spin animation requires QIcon.paint() in paintEvent which only QAbstractButton subclasses call; (2) position MUST be addPermanentWidget (right side), NOT addWidget \u2014 addWidget gets obscured by showMessage which fires on every render event. Icon mdi6.loading + qta.Spin(widget, interval=10, step=6) = 600ms/rotation. Toggle at app.py:670 (self._computing=True) + app.py:829 (self._computing=False in _on_mesh_ready finally). Theme refresh wired at MainWindow.__init__ and theme-change handlers. 6 new source-grep tests in tests/test_render_busy_spinner.py. CONTEXT.md \u00a79 paragraph replaced; icons.py deferral comment replaced. ~135-150 LOC inline.",
+  "implementation_path": "inline",
+  "implementation_plan": ".claude/notes/milestones/render-busy-spinner-2026q3-e1/artifacts/implementation-plan.md",
+  "implementation_base": "0f95e67a6f0253023aede23dabd095f91105c2ac",
+  "implementation_commit_range": "0f95e67..fba985118b1b9c4d4a834d45be255a354aed3000",
+  "implementation_commits": [
+    "fba985118b1b9c4d4a834d45be255a354aed3000"
+  ],
+  "implementation_branch": null,
+  "critique_path": ".claude/notes/milestones/render-busy-spinner-2026q3-e1/artifacts/adversary-critique.md",
+  "critics_run": [
+    "adversary",
+    "frontend-ux"
+  ],
+  "critique_finding_counts": {
+    "critical": 0,
+    "high": 2,
+    "medium": 2,
+    "low": 5
+  },
+  "rectification_commit": "b077dc607b192756bc8440c1cb32035b28305c58",
+  "fixed_findings": [
+    "frontend_HIGH",
+    "adversary_MEDIUM",
+    "frontend_MEDIUM",
+    "adversary_LOW-1"
+  ],
+  "deferred_findings": [
+    "adversary_HIGH_process",
+    "adversary_LOW-2",
+    "adversary_LOW-3",
+    "frontend_LOW-1",
+    "frontend_LOW-2"
+  ],
+  "invalidated_findings": [],
+  "regression_tests_added": []
+}

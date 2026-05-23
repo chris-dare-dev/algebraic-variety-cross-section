@@ -798,8 +798,9 @@ def test_appearance_panel_colors_buttons_have_colors_button_role() -> None:
     rule `QPushButton[role="colors-button"] { text-align: left; ... }`
     picks them up.  Without the role tag the buttons fall back to Qt's
     platform-default center-alignment, re-introducing the cross-group
-    vertical-rhythm fracture between the Colors and Render Mode groups
-    that this milestone closed.
+    vertical-rhythm fracture between the Colors and Display & Quality
+    groups that this milestone closed.  (Group renamed Render Mode →
+    Display & Quality by appearance-panel-render-mode-split-2026q3-e3.)
 
     Source-text grep (AI-2 compliant — testing the alignment under a
     real QApplication would require Qt, which AI-2 bans).
@@ -839,12 +840,20 @@ def test_appearance_panel_colors_buttons_have_colors_button_role() -> None:
         )
 
 
-def test_appearance_panel_render_mode_group_header() -> None:
-    """appearance-panel-layout-pass-2026q3-e2 (F-L2 closure): the
-    display-toggles group's QGroupBox header is "Render Mode" (the
-    MeshLab peer-tool convention for wireframe/solid/flat toggle
-    controls), NOT the generic "Display" label that
-    display-toggles-checkable-button-2026q3-e1 left in place.
+def test_appearance_panel_display_and_quality_group_header() -> None:
+    """appearance-panel-render-mode-split-2026q3-e3 (F-M2 closure): the
+    display-toggles group's QGroupBox header is "Display && Quality" —
+    note the double `&` is the Qt literal-ampersand escape; a single `&`
+    would underline `Q` and bind it as an Alt+Q accelerator on the group
+    box, which is unintended.  Path (a) from the F-M2 deferred finding:
+    single QGroupBox stays, label acknowledges both axes (Wireframe /
+    Show edges = display-pipeline toggles; Double-pass smooth = quality
+    toggle that changes mesh fidelity).
+
+    Lineage of renames on this group:
+        display-toggles-checkable-button-2026q3-e1: QGroupBox("Display")
+        appearance-panel-layout-pass-2026q3-e2     : QGroupBox("Render Mode")
+        appearance-panel-render-mode-split-2026q3-e3: QGroupBox("Display && Quality")
 
     Source-text grep (AI-2 compliant — verifying the QGroupBox label
     under a real QApplication would require Qt, which AI-2 bans).
@@ -854,18 +863,32 @@ def test_appearance_panel_render_mode_group_header() -> None:
         pathlib.Path(__file__).resolve().parent.parent / "appearance_panel.py"
     ).read_text(encoding="utf-8")
 
-    assert 'QGroupBox("Render Mode")' in src, (
-        "appearance_panel.py is missing QGroupBox('Render Mode') — the "
-        "display-toggles-group header rename from the F-L2 milestone."
+    # Positive: the new header is present.
+    assert 'QGroupBox("Display && Quality")' in src, (
+        "appearance_panel.py is missing QGroupBox('Display && Quality') — "
+        "the display-toggles-group header rename from F-M2 "
+        "(appearance-panel-render-mode-split-2026q3-e3).  Note the `&&` "
+        "is REQUIRED: Qt interprets a single `&` as a mnemonic, so "
+        "QGroupBox('Display & Quality') would bind Alt+Q (unintended)."
     )
-    # The old generic "Display" header must NOT remain.  This catches the
-    # case where someone adds a Render Mode group elsewhere but leaves
-    # the original Display group in place by mistake.
+    # Negative: the immediately-prior "Render Mode" header must NOT remain.
+    assert 'QGroupBox("Render Mode")' not in src, (
+        "appearance_panel.py still contains QGroupBox('Render Mode') — "
+        "regression: appearance-panel-render-mode-split-2026q3-e3 renamed "
+        "it to 'Display && Quality' (F-M2 closure).  Internal symbol names "
+        "(_build_toggles_group, 'display-toggle' role property) are NOT "
+        "tested here — only the user-visible group-box header."
+    )
+    # Negative: the even-older generic "Display" header must NOT appear
+    # either.  Catches the case where someone reverts past the prior
+    # F-L2 milestone too.
     assert 'QGroupBox("Display")' not in src, (
-        "appearance_panel.py still contains QGroupBox('Display') — the "
-        "F-L2 milestone renamed it to 'Render Mode'.  If a future group "
-        "genuinely needs to be called 'Display', pick a more specific "
-        "name (per the peer-tool audit in the milestone research brief)."
+        "appearance_panel.py contains QGroupBox('Display') — the "
+        "appearance-panel-layout-pass-2026q3-e2 milestone renamed it "
+        "away from 'Display' (F-L2), and appearance-panel-render-mode-"
+        "split-2026q3-e3 superseded it again with 'Display && Quality'.  "
+        "If a future group genuinely needs to be called 'Display', pick "
+        "a more specific name."
     )
 
 

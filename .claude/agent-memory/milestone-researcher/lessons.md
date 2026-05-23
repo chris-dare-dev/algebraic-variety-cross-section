@@ -195,3 +195,31 @@
 - For Kummer's `sqrt(2.0)` scalar pre-compute, BOTH "pass as kernel scalar arg" AND "write literal `1.4142135623730951` inside kernel" compile fine — the e5 template style passes scalars in, which keeps the kernel symbolic and avoids magic numbers. Recommend the arg-pass form for consistency.
 - Enriques fig 1 has `n = int(round(n))` at `surfaces.py:614`; figs 2/3/4 do NOT (plain `n: int` kwarg). Optional defensive AI-8 add for figs 2/3/4 is one-line, zero risk, future-proofs against the same caller patterns the e5 brief flagged — recommend including in v1 as bundled hygiene.
 - Asymmetric-field kernels (Klein cubic `x + x²y + y²z + z₀z² + z₀²` is the only one of the 9 v1 kernels that is asymmetric in `(x,y,z)`) — the symmetry-bug coverage note in the test file `:18-26` does NOT apply: an axis-transpose bug WOULD be caught by the equivalence test for Klein, unlike the 8 symmetric kernels. This is a positive: Klein is the canary that proves axis-mapping is correct, and the 8 symmetric kernels coast on the "transpose is harmless because the contour is identical" argument.
+
+## hq-smoothing-label-rename-2026q3-e1 (2026-05-22)
+- Bucket structure: USER-VISIBLE (rename), TEST ASSERTION (rename), SYMBOL/COMMENT (stays), DOC PROSE (rename with note). Honor brief's "internal symbols stay" opt-out.
+- Grep pattern: `"HQ\|hq_smoothing\|\[HQ\]\|Double.pass"`. Read adversary-critique.md first. Source-grep tests with `src.find(` must be updated when user-visible strings change.
+- AI-15 label check: "Double-pass" = exactly 2 Taubin passes (surfaces.py:558,605). Button fit: setMinimumWidth(200) at appearance_panel.py:127; 18 chars at 8px = 144px — fits.
+
+## appearance-panel-render-mode-split-2026q3-e3 (2026-05-22)
+- QGroupBox title `&` activates keyboard accelerator. Use `&&` for literal `&` with no shortcut. "Display && Quality" is the correct source literal.
+- Pure label-rename scope: user-visible string, test assertions, inline comments, styles.py comments, CONTEXT.md prose (add "renamed from X by milestone-id"). Historical artifacts STAY.
+- Rename test function when adding negative regression guard — `render_mode_group_header` asserting "Display & Quality" is semantically misleading.
+
+## render-busy-spinner-2026q3-e1 (2026-05-22)
+- "Lift §9 deferral" briefs: (1) audit blocker obsolescence with file:line, (2) implement. Blocker audit first.
+- QStatusBar addWidget() IS hidden by showMessage() temporary messages. Since AVC uses showMessage() at every render event (12+ call sites), use addPermanentWidget() (RIGHT side, never obscured) for spinner. When brief says "left" AND "permanent-widget", the never-hidden invariant overrides position preference.
+- qtawesome Spin animation requires QIcon.paint() in paintEvent — only QAbstractButton subclasses do this. QLabel.setPixmap() is static. Use QPushButton(flat=True, enabled=False) for status-bar spinner host widget.
+- qta.Spin default step=1 → 3.6s/rotation (too slow for 0.5-1.5s window). Use step=6 → 600ms/rotation.
+- mdi6.loading (0xf0772) IS in MDI6 6.9.96. AI-9 for spinner: QTimer.timeout → _update() → widget.update() → paintEvent = pure paint path, no re-entry. Toggle at the two _computing=True/False sites directly (app.py:670, 829) — no property setter needed.
+
+## qsettings-persistence-v1-2026q3-e1 (2026-05-23)
+- "Lift §9 non-goal" pattern: audit the exact §9 text to confirm it is a deferral ("doesn't do X"), not a principled rejection ("decided against X"). The §9 "shipped" spinner entry is a precedent that §9 items are closeable.
+- QSettings restore must go at the END of `__init__`, AFTER ALL `addDockWidget`/`splitDockWidget` calls. `restoreState()` before `addDockWidget()` is silently overridden by the subsequent dock calls.
+- Global singleton form preferred: `QApplication.setOrganizationName("AVC") + setApplicationName("AlgebraicVarietyCrossSection")` in `main()` before `QApplication(sys.argv)`; then `QSettings()` no-arg at every call site. Per-call `QSettings("AVC", "...")` works but repeats the string literal.
+- Application name: CamelCase `"AlgebraicVarietyCrossSection"` (not hyphenated `"algebraic-variety-cross-section"`) per Qt convention; produces readable plist/INI filenames.
+- schema_version key costs 1 LOC and enables V2 migration; add it in V1.
+- Live write-back of LastSession/variety+subtype in `_on_variety_changed`/_on_subtype_changed survives SIGKILL; the write-back is a no-op when fired from `_restore_settings()` setCurrentText — QSettings.setValue is synchronous, no signal re-entry.
+- `closeEvent` save ordering: `_save_settings()` FIRST, then signal disconnect, then `waitForDone(30000)`, then `plotter.close()`, then `super().closeEvent(event)`.
+- AI-2 compliant tests: pure source-text greps; `QSettings()` is never constructed in tests. Pattern: `_APP_SRC.find("...")` for positional checks, `assert "..." in _APP_SRC` for presence.
+- AI-9 audit note: `setCurrentText()` fires handlers that call `_render_current` (correct), and also write-back `setValue()` (safe no-op). The write-back does NOT call `processEvents` and does NOT re-enter `_on_variety_changed`.
