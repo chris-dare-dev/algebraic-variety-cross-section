@@ -205,7 +205,7 @@ surfaces.py hub shim MUST include explicit `_PRIVATE_NAMES` dict per refactor-pa
 | `surfaces.kummer_surface` + `KUMMER_PARAMS` | `varieties.k3.kummer_surface` + `KUMMER_PARAMS` | symbol (each) |
 | `surfaces.enriques_figure_{1..4}` + `ENRIQUES_FIGURE_{1..4}_PARAMS` | `varieties.enriques.*` | symbol (8 total) |
 | `surfaces.calabi_yau_{quintic,cubic,asymmetric,dwork}` + `CALABI_YAU_*_PARAMS` | `varieties.calabi_yau.*` | symbol (8 total) |
-| `surfaces.fano_{klein_cubic,segre,two_quadrics,sextic_double_solid}` + `FANO_*_PARAMS` | `varieties.fano.*` | symbol (8 total) |
+| `surfaces.fano_{klein_cubic,segre_cubic,two_quadrics,sextic_double_solid}` + `FANO_{KLEIN_CUBIC,SEGRE_CUBIC,TWO_QUADRICS,SEXTIC_DOUBLE_SOLID}_PARAMS` | `varieties.fano.*` | symbol (8 total) |
 
 surfaces.py re-exports all 14 generators + all 14 _PARAMS constants. tests/test_parameters_panel.py, tests/test_parameter_grid.py, tests/test_typical_ms.py, tests/test_enriques_hq_smoothing.py all import via `from surfaces import …` — preserved via hub shim.
 

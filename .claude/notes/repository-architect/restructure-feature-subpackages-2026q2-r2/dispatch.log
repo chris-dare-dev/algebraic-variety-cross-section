@@ -15,3 +15,10 @@
   design complete: PLAN.md + symbol-map.json + design-adversary-critique.md written
   next: bash .claude/scripts/repository-architect/status.sh restructure-feature-subpackages-2026q2-r2
 ================================================================
+2026-05-23T21:53:28Z | repository-architect-dry-run-validator | dry-run | dispatched
+2026-05-23T22:04:37Z | repository-architect-dry-run-validator | dry-run | returned | 10m02s | status=complete (verdict=YELLOW; 1 broken-import finding fixed inline)
+================================================================
+2026-05-23T22:05:37Z | PHASE -> preflight-complete
+  preflight complete: baseline captured at 2bfc6c8038d5; dry-run report written
+  next: bash .claude/scripts/repository-architect/status.sh restructure-feature-subpackages-2026q2-r2
+================================================================

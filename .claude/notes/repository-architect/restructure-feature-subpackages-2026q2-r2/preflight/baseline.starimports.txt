@@ -1,0 +1,3 @@
+.claude/scripts/repository-architect/evaluate-checklist.py:287:@register(16, "No 'from foo import *' anywhere in the package")
+.claude/scripts/repository-architect/snapshot-baseline.py:164:    print(f"  grep 'import *'            ->  {prefix}.starimports.txt")
+.claude/scripts/repository-architect/snapshot-baseline.py:71:    """Grep for 'import *' across .py files, excluding venv / .git / claude worktrees."""
