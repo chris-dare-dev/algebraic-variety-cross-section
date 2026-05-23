@@ -76,7 +76,7 @@ class Surface:
     #     coarse floor (e.g. fano_two_quadrics's ε-tube): stay opt-out so
     #     drag-time renders preserve mathematical honesty.
     # Implicit generators that DO opt in carry a per-surface `coarse_n` value
-    # validated by tests/test_coarse_n_topology.py's n-sweep — the floor is
+    # validated by tests/test_coarse_n.py's n-sweep — the floor is
     # the smallest `n` at which the surface's defining topological features
     # (Kummer's 16 nodes, Enriques double curves, etc.) survive the sweep.
     # Mutually exclusive in use with `typical_ms`: a Surface with
@@ -977,10 +977,15 @@ def calabi_yau_dwork(
     - Wikipedia, "Dwork family."
     """
     if abs(psi - 1.0) < 0.01:
+        # realtime-variety-render-e4b rect M-front-1: trimmed to ≤80 chars so
+        # the status-bar composite stays inside QStatusBar's ~120-char visible
+        # window even when prefixed by the Preview badge during a coarse drag
+        # (CONTEXT.md §8.19).  The full conifold explanation lives in the
+        # function docstring above; the warning is a UI-surfaced signal, not
+        # a tutorial.
         warnings.warn(
-            "ψ ≈ 1 is the (real) conifold point of the Dwork pencil. "
-            "The fibre acquires a node at (1,1,1) that marching cubes will not "
-            "capture; the displayed mesh is the smooth complement.",
+            "ψ ≈ 1 is the conifold point; node at (1,1,1) missed — "
+            "displayed mesh is the smooth complement.",
             category=RuntimeWarning,
         )
     g = np.linspace(-bounds, bounds, n)
@@ -1232,7 +1237,7 @@ VARIETIES: dict[str, dict[str, Surface]] = {
     # LOD path.  Values measured by agent-a's empirical n-sweep on the dev
     # machine (see .claude/notes/milestones/realtime-variety-render-e4b/
     # research/agent-a-brief.md §4.1); each floor is validated by
-    # tests/test_coarse_n_topology.py.  Two implicit surfaces stay opt-out:
+    # tests/test_coarse_n.py.  Two implicit surfaces stay opt-out:
     # `fano_two_quadrics` (ε-tube width ≈ voxel spacing at coarse n — see the
     # brief's §4.1 opt-out justification).  Hanson generators leave coarse_n=0
     # (AI-6 layer 2 — the worker dispatch's coarse-injection is a no-op).
@@ -1324,28 +1329,43 @@ VARIETIES: dict[str, dict[str, Surface]] = {
 # ---------------------------------------------------------------------------
 
 VARIETY_TOOLTIPS: dict[str, str] = {
+    # realtime-variety-render-e4b (CAND-3): each family's tooltip closes with
+    # a single sentence about the drag-time coarse-preview LOD behavior — the
+    # AI-15 disclosure for users who hover the variety combo before/instead of
+    # watching the status-bar Preview badge (CONTEXT.md §8.19).  Hanson CY3
+    # surfaces use the e2 fast-path (full at every tick); the K3, Enriques,
+    # Dwork, and Fano implicit subtypes use the e4b coarse-preview LOD.
     "K3 surface": (
         "A K3 surface is a compact complex surface with trivial canonical bundle "
         "and first Betti number 0. K3 surfaces are the 2-dimensional analogue of "
-        "elliptic curves and play a central role in mirror symmetry."
+        "elliptic curves and play a central role in mirror symmetry. "
+        "Drag-time renders use a coarse preview (n≈80–100); slider release "
+        "re-renders at full resolution."
     ),
     "Enriques surface": (
         "An Enriques surface is the quotient of a K3 surface by a fixed-point-free "
         "involution. It has Euler number 12 and 2K=0. Four representative real "
-        "affine models are provided here."
+        "affine models are provided here. "
+        "Drag-time renders use a coarse preview (n=80); slider release re-renders "
+        "at full resolution."
     ),
     "Calabi–Yau 3-fold": (
         "A Calabi–Yau 3-fold is a 6-real-dimensional space — it cannot be embedded "
         "in ℝ³. Each entry below is a 2D shadow, slice, or projection (in the "
         "Hanson-1994 tradition that produced the iconic 'Elegant Universe' image), "
-        "not the 3-fold itself."
+        "not the 3-fold itself. "
+        "Hanson parametric figures render at full resolution every drag tick; "
+        "the Dwork pencil uses a coarse preview (n=100) during drag."
     ),
     "Fano 3-fold (ρ=1)": (
         "A smooth Fano 3-fold of Picard rank 1 (Iskovskikh's 'prime Fano "
         "threefold') is 6-real-dimensional. Each entry below is a 2D real "
         "slice obtained by fixing one or two ambient projective coordinates. "
         "The visualization tradition is essentially nonexistent — these are "
-        "novel renderings."
+        "novel renderings. "
+        "Most figures use a coarse preview (n=80) during drag and re-render "
+        "at full resolution on release; the two-quadrics ε-tube is release-"
+        "only (its topology is too fragile for any practical coarse floor)."
     ),
 }
 

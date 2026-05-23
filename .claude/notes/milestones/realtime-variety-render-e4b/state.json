@@ -1,7 +1,7 @@
 {
   "id": "realtime-variety-render-e4b",
   "created_at": "2026-05-22T23:19:15Z",
-  "updated_at": "2026-05-22T23:54:05Z",
+  "updated_at": "2026-05-23T00:02:09Z",
   "phase": "rectify-running",
   "phase_history": [
     {
@@ -65,8 +65,26 @@
     "low": 6
   },
   "rectification_commit": null,
-  "fixed_findings": [],
-  "deferred_findings": [],
+  "fixed_findings": [
+    "H1",
+    "H2",
+    "H3",
+    "M1",
+    "M3",
+    "M4",
+    "M5",
+    "M6",
+    "M8",
+    "L1",
+    "L4",
+    "L5",
+    "L6"
+  ],
+  "deferred_findings": [
+    "M7",
+    "L2",
+    "L3"
+  ],
   "invalidated_findings": [],
   "regression_tests_added": []
 }

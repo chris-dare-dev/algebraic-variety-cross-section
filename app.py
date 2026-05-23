@@ -208,12 +208,11 @@ class MainWindow(QMainWindow):
         self._inflight_surface: Surface | None = None
         self._inflight_params: dict = {}
         self._inflight_reset_camera = False
-        # realtime-variety-render-e4b (CAND-3): coarse-vs-full mode tag for
-        # the in-flight worker, set at dispatch time.  The result slot
-        # primarily reads `result.is_coarse` (the worker self-describes), but
-        # `_inflight_is_coarse` mirrors it for defensive symmetry with the
-        # rest of the `_inflight_*` family.
-        self._inflight_is_coarse = False
+        # realtime-variety-render-e4b (CAND-3): the coarse-vs-full mode tag
+        # for the in-flight worker is carried on `MeshResult.is_coarse` — the
+        # worker self-describes.  No `_inflight_is_coarse` mirror is needed
+        # (an earlier version of the e4b implementation had one; the e4b rect
+        # critique flagged it as unused and it was removed).
         # The reset_camera flag the catch-up render should use.  A catch-up
         # is always a parameter re-tune (reset_camera=False); recorded here
         # so the catch-up does not have to guess.
@@ -664,8 +663,16 @@ class MainWindow(QMainWindow):
             # Keep the status-bar label tracking the user's LATEST intent — a
             # mid-flight surface switch would otherwise leave the bar naming
             # the superseded surface for the rest of the first worker's flight.
+            # realtime-variety-render-e4b rect H3: read `_pending_is_coarse`
+            # (just AND-promoted with the latest request) so the busy-branch
+            # message reflects what the catch-up will actually dispatch — no
+            # flicker between "Computing …" and "Preview — …" during a coarse
+            # drag burst.
+            _busy_label = (
+                "Computing preview" if self._pending_is_coarse else "Computing"
+            )
             self.statusBar().showMessage(
-                f"Computing {self._current_surface.label}…"
+                f"{_busy_label} {self._current_surface.label}…"
             )
             return
 
@@ -687,9 +694,33 @@ class MainWindow(QMainWindow):
         # params dict, no extras.  realtime-variety-render-e4 made the
         # worker thread the surface.generate call site; the kwarg
         # injection moved here from the pre-worker code path.
+        # realtime-variety-render-e4b (CAND-3): coarse-LOD injection.  Only
+        # when (a) the caller asked for coarse (drag-tick on an implicit
+        # surface), AND (b) the surface has a validated coarse_n floor
+        # (>0).  Hanson surfaces leave coarse_n=0 (AI-6 layer 2) — even if a
+        # future bug calls `_render_current(coarse=True)` for Hanson, this
+        # guard's the no-op safety net.  Opt-out implicit surfaces (e.g.
+        # fano_two_quadrics, coarse_n=0) are also caught here, though
+        # `dispatch_mode` already returns "skip" upstream so they never
+        # reach this branch in practice.  Computed BEFORE the HQ block so
+        # the HQ injection can suppress itself on coarse dispatches.
+        _is_coarse_active = coarse and surface.coarse_n > 0
+        if _is_coarse_active:
+            params["n"] = surface.coarse_n
+
+        # realtime-variety-render-e4b rect H2: gate HQ-smoothing on
+        # `not _is_coarse_active`.  HQ adds a second Taubin pass
+        # (`second_smooth_iter=40` per enriques-hq-smoothing-2026q3-e1) which
+        # costs ~138 ms — the whole *point* of the coarse-LOD path is
+        # sub-100 ms drag previews.  Stacking +138 ms onto every coarse tick
+        # erodes the speed benefit AND undercuts AI-15: a "Preview" badge
+        # whose render is barely faster than full is less honest than one
+        # that is clearly transient.  HQ is a release-time fidelity bump;
+        # apply it only when the user is going to *see* the polish.
         _is_hq_active = (
             surface.generate in _HQ_SMOOTHING_ELIGIBLE_GENERATORS
             and self.appearance_panel.hq_smoothing
+            and not _is_coarse_active
         )
         if _is_hq_active:
             params["hq_smoothing"] = True
@@ -701,19 +732,6 @@ class MainWindow(QMainWindow):
         # so the longer render time is causally attributable to the
         # toggle.
         _hq_label = " [HQ]" if _is_hq_active else ""
-
-        # realtime-variety-render-e4b (CAND-3): coarse-LOD injection.  Only
-        # when (a) the caller asked for coarse (drag-tick on an implicit
-        # surface), AND (b) the surface has a validated coarse_n floor
-        # (>0).  Hanson surfaces leave coarse_n=0 (AI-6 layer 2) — even if a
-        # future bug calls `_render_current(coarse=True)` for Hanson, this
-        # guard's the no-op safety net.  Opt-out implicit surfaces (e.g.
-        # fano_two_quadrics, coarse_n=0) are also caught here, though
-        # `dispatch_mode` already returns "skip" upstream so they never
-        # reach this branch in practice.
-        _is_coarse_active = coarse and surface.coarse_n > 0
-        if _is_coarse_active:
-            params["n"] = surface.coarse_n
 
         # Capture the job context on the instance.  The result slot uses THESE
         # — not `_current_surface` / a fresh `parameters_panel.values()` —
@@ -728,14 +746,17 @@ class MainWindow(QMainWindow):
         # Hold the HQ label for the result slot so the success message can
         # attribute the longer render time to the HQ toggle as well.
         self._inflight_hq_label = _hq_label
-        # Hold the coarse-mode flag for the slot.  The slot primarily reads
-        # `result.is_coarse` (the worker self-describes), but this mirror
-        # documents the dispatch-time choice for future debugging.
-        self._inflight_is_coarse = _is_coarse_active
 
         # Busy cursor for the whole flight; restored in `_on_mesh_ready`.
         QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
-        self.statusBar().showMessage(f"Computing {surface.label}{_hq_label}…")
+        # realtime-variety-render-e4b rect H3: attribute coarse-mode dispatches
+        # so the status bar does NOT flicker between unattributed "Computing …"
+        # and the Preview badge during a drag burst — the AI-15 disclosure
+        # must read consistently across the full coarse cycle.
+        _dispatch_label = "Computing preview" if _is_coarse_active else "Computing"
+        self.statusBar().showMessage(
+            f"{_dispatch_label} {surface.label}{_hq_label}…"
+        )
 
         # Hand the worker its OWN copy of the params dict — it reads it on the
         # worker thread, so it must not alias a dict the GUI thread could
@@ -792,6 +813,13 @@ class MainWindow(QMainWindow):
                 # never the content-free "Error: " (a bare MemoryError, an
                 # arg-less exception, etc. give an empty str(exc)).
                 msg = result.error_message or result.error_type
+                # realtime-variety-render-e4b rect M-front-4: prefix
+                # coarse-path errors with "Preview" so a transient drag-tick
+                # failure is distinguishable from a release-path failure. The
+                # status bar may be overwritten ~25 Hz during a drag burst,
+                # so a researcher who catches the message at a glance can
+                # tell whether they should re-trigger the release path.
+                _err_prefix = "Preview error" if result.is_coarse else "Error"
                 if result.error_is_value_error:
                     # "No real zero set" means the parameter *combination*
                     # produces an empty field — not that any single slider is
@@ -803,7 +831,7 @@ class MainWindow(QMainWindow):
                             f"Parameter out of range — {msg}"
                         )
                 else:
-                    self.statusBar().showMessage(f"Error: {msg}")
+                    self.statusBar().showMessage(f"{_err_prefix}: {msg}")
                 return
 
             # CAND-11: a successful generate() invalidates the clipped cache —
@@ -843,8 +871,14 @@ class MainWindow(QMainWindow):
                     f" — {result.gen_ms:.0f} ms"
                 )
                 if result.warning_text:
+                    # realtime-variety-render-e4b rect M-front-1: hoist the
+                    # Preview badge to the LEFT of the pipe so the load-bearing
+                    # "Preview — {label} — NNN ms" tokens stay visible even
+                    # when QStatusBar clips the right edge (~120 chars).  Same
+                    # rescue pattern as the full-result warning path's bbox
+                    # hoist, see CONTEXT.md §4.3 warning-path note.
                     preview_msg = (
-                        f"⚠ {result.warning_text}  |  {preview_msg}"
+                        f"{preview_msg}  |  ⚠ {result.warning_text}"
                     )
                 self.statusBar().showMessage(preview_msg)
                 return  # finally runs; skip the full base_msg build

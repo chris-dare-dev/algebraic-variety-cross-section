@@ -97,11 +97,17 @@ class MeshResult:
                           worker was dispatched with ``params["n"] =
                           surface.coarse_n``. The slot uses this flag to
                           switch the status-bar message to the AI-15
-                          "Preview — {label} — NNN ms" badge and skip the
-                          verts/faces/bbox readout (those numbers would be
-                          misleadingly precise on a transient low-resolution
-                          mesh). The worker stays mode-agnostic — it carries
-                          the tag verbatim from ``MeshWorker.__init__``.
+                          ``"Preview — {label}{hq_label} — NNN ms"`` badge
+                          (with ``{hq_label}`` interpolated as ``" [HQ]"``
+                          when applicable, and an optional ``"⚠ {warning}  |  "``
+                          prefix for RuntimeWarning surfaces such as the
+                          Dwork conifold) and skip the verts/faces/bbox
+                          readout — those numbers would be misleadingly
+                          precise on a transient low-resolution mesh. The
+                          worker stays mode-agnostic — it carries the tag
+                          verbatim from ``MeshWorker.__init__``. The
+                          authoritative badge contract lives in CONTEXT.md
+                          §8.19; this docstring mirrors it.
     """
 
     generation: int

@@ -254,3 +254,30 @@ correctness. The rectifier should treat each as independent.
 ---
 
 *End of critique. Mandatory rectification: the HIGH HQ-coarse interaction (the only code finding) plus the doc-reference MEDIUMs. Auto-finding HIGH is informational only.*
+
+---
+
+## Rectification status (filled in Phase 4)
+
+- **Commit:** (rectification commit — see `git log`, subject `rect(realtime-variety-render-e4b): ...`)
+- **Fixed (11 of 17 findings):** all CRITICALs (none), all real HIGHs (H2 HQ×coarse + H3 Computing-flicker; H1 auto is informational, no code action), 6 of 8 MEDIUMs, 3 of 6 LOWs.
+  - **H1 (auto)** — diff-size > 400 LOC: acknowledged, no code action. Artifact-inflated diff; production+test+docs surface ~376 LOC reviewed end-to-end.
+  - **H2** — HQ × coarse interaction: `_is_hq_active` now gated on `and not _is_coarse_active` in `_render_current` (reordered the dispatch body to compute `_is_coarse_active` first). Regression guard `tests/test_coarse_n.py::test_e4b_h2_hq_smoothing_gated_off_on_coarse_dispatches` source-greps for the gate clause. CONTEXT.md §8.19 records the suppression rule.
+  - **H3** — `Computing …` doesn't attribute coarse: dispatch path now reads `"Computing preview <label>…"` when `_is_coarse_active`; busy-branch reads the AND-promoted `_pending_is_coarse` to compute the same prefix. No flicker between unattributed-Computing and the Preview badge across a sustained drag.
+  - **M-adv-1** — stale `test_coarse_n_topology.py` references in `surfaces.py:79, :1235` → renamed to `test_coarse_n.py`.
+  - **M-adv-3** — `MeshResult.is_coarse` docstring now mirrors the full CONTEXT.md §8.19 badge format including `{hq_label}` and the warning prefix.
+  - **M-adv-4** — Added the domain-clip-on-coarse-mesh paragraph to CONTEXT.md §8.19.
+  - **M-front-1** — Dwork conifold RuntimeWarning shortened (~96 chars vs ~175); badge composite hoisted to LEFT of the pipe so `"Preview — {label} — NNN ms"` survives QStatusBar's ~120-char clip.
+  - **M-front-2** — Added a coarse-LOD disclosure sentence to all 4 family entries in `VARIETY_TOOLTIPS` (K3 / Enriques / CY3 / Fano).
+  - **M-front-4** — Coarse-path errors now prefix `"Preview error: "` instead of `"Error: "` so a transient drag-tick failure is distinguishable from a release-path failure.
+  - **L-adv-1** — `test_coarse_n_fermat_quartic_smoke` axis-extent bound tightened from `[1.5, 2.5]` to `[1.95, 2.05]` (Fermat is smooth at defaults; the looser bound would have accepted clearly-broken meshes).
+  - **L-adv-3** — Added inline comment justifying the belt-and-suspenders Hanson test row in `_DISPATCH_TABLE`.
+  - **L-front-2** — `_inflight_is_coarse` removed (was set but never read; the slot reads `result.is_coarse` — worker self-describes).
+  - **L-front-3** — Mathematica `ControlActive` + ParaView "Interactive Render" peer comparison added to CONTEXT.md §8.19.
+- **Deferred to a future milestone (3 findings — polish, not bugs):**
+  - **M-front-3** — Rename `_pending_is_coarse` → `_pending_render_is_full` (OR-promote with False identity, matching `_pending_reset_camera`). The current AND-promote with True-identity is provably correct and the truth-table comment block documents it; a polarity flip in this rectification commit would itself add subtle risk. Defer to a polish milestone.
+  - **L-adv-2** — Defensive invariant comment on `_pending_is_coarse` write sites. Optional documentation; the AND-promote rule is already commented inline.
+  - **L-front-1** — Em-dash (badge) vs interpunct (base_msg) separator inconsistency. Cosmetic; the visual transition cue is actually mildly useful as a mode-change signal.
+- **Invalidated on re-verification:** none (all findings confirmed present; one adversary MEDIUM self-withdrew during the critique itself — the CAND-12 stdout-log claim — see lines 108-125).
+- **Test additions:** `tests/test_coarse_n.py::test_e4b_h2_hq_smoothing_gated_off_on_coarse_dispatches` (source-grep regression guard for the HQ-coarse gate). Full suite green: 410 passed.
+- **Manual-verification note (AI-2):** the live HIGH-3 fix (status-bar message attribution during a drag burst) cannot be exercised Qt-free — the verification step is documented in CONTEXT.md §9 (drag a Fermat slider continuously, verify the bar reads "Computing preview …" / "Preview — Fermat quartic — NNN ms" without flickering to unattributed "Computing Fermat quartic…", release, verify the bar transitions to the full base_msg with verts/faces/bbox).

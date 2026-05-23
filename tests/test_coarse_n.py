@@ -156,6 +156,13 @@ _DISPATCH_TABLE = [
 
 @pytest.mark.parametrize("surface,in_drag,expected", _DISPATCH_TABLE)
 def test_dispatch_mode(surface, in_drag, expected):
+    # Layer-1 isolation note: the row `(_surf(typical_ms=39, coarse_n=80),
+    # True, "full")` deliberately constructs a Surface with BOTH a Hanson
+    # `typical_ms` AND a non-zero `coarse_n` (no such Surface exists in the
+    # live registry today). It pins layer 1 of the AI-6 three-layer Hanson
+    # skip: even if a future bug-induced Surface mis-configuration appeared,
+    # `dispatch_mode` still returns "full" because `typical_ms > 0` is
+    # checked before `coarse_n` — Hanson can never route to a coarse render.
     assert dispatch_mode(surface, in_drag) == expected
 
 
@@ -194,14 +201,21 @@ def _assert_nonempty(mesh) -> None:
 
 
 def test_coarse_n_fermat_quartic_smoke():
-    """Fermat quartic at coarse_n=80: bbox extent ≈ 2 (smooth x⁴+y⁴+z⁴=1)."""
+    """Fermat quartic at coarse_n=80: bbox extent ≈ 2 (smooth x⁴+y⁴+z⁴=1).
+
+    Tight bound (1.95 < extent < 2.05) — Fermat at default params is smooth
+    with no near-singular regions, so the coarse mesh's axial reach matches
+    the production-n reach to within marching-cubes truncation noise. A
+    looser bound (e.g. 1.5–2.5) would accept a clearly-broken mesh whose
+    axial reach was clipped to 1.6, defeating the regression-guard purpose.
+    """
     mesh = fermat_quartic(n=80)
     _assert_nonempty(mesh)
     _b = mesh.bounds
-    # Default Fermat at c=1: |x|,|y|,|z| ≲ 1 → extent ≲ 2 in each axis.
+    # Default Fermat at c=1: |x|,|y|,|z| ≲ 1 → extent ≈ 2 in each axis.
     for axis, (lo, hi) in enumerate([(_b[0], _b[1]), (_b[2], _b[3]), (_b[4], _b[5])]):
         extent = hi - lo
-        assert 1.5 < extent < 2.5, f"axis {axis} extent {extent} not near 2"
+        assert 1.95 < extent < 2.05, f"axis {axis} extent {extent} not near 2"
 
 
 def test_coarse_n_kummer_16_node_symmetry():
@@ -265,6 +279,35 @@ def test_coarse_n_fano_klein_smoke():
 def test_coarse_n_fano_segre_smoke():
     mesh = fano_segre_cubic(n=80)
     _assert_nonempty(mesh)
+
+
+def test_e4b_h2_hq_smoothing_gated_off_on_coarse_dispatches():
+    """Regression guard for the e4b adversary HIGH-2 finding.
+
+    HQ smoothing (`enriques-hq-smoothing-2026q3-e1`) adds a second Taubin
+    pass (~138 ms at production n) to render. The CAND-3 coarse-LOD path
+    fires the worker at `n=80` aiming for sub-100 ms drag previews; if HQ
+    fires under coarse dispatches the +138 ms cost erodes the speed
+    benefit AND undercuts the AI-15 Preview-badge honesty contract (a
+    "Preview" render barely faster than full is misleading).
+
+    The fix gates the HQ-eligibility expression on `not _is_coarse_active`
+    in `app.py:_render_current`. AI-2 forbids driving the live dispatch
+    Qt-free, so this is a source-text guard: assert the literal `and not
+    _is_coarse_active` clause is present in the HQ-eligibility expression
+    (the exact wording would only flip back to allowing HQ-on-coarse via a
+    targeted regression — a typo wouldn't drop it silently).
+    """
+    import pathlib
+    repo_root = pathlib.Path(__file__).resolve().parents[1]
+    source = (repo_root / "app.py").read_text(encoding="utf-8")
+    assert "and not _is_coarse_active" in source, (
+        "app.py: the e4b HIGH-2 fix is missing — HQ-smoothing must be "
+        "gated on `not _is_coarse_active` so coarse drag previews do not "
+        "carry the second Taubin pass. Without this gate, every Enriques "
+        "fig 1/2 drag tick with HQ enabled fires `second_smooth_iter=40` "
+        "at coarse n, adding ~138 ms and defeating the LOD speed benefit."
+    )
 
 
 def test_coarse_n_fano_sextic_double_solid_two_sheets():
