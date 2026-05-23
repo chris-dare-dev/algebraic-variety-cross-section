@@ -24,12 +24,14 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QMainWindow,
+    QPushButton,
     QStatusBar,
     QVBoxLayout,
     QWidget,
 )
 from pyvistaqt import QtInteractor
 
+import icons
 from appearance_panel import AppearancePanel
 from parameters_panel import ParametersPanel
 from render_worker import MeshResult, MeshWorker, is_stale_result
@@ -148,6 +150,34 @@ class MainWindow(QMainWindow):
 
         self.setStatusBar(QStatusBar())
         self.statusBar().showMessage("Choose a variety to begin.")
+
+        # render-busy-spinner-2026q3-e1 (UPL-4 v2 — CONTEXT.md §9 deferral
+        # closed): visual companion to the "Computing {label} […]…" status
+        # message that already shows while a MeshWorker job is in flight.
+        # Two load-bearing implementation details:
+        #   1. QPushButton (flat, disabled) — NOT QLabel.  qtawesome's Spin
+        #      animation triggers via QIcon.paint() in paintEvent, which
+        #      only QAbstractButton subclasses call; QLabel.setPixmap()
+        #      captures a static frame and the animation dies.
+        #   2. addPermanentWidget — NOT addWidget.  addWidget slots get
+        #      obscured by showMessage() temporary messages, and this app
+        #      calls showMessage at every render event; the spinner would
+        #      be hidden at the exact moment it's most needed.  Permanent
+        #      widgets render on the RIGHT and are never obscured.
+        # The icon itself is set further down in _build_ui() after the
+        # other panel refresh_icons() calls, because qta.icon() requires a
+        # live QApplication (CONTEXT.md §8.12) — by the time __init__ runs
+        # it's guaranteed live, but the icon-setting line is grouped with
+        # its theme-refresh siblings for grep-ability.
+        self._render_busy_spinner = QPushButton()
+        self._render_busy_spinner.setFlat(True)
+        self._render_busy_spinner.setEnabled(False)
+        self._render_busy_spinner.setFixedSize(16, 16)
+        self._render_busy_spinner.setToolTip(
+            "Computing surface mesh — activity indicator (not a progress bar)."
+        )
+        self._render_busy_spinner.setVisible(False)
+        self.statusBar().addPermanentWidget(self._render_busy_spinner)
 
         self._actor = None
         self._domain_overlay_actor = None
@@ -301,6 +331,15 @@ class MainWindow(QMainWindow):
         self.view_panel.refresh_icons(self._active_theme)
         self.parameters_panel.refresh_icons(self._active_theme)
         self.appearance_panel.refresh_icons(self._active_theme)
+        # render-busy-spinner-2026q3-e1 (UPL-4 v2): set the status-bar
+        # spinner icon AFTER QApplication is fully live.  Same constraint
+        # as the panel refresh_icons calls above — qta.icon() returns null
+        # without a live QApplication (CONTEXT.md §8.12).
+        self._render_busy_spinner.setIcon(
+            icons.render_busy_spinner_icon(
+                self._render_busy_spinner, self._active_theme
+            )
+        )
 
         # --- Keyboard shortcuts ----------------------------------------------
         self._setup_shortcuts()
@@ -668,6 +707,11 @@ class MainWindow(QMainWindow):
         # while the worker is in flight, and the slot must describe the
         # surface that was actually generated.
         self._computing = True
+        # render-busy-spinner-2026q3-e1: show the status-bar spinner the
+        # moment we hand work to the worker thread; mirrored to False in
+        # _on_mesh_ready's finally block below.  Pure setVisible() — no
+        # processEvents, no signal re-emit; AI-9 safe.
+        self._render_busy_spinner.setVisible(True)
         self._generation += 1
         self._inflight_surface = surface
         self._inflight_params = params
@@ -827,6 +871,11 @@ class MainWindow(QMainWindow):
         finally:
             QApplication.restoreOverrideCursor()
             self._computing = False
+            # render-busy-spinner-2026q3-e1: paired with the setVisible(True)
+            # call at _render_current's self._computing = True line — hide
+            # the spinner as the same atomic step that flips _computing
+            # back to False.  Pure setVisible(); AI-9 safe.
+            self._render_busy_spinner.setVisible(False)
             self._active_worker = None
             # CAND-5: if a render was requested while this worker was in
             # flight, schedule exactly one catch-up.  `QTimer.singleShot(0, ...)`
@@ -1053,10 +1102,16 @@ class MainWindow(QMainWindow):
         # the new theme's TEXT_VALUE color so all button glyphs match the
         # new chrome.  Synchronous; AI-9 safe (no processEvents involved).
         # appearance_panel added in v1 for the Wireframe + Show-edges
-        # display-toggle icons.
+        # display-toggle icons.  render-busy-spinner-2026q3-e1 added the
+        # status-bar spinner refresh.
         self.view_panel.refresh_icons(self._active_theme)
         self.parameters_panel.refresh_icons(self._active_theme)
         self.appearance_panel.refresh_icons(self._active_theme)
+        self._render_busy_spinner.setIcon(
+            icons.render_busy_spinner_icon(
+                self._render_busy_spinner, self._active_theme
+            )
+        )
 
         # Re-seed the appearance panel's variety-default color from the active
         # theme's dict — without this, switching theme while a variety is
@@ -1095,10 +1150,14 @@ class MainWindow(QMainWindow):
         # qtawesome-icons-2026q2-e1 (UPL-4) + e2 (v1): mirror the
         # refresh_icons calls from _on_theme_changed so OS-driven theme
         # changes also re-render icons across all three icon-bearing
-        # panels.  Synchronous; AI-9 safe.
+        # panels.  render-busy-spinner-2026q3-e1: same mirror for the
+        # status-bar spinner.  Synchronous; AI-9 safe.
         self.view_panel.refresh_icons(resolved)
         self.parameters_panel.refresh_icons(resolved)
         self.appearance_panel.refresh_icons(resolved)
+        self._render_busy_spinner.setIcon(
+            icons.render_busy_spinner_icon(self._render_busy_spinner, resolved)
+        )
         current_variety = self.variety_combo.currentText()
         if current_variety in VARIETIES:
             self.appearance_panel.set_default_color(
