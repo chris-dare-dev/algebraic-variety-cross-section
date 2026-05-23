@@ -34,33 +34,20 @@
 
 ---
 
-## enriques-backface-2026q2-e1 — 2026-05-22
+## enriques-backface-2026q2-e1 + status-bar-bbox-2026q2-e1 (COMPACTED) — 2026-05-22
 
-### Token-discipline near-misses
-- No short-hex, no shorthand-enum, no processEvents. Fast dispose: if diff adds no QColor, no Qt.AlignmentFlag, no processEvents, no pv.add_mesh() — dispose AI-9/AI-11/AI-12/AI-13 in one sentence.
+### Token-discipline
+- No short-hex, no shorthand-enum, no processEvents. Fast dispose: if diff adds no QColor, no Qt.AlignmentFlag, no processEvents, no pv.add_mesh() — dispose AI-9/AI-11/AI-12/AI-13 in one sentence. Float format specifiers (`.2f`) are NOT hex colors.
 
-### Industry-comparison note
-- **ParaView 5.13 backface culling is an explicit opt-in checkbox** (defaults OFF). AVC's hardcoded-on-for-Enriques is bespoke. Concrete recommendation: always expose variety-level rendering state as user-visible status even when hardcoded. Quote "ParaView opt-in checkbox vs AVC silent-on" for any future hidden rendering knob.
-- **Mathematica `ContourPlot3D` mesh overlay is always two-sided.** Culling should be suppressed when wireframe is active. Quote as "Mathematica mesh-overlay convention."
+### Key industry-comparison notes
+- **ParaView 5.13 backface culling is an explicit opt-in checkbox** (defaults OFF). Quote "ParaView opt-in vs AVC silent-on" for any future hidden rendering knob.
+- **ParaView/MeshLab/Blender use full-extent widths (diameter), not half-extents.** Quote "full-extent peer-alignment" for any future bbox-display milestone.
+- **Mathematica `ContourPlot3D` mesh overlay is always two-sided.** Culling must be suppressed in wireframe mode.
 
-### Wireframe + culling recurring pattern
-- VTK culling applies at face level regardless of `style="wireframe"`. For any future milestone adding per-variety culling, ALWAYS check if `apply_to_actor` suppresses culling when wireframe is active. Fix: `effective_culling = "none" if self._wireframe else (self._culling or "none")`.
-
-### Topology-claim precision
-- When a variety-level gate claims "all N figures share topology X", verify per-figure. Cayley quartic symmetroid has ODP singularities, not the double-curve topology claimed in UPL-7 comment. Gate is safe but justification is imprecise — flag as LOW.
-
----
-
-## status-bar-bbox-2026q2-e1 (UPL-13 status-bar spatial bbox) — 2026-05-22
-
-### Token-discipline near-misses
-- No short-hex, no shorthand-enum, no processEvents in a f-string suffix diff. `_b[1]/.2f` is a float format specifier, not a hex color — AI-13 does not apply to numeric format strings.
-
-### Industry-comparison note
-- **ParaView, MeshLab, Blender all use full-extent widths (diameter), not half-extents.** AVC's `±max` half-extent convention was unique in the peer landscape. Quote "full-extent peer-alignment" recommendation for any future bbox-display milestone.
-
-### Status-bar overflow recurring risk
-- Whenever a suffix is appended to `base_msg`, check the warning path `f"⚠ {_surface_warning}  |  {base_msg}"` too. The Dwork warning text is ~175 chars; any suffix pushes the combined message past the ~120-char visible window. MEDIUM (supplementary info, not safety-critical).
+### Recurring patterns
+- VTK culling applies at face level regardless of `style="wireframe"`. Check `apply_to_actor` suppresses culling when wireframe is active. Fix: `effective_culling = "none" if self._wireframe else (self._culling or "none")`.
+- Topology-claim precision: verify per-figure when a gate claims "all N figures share topology X."
+- Status-bar overflow: whenever a suffix is appended to `base_msg`, check the warning path `f"⚠ {_surface_warning}  |  {base_msg}"`. Dwork warning ~175 chars; any suffix risks the ~120-char visible window.
 
 ---
 
@@ -190,3 +177,18 @@
 
 ### First-launch / section-9 regressions
 - No regression possible from a pure label rename. Fast verify: does the changed code path touch `_render_current` or the variety/subtype combos? No — status-bar messages are only emitted in `_render_current`'s success/computing branches, not at launch.
+
+---
+
+## appearance-panel-render-mode-split-2026q3-e3 — 2026-05-22
+
+### Token-discipline near-misses
+- `"Display && Quality"` is a Python string literal, NOT a hex color or Qt enum. Fast dispose: if the entire diff is a QGroupBox title rename with zero QColor/Qt.AlignmentFlag/processEvents additions — AI-9/AI-11/AI-12/AI-13 dispose in one sentence.
+- `&&` is the Qt literal-ampersand escape for QGroupBox/QLabel mnemonic handling. A bare `&` in `QGroupBox("Display & Quality")` would silently bind `Alt+Q` as an accelerator. Fast check for any future compound QGroupBox header: does the title contain `&`? If so, verify `&&` is used.
+
+### Industry-comparison surprises
+- No peer (ParaView, MeshLab, Blender, 3D Slicer) uses exactly `"Display & Quality"` for a mixed display+quality group. ParaView's "Display" tab is the closest structural analogue (single-group, multiple axes) — cite it when the label is questioned, but note it doesn't use an ampersand compound. MeshLab "Render Mode" is display-pipeline only — NOT a valid precedent for groups containing mesh-regeneration toggles.
+- Single-noun vs compound-header rhythm: when ALL peer headers in a dock are single-noun and one gains a compound label, flag as MEDIUM (rhythm break). This is the recurring pattern: check peer headers in the SAME dock, not peers across docks or apps.
+
+### First-launch / section-9 regressions
+- Pure label rename on a QGroupBox: fast check is `_build_*` method → does it call `_render_current` or touch `variety_combo`/`subtype_combo`? No → section-9.3 clean. Label is visible at launch as structural chrome, not as an interactive render trigger.

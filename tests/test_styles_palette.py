@@ -798,8 +798,9 @@ def test_appearance_panel_colors_buttons_have_colors_button_role() -> None:
     rule `QPushButton[role="colors-button"] { text-align: left; ... }`
     picks them up.  Without the role tag the buttons fall back to Qt's
     platform-default center-alignment, re-introducing the cross-group
-    vertical-rhythm fracture between the Colors and Render Mode groups
-    that this milestone closed.
+    vertical-rhythm fracture between the Colors and Display & Quality
+    groups that this milestone closed.  (Group renamed Render Mode →
+    Display & Quality by appearance-panel-render-mode-split-2026q3-e3.)
 
     Source-text grep (AI-2 compliant — testing the alignment under a
     real QApplication would require Qt, which AI-2 bans).
