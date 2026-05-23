@@ -1,8 +1,8 @@
 {
   "id": "restructure-full-audit-2026q2-r1",
   "created_at": "2026-05-23T17:23:26Z",
-  "updated_at": "2026-05-23T18:18:54Z",
-  "phase": "preflight-running",
+  "updated_at": "2026-05-23T19:31:41Z",
+  "phase": "execute-running",
   "phase_history": [
     {
       "phase": "init",
@@ -27,6 +27,14 @@
     {
       "phase": "preflight-running",
       "at": "2026-05-23T18:18:54Z"
+    },
+    {
+      "phase": "preflight-complete",
+      "at": "2026-05-23T18:27:21Z"
+    },
+    {
+      "phase": "execute-running",
+      "at": "2026-05-23T19:21:31Z"
     }
   ],
   "restructure_brief": "Broad cleanup audit of the AVC repo. Surface and address structural improvements: monolith hotspots (app.py 1893 LOC, surfaces.py 1808 LOC), the dual parameter_panel implementations (parameters_panel.py vs parameter_grid_panel.py), missing top-level files (LICENSE, CHANGELOG, AGENTS.md, pyproject.toml), the src-vs-flat layout question for an 11-file flat app, the four panel files at root that could group into panels/, and any AI-navigability gaps. The current layout is flat: 11 .py files at root, tests/ directory, .claude/ and .github/ standard tool folders. AI-1..AI-15 invariants from .claude/references/app-invariants.md are inviolable. Conservative bias: prefer low-risk wins (panels/ subpackage, AGENTS.md symlink, dead-code consolidation if parameter_grid_panel.py supersedes parameters_panel.py) over speculative reorganizations (src/avcs/ migration only if scouts surface strong evidence). Author all batches in low-risk-first order so high-risk Extract Class operations are gated behind successful low-risk batches.",
@@ -46,16 +54,20 @@
     "medium": 4,
     "low": 3
   },
-  "restructure_base": null,
-  "baseline_dir": null,
-  "dry_run_report_path": null,
-  "dry_run_verdict": null,
-  "execute_batches_planned": 0,
-  "execute_batches_landed": 0,
+  "restructure_base": "c7b2bd869aaea9b1d6c50ab199dd7f65ed48e95c",
+  "baseline_dir": ".claude/notes/repository-architect/restructure-full-audit-2026q2-r1/preflight/",
+  "dry_run_report_path": ".claude/notes/repository-architect/restructure-full-audit-2026q2-r1/preflight/dry-run-validator-report.md",
+  "dry_run_verdict": "GREEN",
+  "execute_batches_planned": 4,
+  "execute_batches_landed": 1,
   "execute_commit_range": null,
   "execute_commits": [],
-  "parity_verifier_reports": [],
-  "anchor_updater_reports": [],
+  "parity_verifier_reports": [
+    ".claude/notes/repository-architect/restructure-full-audit-2026q2-r1/execute/parity-verifier-batch-1-report.md"
+  ],
+  "anchor_updater_reports": [
+    ".claude/notes/repository-architect/restructure-full-audit-2026q2-r1/execute/anchor-updater-batch-1-report.md"
+  ],
   "execution_critic_path": null,
   "test_suggester_path": null,
   "critique_finding_counts": {
@@ -77,6 +89,11 @@
     {
       "gate": 2,
       "at": "2026-05-23T18:11:30Z",
+      "response": "y"
+    },
+    {
+      "gate": 3,
+      "at": "2026-05-23T18:27:30Z",
       "response": "y"
     }
   ]
