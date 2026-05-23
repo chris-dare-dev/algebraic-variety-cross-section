@@ -173,3 +173,20 @@
 
 ### QSS `text-align` on macOS native QPushButton — canonical fix
 - `text-align: left` is silently ignored on macOS Aqua unless at least one of `background:`, `color:` (non-inherited), or `image:` is also set (forces QSS paint mode). `padding` and `border-radius` alone do NOT force paint mode on Aqua. The `display-toggle` rule's `background: transparent` is the proof that this was known — but `colors-button` was added without it. For any future `QPushButton` QSS rule that relies on `text-align`, confirm `background:` is present.
+
+---
+
+## hq-smoothing-label-rename-2026q3-e1 — 2026-05-22
+
+### Token-discipline near-misses
+- No short-hex, no shorthand-enum, no processEvents, no pv.add_mesh() color args. Fast dispose: pure label rename diff adds zero QColor literals, zero Qt.Align* shorthands — AI-9/AI-11/AI-12/AI-13 all clear in one sentence.
+- `" [Double-pass]"` is a Python string literal in an f-string, NOT a hex color or Qt enum. AI-13 gate: "does this reach PyVista color=?" — answer is no (it's a status-bar string), so AI-13 is trivially clear.
+
+### Industry-comparison concrete findings
+- **MeshLab "TwoStep Smooth"** (filter: `apply_coord_two_steps_smoothing`) and **"Taubin Smooth"** (filter: `apply_coord_taubin_smoothing`) both use NOUN-PHRASE labels, not adjective-noun compounds like "Double-pass smooth." "TwoStep Smooth" is the closest peer label — noun first, qualifier second, consistent with MeshLab's other filter names.
+- **Blender 4.x Corrective Smooth modifier** uses noun-first labeling ("Smooth Corrective" in docs, "Corrective Smooth" in some UI paths). The pattern is always noun-class first.
+- **Qt tooltip verb convention (MEDIUM-1 pattern):** Imperative ("Apply…") or noun-phrase is the Qt/Apple HIG standard. Third-person singular ("Applies…") conflicts with all peer tooltips. Fast check: if a tooltip verb ends in -s without "This widget", it's wrong form.
+- **Status-bar suffix length math**: `[HQ]` = 4 chars (safe), `[Double-pass]` = 13 chars (+9), success path at 116 chars (within ~120 clip band by 4 chars). Whenever a status-bar suffix is renamed to something longer, count the full rendered string length against the 120-char empirical clip limit.
+
+### First-launch / section-9 regressions
+- No regression possible from a pure label rename. Fast verify: does the changed code path touch `_render_current` or the variety/subtype combos? No — status-bar messages are only emitted in `_render_current`'s success/computing branches, not at launch.

@@ -1,8 +1,8 @@
 {
   "id": "hq-smoothing-label-rename-2026q3-e1",
   "created_at": "2026-05-22T23:47:14Z",
-  "updated_at": "2026-05-22T23:52:58Z",
-  "phase": "implement-running",
+  "updated_at": "2026-05-23T00:04:40Z",
+  "phase": "rectify-running",
   "phase_history": [
     {
       "phase": "init",
@@ -19,6 +19,22 @@
     {
       "phase": "implement-running",
       "at": "2026-05-22T23:52:44Z"
+    },
+    {
+      "phase": "implement-complete",
+      "at": "2026-05-22T23:56:09Z"
+    },
+    {
+      "phase": "critique-running",
+      "at": "2026-05-22T23:56:23Z"
+    },
+    {
+      "phase": "critique-complete",
+      "at": "2026-05-23T00:04:00Z"
+    },
+    {
+      "phase": "rectify-running",
+      "at": "2026-05-23T00:04:40Z"
     }
   ],
   "milestone_brief": "Close F-L1 from enriques-hq-smoothing-2026q3-e1 (deferred). Rename the user-facing \"HQ smoothing\" label to \"Double-pass smooth\". The frontend-ux critic flagged \"HQ\" as marketing-tone / opaque; \"Double-pass smooth\" is descriptive (the feature applies a second Taubin smoothing pass after the first). Scope: appearance_panel.py button label + tooltip + nearby comments; app.py status-bar template variables that interpolate \"[HQ]\" or \"HQ\"; tests/test_enriques_hq_smoothing.py + tests/test_styles_palette.py source-text assertions that grep for \"HQ smoothing\"; CONTEXT.md \u00a74.3a + \u00a78.16 doc references. AI-15 honesty check: \"Double-pass smooth\" is technically accurate \u2014 the implementation runs exactly two Taubin passes (n_iter=20+40). Internal symbol names (hq_smoothing, _hq_smoothing_cb, set_hq_smoothing_eligible, hq_smoothing_changed, HQ_SMOOTHING_ICON_NAME, _HQ_SMOOTHING_ELIGIBLE_SUBTYPES) can stay as-is to avoid blast-radius churn \u2014 only USER-VISIBLE strings rename. Test for both the new label appearing and the old label not appearing (regression guard).",
@@ -31,16 +47,21 @@
   "implementation_path": "inline",
   "implementation_plan": ".claude/notes/milestones/hq-smoothing-label-rename-2026q3-e1/artifacts/implementation-plan.md",
   "implementation_base": "e4acb1053d7e37c93eac738e7767c4688602e5f0",
-  "implementation_commit_range": null,
-  "implementation_commits": [],
+  "implementation_commit_range": "e4acb1053d7e37c93eac738e7767c4688602e5f0..3599139b9609ed75b134305d7271eb5038a76b4f",
+  "implementation_commits": [
+    "3599139b9609ed75b134305d7271eb5038a76b4f"
+  ],
   "implementation_branch": null,
-  "critique_path": null,
-  "critics_run": [],
+  "critique_path": ".claude/notes/milestones/hq-smoothing-label-rename-2026q3-e1/artifacts/adversary-critique.md",
+  "critics_run": [
+    "adversary",
+    "frontend-ux"
+  ],
   "critique_finding_counts": {
     "critical": 0,
-    "high": 0,
-    "medium": 0,
-    "low": 0
+    "high": 1,
+    "medium": 3,
+    "low": 4
   },
   "rectification_commit": null,
   "fixed_findings": [],

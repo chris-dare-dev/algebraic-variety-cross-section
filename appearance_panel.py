@@ -273,7 +273,12 @@ class AppearancePanel(QWidget):
         self._hq_smoothing_cb.setChecked(False)
         self._hq_smoothing_cb.setEnabled(False)
         self._hq_smoothing_cb.setToolTip(
-            "Applies a second Taubin smoothing pass (n_iter=40, pass_band=0.05) "
+            # hq-smoothing-label-rename-2026q3-e1 rect MEDIUM-1: imperative
+            # verb form ("Apply", not "Applies") per Qt / Apple HIG tooltip
+            # convention.  Peer tooltips throughout this panel use imperative
+            # or noun-phrase form; "Applies" reads as if a parenthetical
+            # "(this control)" is implied — awkward and inconsistent.
+            "Apply a second Taubin smoothing pass (n_iter=40, pass_band=0.05) "
             "— two passes total — to reduce the double-curve sawtooth-ridge "
             "artifact on Enriques figs 1 and 2.  Unlike Wireframe / Show edges "
             "(display-only toggles), this triggers a full mesh regeneration — "
@@ -543,10 +548,11 @@ class AppearancePanel(QWidget):
         Read by ``MainWindow._render_current`` to inject the
         ``hq_smoothing=True`` kwarg into ``enriques_figure_1`` /
         ``enriques_figure_2`` when the user has toggled the
-        "HQ smoothing" button.  Default ``False`` preserves the
-        ~449 ms Enriques generate-time baseline (see CONTEXT.md §8.16
-        for the spike timing log that justified the deferral / opt-in
-        design).
+        "Double-pass smooth" button (formerly "HQ smoothing"; relabeled
+        by ``hq-smoothing-label-rename-2026q3-e1``).  Default ``False``
+        preserves the ~449 ms Enriques generate-time baseline (see
+        CONTEXT.md §8.16 for the spike timing log that justified the
+        deferral / opt-in design).
         """
         return self._hq_smoothing
 

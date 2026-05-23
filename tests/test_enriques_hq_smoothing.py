@@ -412,3 +412,29 @@ def test_app_status_bar_does_not_use_old_hq_suffix() -> None:
         "apply.  Variable name `_hq_label` is exempt; only string literals "
         "guarded here."
     )
+
+
+def test_double_pass_smooth_tooltip_uses_imperative_verb() -> None:
+    """Regression guard for hq-smoothing-label-rename-2026q3-e1 rect MEDIUM-1.
+
+    The Double-pass-smooth tooltip must open with the imperative verb
+    ``Apply`` (not the third-person-singular ``Applies``).  Qt and Apple
+    HIG both specify imperative-or-noun-phrase form for tooltips, and
+    every other tooltip in ``appearance_panel.py`` already follows the
+    imperative pattern.
+    """
+    src = (
+        pathlib.Path(__file__).resolve().parent.parent / "appearance_panel.py"
+    ).read_text(encoding="utf-8")
+    # The tooltip first phrase must use the imperative "Apply".
+    assert '"Apply a second Taubin smoothing pass' in src, (
+        "appearance_panel.py is missing the imperative tooltip phrase "
+        '\'"Apply a second Taubin smoothing pass\' — rect MEDIUM-1 regression: '
+        "the Qt / Apple HIG convention requires imperative verbs in tooltips."
+    )
+    # And must NOT use the third-person-singular "Applies".
+    assert '"Applies a second Taubin smoothing pass' not in src, (
+        "appearance_panel.py contains the third-person-singular tooltip "
+        'phrase \'"Applies a second Taubin smoothing pass\' — rect MEDIUM-1 '
+        "regression: revert to the imperative \"Apply\" form."
+    )
