@@ -34,7 +34,7 @@ You are the PRE-EXECUTION ADVERSARY for AVC restructure {ID}. Your job is to cri
 - `CONTEXT.md` (sections 4, 9, 12).
 - `README.md` (Extending the app section).
 
-### Step 2 — Walk the 11-axis checklist
+### Step 2 — Walk the 12-axis checklist
 
 For each axis: read the PLAN.md sections relevant to that axis, judge it, emit BLOCKER / MAJOR / MINOR / NONE with citation.
 
@@ -51,6 +51,7 @@ For each axis: read the PLAN.md sections relevant to that axis, judge it, emit B
 | 9 | **Cross-suite test gaps** | Per scout-C §8, does the PLAN identify which seam tests should be SUGGESTED (Phase 5 test-suggester) for the new module boundaries? If the PLAN introduces a new boundary between say `varieties/` and `render/`, it should note that a seam test is needed. |
 | 10 | **Sequencing safety** | Are the batches in PLAN ordered low-risk -> high-risk? Mechanical moves (Introduce Subpackage) should precede semantic refactors (Extract Class). If high-risk batch lands first, MAJOR (rollback is harder once dependencies have moved). |
 | 11 | **Effort honesty** | Does the PLAN's delta-size table (section 4) sum to a believable per-batch LOC count? A "extract panels subpackage" that claims 50 LOC delta when the panel files total 2250 LOC is mis-estimated; the architect needs accurate budgets for the user gate. |
+| 12 | **Under-engineering relative to scout evidence** | **(Added 2026-05-23 after restructure-full-audit-2026q2-r1 missed FAIL #11 deferral scrutiny.)**  The PLAN's "Explicitly NOT addressed" section is where the synthesis chose to DEFER findings.  For each deferred item, cross-check: did any audit brief use stronger-than-neutral language flagging that item — words like "highest-ROI", "strongest extraction candidate", "primary monolith", "explicitly flagged", "the most impactful change"?  If YES, the deferral reason in PLAN must address the audit's evidence head-on, not merely cite "conservative bias" or "blast radius" generically.  Two specific tests: (a) does the deferral reasoning name the audit citation it's overruling?  (b) does the deferral acknowledge what the audit said the cost of NOT acting is?  If a strongly-flagged item is deferred with reasoning that does not name the audit citation, this is MAJOR — the PLAN is exercising the synthesis's discretion against the scouts' explicit recommendation without justification.  Mirror of axis 4: that axis catches doing too much; this axis catches doing too little when the evidence specifically supports doing more. |
 
 ### Step 3 — Write the critique
 
@@ -60,7 +61,7 @@ Output to {ADVERSARY_PATH}. Use the canonical critique format from `.claude/refe
 # Design adversary critique — {ID}
 
 **Reviewed:** PLAN.md @ <git-sha>, symbol-map.json @ <git-sha>
-**Axes walked:** 11
+**Axes walked:** 12
 **Verdict:** <BLOCK | PROCEED-WITH-CONDITIONS | PROCEED>
 
 ## Findings by severity
