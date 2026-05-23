@@ -1,8 +1,8 @@
 {
   "id": "restructure-full-audit-2026q2-r1",
   "created_at": "2026-05-23T17:23:26Z",
-  "updated_at": "2026-05-23T17:33:07Z",
-  "phase": "audit-complete",
+  "updated_at": "2026-05-23T18:18:54Z",
+  "phase": "preflight-running",
   "phase_history": [
     {
       "phase": "init",
@@ -15,6 +15,18 @@
     {
       "phase": "audit-complete",
       "at": "2026-05-23T17:33:07Z"
+    },
+    {
+      "phase": "design-running",
+      "at": "2026-05-23T17:59:12Z"
+    },
+    {
+      "phase": "design-complete",
+      "at": "2026-05-23T18:11:28Z"
+    },
+    {
+      "phase": "preflight-running",
+      "at": "2026-05-23T18:18:54Z"
     }
   ],
   "restructure_brief": "Broad cleanup audit of the AVC repo. Surface and address structural improvements: monolith hotspots (app.py 1893 LOC, surfaces.py 1808 LOC), the dual parameter_panel implementations (parameters_panel.py vs parameter_grid_panel.py), missing top-level files (LICENSE, CHANGELOG, AGENTS.md, pyproject.toml), the src-vs-flat layout question for an 11-file flat app, the four panel files at root that could group into panels/, and any AI-navigability gaps. The current layout is flat: 11 .py files at root, tests/ directory, .claude/ and .github/ standard tool folders. AI-1..AI-15 invariants from .claude/references/app-invariants.md are inviolable. Conservative bias: prefer low-risk wins (panels/ subpackage, AGENTS.md symlink, dead-code consolidation if parameter_grid_panel.py supersedes parameters_panel.py) over speculative reorganizations (src/avcs/ migration only if scouts surface strong evidence). Author all batches in low-risk-first order so high-risk Extract Class operations are gated behind successful low-risk batches.",
@@ -25,14 +37,14 @@
     ".claude/notes/repository-architect/restructure-full-audit-2026q2-r1/audit/refactor-pattern-brief.md"
   ],
   "evaluator_report": ".claude/notes/repository-architect/restructure-full-audit-2026q2-r1/audit/evaluator-report.md",
-  "plan_path": null,
-  "symbol_map_path": null,
-  "design_adversary_path": null,
+  "plan_path": ".claude/notes/repository-architect/restructure-full-audit-2026q2-r1/design/PLAN.md",
+  "symbol_map_path": ".claude/notes/repository-architect/restructure-full-audit-2026q2-r1/design/symbol-map.json",
+  "design_adversary_path": ".claude/notes/repository-architect/restructure-full-audit-2026q2-r1/design/design-adversary-critique.md",
   "design_adversary_finding_counts": {
     "critical": 0,
-    "high": 0,
-    "medium": 0,
-    "low": 0
+    "high": 2,
+    "medium": 4,
+    "low": 3
   },
   "restructure_base": null,
   "baseline_dir": null,
@@ -56,5 +68,16 @@
   "fixed_findings": [],
   "deferred_findings": [],
   "invalidated_findings": [],
-  "user_gate_history": []
+  "user_gate_history": [
+    {
+      "gate": 1,
+      "at": "2026-05-23T17:33:30Z",
+      "response": "y"
+    },
+    {
+      "gate": 2,
+      "at": "2026-05-23T18:11:30Z",
+      "response": "y"
+    }
+  ]
 }

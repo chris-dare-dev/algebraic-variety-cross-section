@@ -9,3 +9,10 @@
   audit complete: 4 brief(s) written; evaluator report at audit/evaluator-report.md
   next: bash .claude/scripts/repository-architect/status.sh restructure-full-audit-2026q2-r1
 ================================================================
+2026-05-23T18:02:55Z | repository-architect-design-adversary | design-adversary | dispatched
+2026-05-23T18:07:34Z | repository-architect-design-adversary | design-adversary | returned | 4m00s | status=complete (0C 2H 3M 3L)
+================================================================
+2026-05-23T18:11:28Z | PHASE -> design-complete
+  design complete: PLAN.md + symbol-map.json + design-adversary-critique.md written
+  next: bash .claude/scripts/repository-architect/status.sh restructure-full-audit-2026q2-r1
+================================================================

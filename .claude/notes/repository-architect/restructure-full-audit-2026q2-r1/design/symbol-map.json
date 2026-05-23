@@ -1,0 +1,34 @@
+[
+  {
+    "batch": 4,
+    "operation": "Introduce panels/ subpackage: move appearance_panel.py",
+    "kind": "module",
+    "from": "appearance_panel",
+    "to": "panels.appearance",
+    "symbol": null
+  },
+  {
+    "batch": 4,
+    "operation": "Introduce panels/ subpackage: move parameter_grid_panel.py (name unchanged per v2 MEDIUM-2)",
+    "kind": "module",
+    "from": "parameter_grid_panel",
+    "to": "panels.parameter_grid_panel",
+    "symbol": null
+  },
+  {
+    "batch": 4,
+    "operation": "Introduce panels/ subpackage: move parameters_panel.py",
+    "kind": "module",
+    "from": "parameters_panel",
+    "to": "panels.parameters",
+    "symbol": null
+  },
+  {
+    "batch": 4,
+    "operation": "Introduce panels/ subpackage: move view_panel.py",
+    "kind": "module",
+    "from": "view_panel",
+    "to": "panels.view",
+    "symbol": null
+  }
+]
