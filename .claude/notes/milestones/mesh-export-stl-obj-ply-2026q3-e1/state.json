@@ -1,8 +1,8 @@
 {
   "id": "mesh-export-stl-obj-ply-2026q3-e1",
   "created_at": "2026-05-23T05:03:36Z",
-  "updated_at": "2026-05-23T05:17:18Z",
-  "phase": "implement-running",
+  "updated_at": "2026-05-23T05:29:08Z",
+  "phase": "rectify-running",
   "phase_history": [
     {
       "phase": "init",
@@ -19,6 +19,22 @@
     {
       "phase": "implement-running",
       "at": "2026-05-23T05:10:44Z"
+    },
+    {
+      "phase": "implement-complete",
+      "at": "2026-05-23T05:17:19Z"
+    },
+    {
+      "phase": "critique-running",
+      "at": "2026-05-23T05:17:30Z"
+    },
+    {
+      "phase": "critique-complete",
+      "at": "2026-05-23T05:29:08Z"
+    },
+    {
+      "phase": "rectify-running",
+      "at": "2026-05-23T05:29:08Z"
     }
   ],
   "milestone_brief": "Lift CONTEXT.md \u00a79 non-goal \"No 3D mesh export\" \u2014 add File \u2192 Export Mesh\u2026 menu action that lets the user save the current surface to STL, OBJ, or PLY via PyVista's mesh.save(...). Scope: app.py adds a File menu (currently no File menu exists \u2014 the only menu bar item is Theme) with one action \"Export Mesh\u2026\" wired to a _on_export_mesh handler that opens QFileDialog.getSaveFileName with a format filter (\"STL files (*.stl);;OBJ files (*.obj);;PLY files (*.ply)\"), invokes self._raw_mesh.save(path) to persist (PyVista routes by extension), and surfaces success/failure via statusBar().showMessage. AI-15 attestation: the EXPORTED mesh is self._raw_mesh (the unclipped marching-cubes / Flying-Edges + Taubin output) \u2014 NOT the domain-clipped mesh \u2014 because the clip is a viewing convention not a mesh-fidelity choice; the user gets the canonical surface for downstream analysis. Action is disabled when self._raw_mesh is None (no surface yet rendered). AI-9: synchronous mesh.save() runs on the GUI thread but is fast (~10-50ms for the ~100k-vertex meshes this app produces) \u2014 no need for QThread; if a future variety produces multi-million-vertex meshes this gates the spinner-already-shipped pattern. Tests: pure source-grep (AI-2) asserting the File menu action exists, the handler invokes mesh.save, the format filter strings are present, and the disabled-when-no-mesh guard is present. Acceptance: user can render any surface, click File \u2192 Export Mesh\u2026, pick a path with .stl/.obj/.ply extension, and the file is written.",
@@ -31,16 +47,16 @@
   "implementation_path": "inline",
   "implementation_plan": ".claude/notes/milestones/mesh-export-stl-obj-ply-2026q3-e1/artifacts/implementation-plan.md",
   "implementation_base": "b06391dcf2e8e3f67cbbab84f857837fba0cf62c",
-  "implementation_commit_range": null,
+  "implementation_commit_range": "b06391d..474815f00223536859eeda6f8ddfcc8bc1597884",
   "implementation_commits": [],
   "implementation_branch": null,
-  "critique_path": null,
+  "critique_path": ".claude/notes/milestones/mesh-export-stl-obj-ply-2026q3-e1/artifacts/adversary-critique.md",
   "critics_run": [],
   "critique_finding_counts": {
     "critical": 0,
-    "high": 0,
-    "medium": 0,
-    "low": 0
+    "high": 1,
+    "medium": 7,
+    "low": 5
   },
   "rectification_commit": null,
   "fixed_findings": [],

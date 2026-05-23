@@ -1,46 +1,23 @@
 # lessons -- milestone-frontend-ux-critic
 
-## DEEP ARCHIVE (panel-refresh-2026q2-e2 through realtime-e4)
+## DEEP ARCHIVE — Evergreen rules (compacted 2026-05-23)
 
-### Evergreen token-discipline rules
-- **AI-13 fast gate:** "does this color arg reach `pv.Plotter.add_mesh`?" `qta.icon(color=...)` → QPainter, not PyVista. Float shading params are not color args.
-- **Dual-branch inline literal:** verify EVERY call site, not just the patched one.
-- **setStyleSheet dark mode:** verify BOTH `background:` AND `color:` are explicit — missing either half inherits wrong half from platform palette.
-- **Dead import from refactor:** grep for replaced symbol after every refactor pass.
-- **Fast token dispose:** if diff adds no QColor / no Qt.AlignmentFlag / no processEvents / no pv.add_mesh() — dispose AI-9/AI-11/AI-12/AI-13 in one sentence.
-- **Status-bar overflow:** check `f"⚠ {_surface_warning}  |  {base_msg}"` — Dwork warning ~175 chars; suffix pushes past 120-char empirical clip limit.
-- **Early-return-before-try trap:** any `return` above `try/finally` in a worker-result slot skips cursor restore + `_computing` clear → permanent soft-freeze. Flag MEDIUM.
-- **Label-binding lag:** `Computing {surface.label}…` bound at dispatch. Stale label during in-flight switch. 3D Slicer per-job status widget is peer model.
-- **Scope:** `QRunnable`/`QObject` with zero `QWidget` subclass = worker/plumbing, not panel surface. Pure threading refactor → all-MEDIUM-or-below is honest.
-
-### Contrast ratio discipline
-- Re-measure; don't trust inherited annotations. Dual-surface check: BG_VIEWPORT (dark) AND BG_PANEL (light). `FOCUS_RING` `#3c82c4` = 3.56:1 vs `#f0f0f0` — narrow-pass, add "(do not lighten further)".
-- Focus-ring: report delta for BOTH themes. macOS Sequoia 3.53:1, GNOME 3.31:1 — peer-calibrated narrow-pass.
-
-### Industry-comparison archive
-- ParaView: CSS-var tokens → PALETTE_LIGHT/DARK; `ambient=0.1, diffuse=0.8` (validates UPL-9); dark-chip swatch; "View > Theme submenu" IA; separate ±axis glyphs (not rotated=180); "Display" tab separates display from quality.
-- Blender 4.x: checkable QPushButton for toggles; uniform icon footprint (ALL or NONE in group); noun-first labels; destructive icon = same hue family as text.
-- 3D Slicer: per-job status widget for lagging-label fix; CLI state machine (Idle→Scheduled→Running→Completed).
-- ParaView status-bar progress + Abort = canonical follow-on for text-only "Computing…". QThreadPool does NOT cancel running QRunnable — needs cooperative flag.
-- MeshLab "Render Mode" = display-pipeline only (no regeneration toggles). "Bounding Box" qualifies measurements; bare "size:" is a regression.
-
-### First-launch / section-9 regressions (recurring)
-- Fast check: does new method call `_render_current` or touch `variety_combo`/`subtype_combo`? No → section-9.3 clean.
-- `set_default_color` in `_on_variety_changed` is NOT on the render path.
-- Actor color not pushed on theme switch: `_on_theme_changed` → `set_default_color` but NOT `apply_to_actor`. Flag whenever milestone diverges variety colors by theme.
-
-### QSS platform traps
-- `text-align: left` silently ignored on macOS Aqua unless `background:` also set (forces QSS paint mode). Fast check: any `QPushButton` QSS rule with `text-align` must have `background:`.
-- `&&` escapes literal `&` in QGroupBox titles to suppress unintended Alt-key accelerator binding.
-
-### Misc patterns
-- `QSize(16,16)` is a plain constructor — AI-11 does not apply (AI-11 = Qt.* / QSizePolicy.* enum symbols only).
-- Ghost-button unchecked transparent = Material Design web convention, NOT desktop sci-viz norm. Flag MEDIUM.
-- Border-width change (1px → 2px) in checked QSS = 1px content shift. Compensate padding or use `outline:`. Always LOW.
-- setIconSize must follow setIcon on every new QPushButton with an icon — HIGH if missing (platform-dependent clipping).
-- `refresh_icons` must have 3 symmetric call sites: `__init__`, `_on_theme_changed`, `_apply_system_theme`.
-- ParaView OSPRay "OSPRay rendering..." label = canonical model for attributing quality-toggle overhead in status bar.
-- Performance claims in tooltips: relative % is hardware-independent; absolute ms is dev-machine-specific — cite both with caveat.
+- **AI-13 fast gate:** "does this color arg reach `pv.Plotter.add_mesh`?" QPainter / QSS is NOT PyVista.
+- **Fast token dispose:** diff adds no QColor / Qt.AlignmentFlag / processEvents / pv.add_mesh() → dispose AI-9/AI-11/AI-12/AI-13 in one sentence.
+- **Status-bar overflow:** empirical clip ~120 chars; hoist load-bearing tokens LEFT of any `|` separator.
+- **Early-return-before-try trap:** any `return` above `try/finally` skips cursor restore + `_computing` clear → soft-freeze. Flag MEDIUM.
+- **First-launch fast check:** does new method call `_render_current` or touch `variety_combo`/`subtype_combo`? No → section-9.3 clean.
+- **QSS `text-align` on macOS Aqua:** silently ignored unless `background:` also set. Flag any QPushButton QSS `text-align` without `background:`.
+- **`&&` in QGroupBox titles:** escapes literal `&` to suppress Alt-key accelerator binding.
+- **`QSize(16,16)` is a plain constructor** — AI-11 does not apply. AI-11 = `Qt.*` / `QSizePolicy.*` enum symbols only.
+- **setIconSize must follow setIcon** on every new QPushButton with icon — HIGH if missing (platform clipping).
+- **`refresh_icons` must have 3 symmetric call sites:** `__init__`, `_on_theme_changed`, `_apply_system_theme`.
+- **Group-label precision:** when a QGroupBox gains a new child categorically different from its label, flag MEDIUM.
+- **Pre-existing shorthand in context lines** (not `+` lines) is NOT a new AI-11 violation. Grep BASE commit before filing.
+- **Persistence milestones:** check BOTH first-launch path (schema_version=0 → no-op) AND second-launch path (schema_version=1 + valid variety → render trigger).
+- **Disabled-widget tooltip on macOS:** `AA_EnableToolTipsOnDisabledWidgets` at `app.py:1675` is the canonical fix. Confirm it's set before filing "tooltip invisible on greyed button" findings.
+- **Dead `_inflight_*` fields:** grep for the NAME; if only hits are init + set, it's dead code. Always LOW.
+- **Bool sentinel polarity:** `_pending_is_coarse = True` (AND-identity init) reads as "IS coarse" to maintainers. Flag whenever True is used as "no signal" sentinel. Prefer `Optional[bool] = None` or rename to OR-natural polarity.
 
 ---
 
@@ -57,24 +34,10 @@
 
 ---
 
-## status-bar-bbox-2026q2-e2 (UPL-13 full-extent e2) — 2026-05-22
+## status-bar-bbox-2026q2-e2 — 2026-05-22 (compacted)
 
-### Token-discipline near-misses
-- No short-hex, no shorthand-enum, no processEvents, no pv.add_mesh() — text-only f-string change. All four AI-9/AI-11/AI-12/AI-13 axes disposed in one sentence.
-- Float format specifiers (`.3f`) are not hex colors. AI-13 gate: "does this arg reach PyVista?" — if not, clear.
-
-### Label-precision regression (MEDIUM-1 this milestone)
-- **e1 "bbox ±..." → e2 "size: ..."** is a data improvement (full-extent vs half-extent) but a label-precision regression. The word "bbox" explicitly named the measurement type; bare "size:" does not. MeshLab always uses "Bounding Box" as qualifier; ParaView uses "Bounds"; Blender uses "Dimensions". None use bare "size:" without a type qualifier.
-- Character cost of `"bbox:"` vs `"size:"` is ZERO (both 5 chars with colon). The compactness trade-off that might justify dropping the qualifier does not hold here.
-- Fast flag: whenever a milestone renames a status-bar token, check whether the new name preserves the MEASUREMENT TYPE signal. Renaming from a qualified label (bbox, bounds) to an unqualified label (size, dims) is always a regression risk.
-
-### Industry-comparison notes
-- **MeshLab "Bounding Box Size":** `dim_x()` / `dim_y()` / `dim_z()` API always qualifies with "Bounding Box." Full-extent formula is `max - min` per axis — identical to e2's `_b[1]-_b[0]`.
-- **ParaView "Bounds":** shows `X Range: [min, max]` — uses "Bounds" not "size." Supports using `bbox:` over `size:`.
-- **`.3f` trailing zeros for symmetric generators** (6.400, 3.000): trailing zeros are exact (sampling domain is exactly that wide), not over-precise. The `.3f` rationale (avoid false equalities at sub-1.0: 0.530 ≠ 0.540) is sound; `:.4g` is an optional cosmetic alternative.
-
-### First-launch / section-9 regressions
-- No regression possible from a text-only status-bar label change. `size_suffix` is only emitted in the success branch of `_render_current`, unreachable from `-- Select --`.
+- Token-discipline: text-only f-string change → all 4 axes clear in one sentence. Float format specifiers are NOT hex colors.
+- **Status-bar measurement-type signal:** renaming `bbox:` → `size:` drops the type qualifier. MeshLab uses "Bounding Box", ParaView uses "Bounds", Blender uses "Dimensions". Bare `size:` is always a regression from a qualified label. Fast flag: whenever a status-bar token is renamed, check if the new name preserves the MEASUREMENT TYPE signal.
 
 ---
 
@@ -98,39 +61,12 @@
 ### State-reset-on-navigate UX
 - Unconditional `setChecked(False)` on `set_hq_smoothing_eligible(False)` is the "clear" pattern. This is defensible (avoids dangling-enabled bugs) but is the minority peer pattern (ParaView / SageMath both preserve per-object state). Flag as LOW when the state-clear has no status-bar feedback — the user cannot observe the reset happened.
 
-## realtime-variety-render-e4b (CAND-3 coarse-preview LOD) — 2026-05-22
+## realtime-variety-render-e4b (CAND-3 coarse-preview LOD) — 2026-05-22 (compacted)
 
-### Token-discipline near-misses
-- No short-hex, no shorthand-enum, no new QColor, no new processEvents in the diff. Pure dispatcher / status-bar f-string change. All four AI-9/AI-11/AI-12/AI-13 axes dispose in one sentence. AI-9 check: the new `coarse` kwarg is DATA — not a new locking primitive — and the existing `_computing` single-flight latch is unchanged.
-
-### The "Computing… vs Preview" flicker — the dispatch/result message-pair asymmetry
-- When a result-time slot BRANCHES on `result.is_coarse` to choose between two visually-distinct status-bar labels, the corresponding DISPATCH-time `showMessage` MUST also branch — otherwise the user sees rapid flicker between the two label styles during a drag burst (each dispatch shows the un-attributed "Computing…" and each result shows the attributed "Preview — …"). For e4b at ~25 Hz this is a real flicker that undercuts the AI-15 disclosure the result-time branch was built to provide. Fast check: any milestone that adds a result-time `if result.<flag>: showMessage(<flag-specific>)` branch should have an equivalent dispatch-time `f"Computing{flag_label} {label}…"` interpolation. The busy-branch `showMessage` at the in-flight queue-latest path is a THIRD copy that needs the same treatment — it currently reads `self._current_surface.label` but not the queued coarse-vs-full mode (which is now stored in `_pending_is_coarse`).
-- Flag this kind of asymmetry as HIGH (math-honesty consequence, not just paper-cut) when the user-visible label drives an AI invariant disclosure.
-
-### `True` as AND-identity is mathematically correct but doc-confusing for booleans
-- e4b's `_pending_is_coarse = True` init relies on `True` being the boolean-AND identity element, then explains it in a 6-line truth-table comment. Mathematically correct, but the sister field `_pending_reset_camera = False` (OR-identity) is *better* because `False` reads naturally as "no signal pending." A future maintainer skimming `_pending_is_coarse = True` (at init) may read it as "the pending render IS coarse" rather than "no pending render yet."
-- Flag whenever a boolean uses `True` as a "no signal" sentinel (AND-identity polarity). Suggest either (a) rename to the OR-natural polarity (`_pending_render_is_full = False`) or (b) use `Optional[bool]` with `None` as the explicit "no signal" sentinel. Pattern repeats whenever a queue-latest flag is added with AND-promote semantics.
-
-### Status-bar overflow recurring risk extended to coarse-path warning composites
-- The Dwork conifold 175-char RuntimeWarning + the 55-char Preview badge + the " | " separator = ~233 chars, well over QStatusBar's ~120-char visible window. The full-result equivalent dodges this by hoisting `bbox_suffix` to the LEFT of the pipe (status-bar-bbox-2026q2-e1 lesson); the coarse-result branch suppresses bbox (correctly per AI-15) so the equivalent hoist must move the BADGE to the left of the pipe. Same recurring pattern as the e1/e2 bbox-overflow issue.
-- Fix-side preference: shortening the source RuntimeWarning text is cleaner than rearranging the composite — runtime warnings on the worker thread should be ≤80 chars per peer convention.
-
-### AI-15 disclosure is structural, not just transient
-- A status-bar Preview badge satisfies AI-15 ONLY for status-bar-watching users. A user who hovers the subtype combo box reads SUBTYPE_TOOLTIPS but never sees the badge. New AI-15 line 170 says "A new render-mode candidate that lacks a comparable user-visible fidelity disclosure is an AI-15 conflict" — *comparable* covers tooltip-level disclosure that the variety is opt-in for coarse-preview LOD. Always flag the absence of a per-surface tooltip mention of a new render mode as MEDIUM.
-- Mathematica `Manipulate[ControlActive[...]]` puts the disclosure in the tooltip of its mode toggle, not just in a transient status-bar line — the peer pattern.
-
-### Industry-comparison concrete findings
-- **Mathematica `Manipulate[..., ControlActive[low_res, full]]`** is the canonical peer for two-pass coarse-vs-full UX (since v6.0, 2007). Indicator location: small "computing..." shimmer at bottom-right of the CANVAS, NOT in a status-bar text label. AVC's status-bar approach is a deliberate divergence.
-- **ParaView "Interactive Render" / "Still Render"** explicit toggle for the same trade-off. Indicator: small label at bottom-right of the RENDER VIEW. Also canvas-adjacent, not status-bar.
-- Both peers locate the indicator AT THE RENDER VIEW. AVC's status-bar location is defensible BECAUSE the status bar already carries the load-bearing render metadata (verts/faces/bbox/ms) — the eye is trained there — but the divergence should be documented in CONTEXT.md §8.19.
-- ParaView's "Interactive Render" status string stays "Interactive (preview)" CONTINUOUSLY across both phases of the same drag (dispatch + result both say "preview"). AVC's e4b currently flickers between "Computing X…" and "Preview — X — N ms." Fix is the HIGH-1 finding.
-
-### Dead "in-flight mirror" fields are a smell
-- `_inflight_is_coarse` is set at dispatch but never read (the slot uses `result.is_coarse`). Its docstring claims "defensive symmetry with the rest of the `_inflight_*` family" but that family DOES have consumers (`_inflight_surface`, `_inflight_params`, `_inflight_reset_camera`, `_inflight_hq_label` are all read in the slot). Pure dead code. Fast check on any new `_inflight_*` field: grep for its NAME, not its definition site — if the only hits are init + set, it's dead.
-
-### Scope discipline
-- Pure dispatcher / status-bar branch + math/worker plumbing changes — `appearance_panel.py`, `view_panel.py`, `parameters_panel.py`, `styles.py` are byte-identical. `git diff --stat 4db5c12..601612c -- <panel_files>` returning empty IS the canonical panel-scope check; run it first. A milestone with no panel-widget diff legitimately produces a critique focused on dispatcher + status-bar f-strings (axes 1-4, 7-9, 11 dispose in one sentence as "out-of-panel-scope" or "no relevant change").
-- `render_worker.py` and `surfaces.py` are worker / math, not panel surfaces — same dispose pattern as e4 (CAND-4) for `render_worker.py`.
+- Token-discipline: `coarse` kwarg is DATA not a locking primitive. AI-9/AI-11/AI-12/AI-13 clear in one sentence.
+- **Dispatch/result branch asymmetry (HIGH-1 here):** when `result.is_coarse` drives a visually-distinct status-bar label, BOTH dispatch-time AND in-flight busy-branch `showMessage` must match — otherwise ~25 Hz drag burst flickers between "Computing X…" and "Preview — X — NNN ms". Fast check: any `if result.<flag>: showMessage(<flag-specific>)` must have an equivalent dispatch-time interpolation.
+- **Coarse overflow composite:** Dwork 175-char RuntimeWarning + 55-char Preview badge + " | " ≈ 233 chars. Hoist badge LEFT of pipe, same as bbox hoist pattern.
+- **Panel scope check:** `git diff --stat <range> -- appearance_panel.py view_panel.py parameters_panel.py styles.py` returning empty = legitimate empty-panel-scope critique. Axes 1–4, 7–9, 11 dispose in one sentence.
 
 ---
 
@@ -221,3 +157,30 @@
 
 ### closeEvent save-before-teardown pattern
 - Any `settings.sync()` / `saveGeometry()` call at the TOP of `closeEvent` MUST be in a `try/except` if ANYTHING below it is non-optional teardown (signal disconnect, thread drain, plotter close). Unguarded settings save = potential teardown abort. Flag as HIGH whenever the teardown chain below the save includes thread-pool drain or VTK context close.
+
+---
+
+## mesh-export-stl-obj-ply-2026q3-e1 — 2026-05-23
+
+### Token-discipline near-misses
+- No short-hex, no shorthand-enum, no processEvents, no pv.add_mesh() color args. `QKeySequence("Ctrl+E")` is the string form — Qt documents this as the portable cross-platform shortcut syntax; AI-11 does NOT apply (AI-11 targets `Qt.*` / `QSizePolicy.*` enum symbols, not `QKeySequence` string constructors). Fast dispose: entire diff is a menu + handler, all four AI-9/AI-11/AI-12/AI-13 axes clear in one sentence.
+
+### File-dialog _selected_filter unused — recurring trap
+- `QFileDialog.getSaveFileName` returns `(path, selected_filter)`. Assigning to `_selected_filter` (with underscore = "unused") and NOT reading it is the canonical missed-auto-append bug. On macOS/Linux, Qt does NOT auto-append extensions from the selected filter; on Windows it does. The fix is `re.search(r'\(\*(\.\w+)\)', selected_filter)` to get the extension and append it if path lacks one. Fast check: any `getSaveFileName` call site — look for whether the second return value is read. If it's `_, selected_filter = ...` that's a warning sign; if it's `path, _selected_filter = ...` that's the exact pattern.
+
+### Coarse-LOD × export action enable — cross-milestone interaction
+- `_on_mesh_ready` enables the export action in the success branch, unconditionally, BEFORE the `if result.is_coarse: return` branch. This is the pattern: a feature added in milestone N interacts with a coarse-LOD path added in milestone N-1, and the interaction is not analyzed in the new milestone's AI-15 scan. Fast check: any `setEnabled(True)` on an export-class action inside `_on_mesh_ready` — verify it gates on `not result.is_coarse`.
+
+### Internal tag jargon in user-facing tooltips
+- "AI-15: the mathematical caveats..." leaked an internal invariant label into a user-facing QAction tooltip. The fix is trivial ("Note:"), but the pattern recurs whenever a developer adds an app-invariants.md reference as UI copy. Fast flag: grep tooltip strings for "AI-[0-9]" — any hit is a jargon leak.
+
+### Industry-comparison concrete findings (export)
+- **MeshLab "File > Export Mesh As"** uses `Ctrl+Shift+E` (not `Ctrl+E`). GIMP and Inkscape also use `Ctrl+Shift+E` for "Export As". ParaView uses `Ctrl+S` for "Save Data" (closest equivalent). The tri-tool consensus on `Ctrl+Shift+E` makes `Ctrl+E` an atypical choice, though not conflicting within AVC.
+- **ParaView "Save Data"** shows only the filename in the status bar after save ("Saved mesh.stl"), not the full path. This is the canonical pattern that avoids the deep-path overflow. Always recommend `os.path.basename(path)` for export success messages.
+- **MeshLab format filter:** uses bare "Stereolithography (*.stl)" format without the "files" qualifier. Qt docs use "Images (*.png)" — noun-first without "files". Always recommend removing the redundant "files" word from filter strings.
+
+### Status-bar overflow for export success message
+- `"Mesh exported: {path}"` is the AVC export success pattern. A deep Mac iCloud Drive path reaches 131–165 chars, over the 120-char clip limit. The load-bearing token "Mesh exported:" is at the LEFT (first ~15 chars), so the user knows the export succeeded even when the path clips. But for confirmability, use `os.path.basename(path)`. This is the same overflow pattern as the `f"⚠ {warning} | {base_msg}"` lesson, now applied to file-operation success messages.
+
+### EN DASH in sanitised filenames — VTK Windows path risk
+- `"Dwork pencil (Calabi–Yau) [Fig. 4]"` → `"Dwork_pencil_(Calabi–Yau)_Fig._4.stl"`. The U+2013 EN DASH passes sanitisation. VTK's legacy C FILE* writer on Windows may fail with non-ASCII filenames. Fast check: grep `surface.label` entries in `surfaces.py` for non-ASCII chars; any that reach default-filename logic need Unicode-to-ASCII sanitisation.

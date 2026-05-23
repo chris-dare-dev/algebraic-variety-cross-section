@@ -7,7 +7,10 @@ mouse — no extra wiring required.
 
 from __future__ import annotations
 
+import os.path
+import re
 import sys
+import unicodedata
 
 from PySide6.QtCore import Qt, QSettings, QSize, QThreadPool, QTimer, Slot
 from PySide6.QtGui import (
@@ -201,6 +204,17 @@ class MainWindow(QMainWindow):
         self._actor = None
         self._domain_overlay_actor = None
         self._raw_mesh = None
+        # mesh-export-stl-obj-ply-2026q3-e1 rect MEDIUM (cross-critic):
+        # parallel-track the LOD fidelity of self._raw_mesh so the
+        # Export Mesh handler can warn the user when they're about to
+        # save a coarse-preview (n=80) draft instead of the full-
+        # resolution (n≥220) production mesh.  Without this flag the
+        # export silently writes a coarse approximation when the user
+        # exports mid-drag — an AI-15 honesty gap flagged independently
+        # by both Phase 3 critics.  Set in _on_mesh_ready alongside the
+        # _raw_mesh assignment; reset to False on every error path
+        # (parallel to the _raw_mesh = None resets).
+        self._raw_mesh_is_coarse: bool = False
         # realtime-variety-render-e1-s5 (CAND-11): clipped-mesh cache slot.
         # Holds the result of `view_panel.clip_to_domain(self._raw_mesh)` so an
         # appearance-only re-render (e.g. surface colour change) reuses it
@@ -556,8 +570,10 @@ class MainWindow(QMainWindow):
             # would silently save the stale prior surface (a confusing
             # "I exported the empty viewport but got an Enriques mesh"
             # behavior).  Mirror of the disable in _on_mesh_ready's
-            # error path.
+            # error path.  rect MEDIUM: also reset _raw_mesh_is_coarse
+            # so the LOD-fidelity flag is in sync with action state.
             self._export_mesh_action.setEnabled(False)
+            self._raw_mesh_is_coarse = False
             self.statusBar().showMessage("Choose a variety to begin.")
             self.parameters_panel.set_context_hint("")
         self.subtype_combo.blockSignals(False)
@@ -939,6 +955,9 @@ class MainWindow(QMainWindow):
                 # failed regenerate.  Paired with the setEnabled(True) in
                 # the success path below.
                 self._export_mesh_action.setEnabled(False)
+                # rect MEDIUM: reset the LOD fidelity flag alongside
+                # the _raw_mesh = None reset — keep the two in sync.
+                self._raw_mesh_is_coarse = False
                 # Fall back to the exception type name so the status bar is
                 # never the content-free "Error: " (a bare MemoryError, an
                 # arg-less exception, etc. give an empty str(exc)).
@@ -972,6 +991,13 @@ class MainWindow(QMainWindow):
             # available the moment a valid raw mesh exists.  Synchronous
             # setEnabled — no signal storms, AI-9 safe.
             self._export_mesh_action.setEnabled(True)
+            # rect MEDIUM (cross-critic AI-15): parallel-track LOD
+            # fidelity so the export handler can disclose draft-
+            # resolution exports in both the suggested filename
+            # (`_preview` suffix) and the success status-bar message.
+            # Set BEFORE the coarse-result early-return below so both
+            # branches (preview AND full-fidelity) update the flag.
+            self._raw_mesh_is_coarse = bool(result.is_coarse)
             # CAND-12: one stdout log line per completed generate().
             print(f"[render] {surface.label}: {result.gen_ms:.0f} ms")
 
@@ -1273,17 +1299,25 @@ class MainWindow(QMainWindow):
         """
         file_menu = self.menuBar().addMenu("&File")
         self._export_mesh_action = QAction("Export Mesh…", self)
-        self._export_mesh_action.setShortcut(QKeySequence("Ctrl+E"))
+        # rect LOW-3 (frontend critic): Ctrl+Shift+E aligns with the
+        # desktop sci-viz / creative-tool ecosystem convention for
+        # "Export As" (MeshLab, GIMP, Inkscape all use Ctrl+Shift+E).
+        # Ctrl+E was free in AVC but is atypical for export in peer
+        # apps; a researcher with MeshLab muscle memory would reach
+        # for Ctrl+Shift+E and find nothing on the original binding.
+        self._export_mesh_action.setShortcut(QKeySequence("Ctrl+Shift+E"))
         self._export_mesh_action.setEnabled(False)
+        # rect MEDIUM-4 + MEDIUM-5 (frontend critic): trim tooltip from
+        # 4 source lines (~7 visual lines after word-wrap) down to 3
+        # visual lines, AND replace the leaked "AI-15:" internal
+        # invariant tag with a plain-language "Note:" prefix.  Users
+        # don't read app-invariants.md; "AI-15:" reads as legalese or
+        # a version number to a mathematician hovering the action.
         self._export_mesh_action.setToolTip(
             "Save the current surface mesh to a file.\n"
-            "Supported formats: STL, OBJ, PLY (PyVista routes by extension).\n"
-            "The exported mesh is the full unclipped surface — the domain "
-            "clip is a viewing convention, not applied to the export.\n"
-            "AI-15: the mathematical caveats of the active variety "
-            "(real shadow, birational model, parametric cross-section) "
-            "carry through to the exported file — see the variety "
-            "tooltip for the specifics."
+            "Formats: STL · OBJ · PLY. Exports the full unclipped surface.\n"
+            "Note: mathematical caveats of the variety apply — see variety "
+            "tooltip."
         )
         self._export_mesh_action.triggered.connect(self._on_export_mesh)
         file_menu.addAction(self._export_mesh_action)
@@ -1320,20 +1354,32 @@ class MainWindow(QMainWindow):
             return
         surface = self._current_surface
         if surface is not None:
-            # Build a discoverable default filename from the surface label,
-            # sanitised for filesystem use (spaces → underscores, slashes
-            # → dashes, brackets stripped) and defaulting to .stl as the
-            # widest-compat format.
+            # Build a discoverable default filename from the surface label.
+            # rect LOW-2 (frontend critic): NFKD-normalize then ASCII-
+            # strip so non-ASCII glyphs in surface labels (the U+2013
+            # EN DASH in "Calabi–Yau" was the conspicuous case) become
+            # ASCII before they hit Windows's legacy VTK C FILE*
+            # writer which can mangle non-ANSI codepoints in paths.
+            ascii_label = unicodedata.normalize("NFKD", surface.label).encode(
+                "ascii", "ignore"
+            ).decode("ascii")
             sanitised = (
-                surface.label.replace(" ", "_")
+                ascii_label.replace(" ", "_")
                 .replace("/", "-")
                 .replace("[", "")
                 .replace("]", "")
             )
-            default_name = f"{sanitised}.stl"
+            # rect MEDIUM (cross-critic AI-15): when the current raw
+            # mesh is the coarse-preview LOD result (n=80 vs the n≥220
+            # production grid), tag the suggested filename with
+            # `_preview` so the user can see at the dialog moment
+            # whether this would be a draft-resolution export.  The
+            # success status-bar message also annotates this below.
+            preview_suffix = "_preview" if self._raw_mesh_is_coarse else ""
+            default_name = f"{sanitised}{preview_suffix}.stl"
         else:
             default_name = "mesh.stl"
-        path, _selected_filter = QFileDialog.getSaveFileName(
+        path, selected_filter = QFileDialog.getSaveFileName(
             self,
             "Export Mesh",
             default_name,
@@ -1341,27 +1387,70 @@ class MainWindow(QMainWindow):
         )
         if not path:
             return  # user cancelled the dialog
-        # Extension validation — Qt does NOT auto-append on macOS or
-        # Linux when the user types a name without one, and PyVista
-        # raises ValueError on unsupported extensions.  Pre-validate
-        # so the user gets a friendlier message than the VTK stderr.
+        # rect LOW (adversary critic): re-guard _raw_mesh after the
+        # modal dialog returns.  The dialog runs its own event loop
+        # which can allow a queued catch-up render to fail (variety
+        # swap mid-dialog is blocked, but a parameter-out-of-range
+        # async failure could still flip _raw_mesh to None).  Without
+        # this guard a NoneType.save AttributeError is caught by the
+        # broad except below but surfaces as confusing implementation
+        # jargon to the user.
+        if self._raw_mesh is None:
+            self.statusBar().showMessage(
+                "Export cancelled — surface no longer available "
+                "(render failed during dialog)."
+            )
+            return
+        # Extension validation + rect MEDIUM-2 (frontend critic): when
+        # the user types a bare filename (no .stl/.obj/.ply suffix —
+        # Qt does NOT auto-append on macOS/Linux), parse the selected
+        # filter for its extension glob and auto-append.  This matches
+        # MeshLab / Blender / GIMP / Inkscape's behavior and removes a
+        # workflow interruption (the prior code fired an error and the
+        # user had to re-open the dialog).  Falls through to the error
+        # branch only when the filter is malformed (e.g. user picked
+        # "All Files" — not currently in the filter set but defensive
+        # against a future filter addition).
         lower = path.lower()
-        if not (
+        has_supported_ext = (
             lower.endswith(".stl")
             or lower.endswith(".obj")
             or lower.endswith(".ply")
-        ):
-            self.statusBar().showMessage(
-                "Export cancelled — please include a .stl, .obj, or "
-                ".ply extension."
-            )
-            return
+        )
+        if not has_supported_ext:
+            ext_match = re.search(r"\(\*(\.\w+)\)", selected_filter or "")
+            if ext_match and ext_match.group(1) in (".stl", ".obj", ".ply"):
+                path = path + ext_match.group(1)
+            else:
+                self.statusBar().showMessage(
+                    "Export cancelled — please include a .stl, .obj, "
+                    "or .ply extension."
+                )
+                return
         try:
             self._raw_mesh.save(path)
         except Exception as exc:  # noqa: BLE001 — PermissionError, FileNotFoundError, ValueError, VTK IOError
             self.statusBar().showMessage(f"Export failed: {exc}")
             return
-        self.statusBar().showMessage(f"Mesh exported: {path}")
+        # rect MEDIUM-1 (frontend critic): use the filename only in
+        # the status-bar success message — the full path is the
+        # canonical case where the ~120-char QStatusBar visible-clip
+        # band silently truncates the most-informative trailing
+        # component on macOS/Windows cloud-storage paths.  ParaView's
+        # "Save Data" uses the same basename-only pattern.
+        basename = os.path.basename(path)
+        # rect MEDIUM (cross-critic AI-15): annotate the success
+        # message when the exported mesh is a coarse-preview LOD
+        # result so the user knows the saved file is the draft
+        # approximation, not the full-resolution surface they'll see
+        # after the next release-trigger render.
+        if self._raw_mesh_is_coarse:
+            self.statusBar().showMessage(
+                f"Mesh exported (preview-resolution — release to "
+                f"render full): {basename}"
+            )
+        else:
+            self.statusBar().showMessage(f"Mesh exported: {basename}")
 
     # --- theme system ------------------------------------------------------
 
