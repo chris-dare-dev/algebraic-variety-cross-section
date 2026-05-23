@@ -2,7 +2,7 @@
 
 **Audience.** This file is a handoff document for a future Claude session that may continue this project. It captures the *why* behind decisions, the conventions in use, and the failure modes encountered, so a fresh session can be productive immediately. Read this end-to-end before editing.
 
-**Last updated.** End of the third "variety pass" — Calabi–Yau 3-folds added on top of K3 + Enriques. 13 commits on `main`. 120 tests passing.
+**Last updated.** End of the fourth "variety pass" — Fano 3-folds added on top of K3 + Enriques + Calabi–Yau. 113+ commits on `main`. 499 tests passing.
 
 ---
 
@@ -614,11 +614,18 @@ If a future user asks for a fourth variety (Severi varieties, abelian surfaces, 
 
 ## 12. Final state at handoff
 
-- 13 commits on `main`
-- 120 tests passing in ~4 s
-- Three varieties live: K3 (2 subtypes), Enriques (4 figures), Calabi–Yau (4 figures)
+- 113+ commits on `main`
+- 499 tests passing in ~7 s
+- Four varieties live: K3 (2 subtypes), Enriques (4 figures), Calabi–Yau (4 figures), Fano 3-fold (4 figures)
 - Three docks: View (left), Parameters (right top), Appearance (right bottom)
 - Domain clipping with sphere/cube modes and adjustable radius
 - Adaptive bounds, Taubin smoothing, gradient normals throughout
 - Tooltips, keyboard shortcuts, busy cursor, status-bar feedback
 - Centralized stylesheet with WCAG AA-compliant text contrast
+- Numba JIT field kernels for all 11 implicit generators (workqueue threading layer)
+- QSettings persistence: window geometry, dock layout, last-used variety/subtype
+- File → Export Mesh (Ctrl+E): STL / OBJ / PLY export of the unclipped surface
+- Two-pass coarse-preview LOD with AI-15 Preview badge during slider drag
+- Back-face culling gated per-variety for Enriques family
+- Double-pass smooth opt-in for Enriques Figs. 1 + 2
+- render-busy spinner via qtawesome (addPermanentWidget, not obscured by showMessage)
