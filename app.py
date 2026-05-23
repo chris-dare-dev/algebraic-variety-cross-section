@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import sys
 
-from PySide6.QtCore import Qt, QThreadPool, QTimer, Slot
+from PySide6.QtCore import Qt, QSize, QThreadPool, QTimer, Slot
 from PySide6.QtGui import (
     QAction,
     QActionGroup,
@@ -173,8 +173,20 @@ class MainWindow(QMainWindow):
         self._render_busy_spinner.setFlat(True)
         self._render_busy_spinner.setEnabled(False)
         self._render_busy_spinner.setFixedSize(16, 16)
+        # render-busy-spinner-2026q3-e1 rect HIGH: explicit setIconSize
+        # mirrors the convention used by all 7 peer icon-bearing buttons
+        # (appearance_panel + view_panel).  Without it, Qt picks up
+        # QStyle::PM_SmallIconSize which is 16 on macOS Aqua/Fusion but
+        # can be 22px on Linux Fusion themes — the spinner arc would be
+        # rendered 22px inside a 16px frame and the rotation would clip.
+        self._render_busy_spinner.setIconSize(QSize(16, 16))
+        # render-busy-spinner-2026q3-e1 rect F-MEDIUM: tooltip is
+        # state-agnostic.  The original "Computing surface mesh — …"
+        # phrasing was misleading at idle (hovering the right edge before
+        # a render would claim a compute was in progress); the new wording
+        # is honest whether the spinner is spinning or hidden.
         self._render_busy_spinner.setToolTip(
-            "Computing surface mesh — activity indicator (not a progress bar)."
+            "Render activity indicator (not a progress bar)."
         )
         self._render_busy_spinner.setVisible(False)
         self.statusBar().addPermanentWidget(self._render_busy_spinner)

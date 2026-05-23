@@ -34,34 +34,15 @@
 
 ---
 
-## enriques-backface-2026q2-e1 + status-bar-bbox-2026q2-e1 (COMPACTED) — 2026-05-22
+## COMPACTED: enriques-backface + bbox + focus-ring + realtime-e4 (2026-05-22)
 
-### Token-discipline
-- No short-hex, no shorthand-enum, no processEvents. Fast dispose: if diff adds no QColor, no Qt.AlignmentFlag, no processEvents, no pv.add_mesh() — dispose AI-9/AI-11/AI-12/AI-13 in one sentence. Float format specifiers (`.2f`) are NOT hex colors.
-
-### Key industry-comparison notes
-- **ParaView 5.13 backface culling is an explicit opt-in checkbox** (defaults OFF). Quote "ParaView opt-in vs AVC silent-on" for any future hidden rendering knob.
-- **ParaView/MeshLab/Blender use full-extent widths (diameter), not half-extents.** Quote "full-extent peer-alignment" for any future bbox-display milestone.
-- **Mathematica `ContourPlot3D` mesh overlay is always two-sided.** Culling must be suppressed in wireframe mode.
-
-### Recurring patterns
-- VTK culling applies at face level regardless of `style="wireframe"`. Check `apply_to_actor` suppresses culling when wireframe is active. Fix: `effective_culling = "none" if self._wireframe else (self._culling or "none")`.
-- Topology-claim precision: verify per-figure when a gate claims "all N figures share topology X."
-- Status-bar overflow: whenever a suffix is appended to `base_msg`, check the warning path `f"⚠ {_surface_warning}  |  {base_msg}"`. Dwork warning ~175 chars; any suffix risks the ~120-char visible window.
-
----
-
-## focus-ring-contrast-2026q2-e1 (FOCUS_RING accessibility) — 2026-05-22
-
-### Token-discipline near-misses
-- Single shared value with different per-theme headrooms: OLD dark=5.17:1 regressed to 3.78:1 after darkening to fix light. Report delta for BOTH themes, not just "both PASS."
-
-### Industry-comparison note
-- macOS Sequoia (#007aff) = 3.53:1; GNOME Adwaita (#3584e4) = 3.31:1. Both in same narrow-pass band as #3c82c4 (3.56:1). Quote as "peer-calibrated narrow-pass" when challenged. Windows 11 (#005499) is deeper (5.6–6.8:1) if more headroom is desired.
-
-### Negative test as machine-readable design intent
-- The docstring-only deterrent ("do NOT widen this assertion set") is a recurring pattern risk. Whenever a test has a "don't add X" docstring caveat, the stronger fix is a complementary NEGATIVE test (assert < threshold) that makes the intent machine-readable. Flag any "do not include" docstring caveat on a test as LOW and suggest a companion negative-assertion test.
-- "Do not widen this assertion set" docstring caveat → suggest companion NEGATIVE assertion test. Flag any "do not include" docstring caveat on a test as LOW.
+- **Fast token dispose:** if diff adds no QColor, no Qt.AlignmentFlag, no processEvents, no pv.add_mesh() — dispose AI-9/AI-11/AI-12/AI-13 in one sentence. Float specifiers (`.2f`) are NOT hex colors.
+- **ParaView culling opt-in + full-extent widths:** ParaView 5.13 culling is explicit checkbox. ParaView/MeshLab/Blender use diameter not half-extent. Mathematica ContourPlot3D is always two-sided.
+- **Status-bar overflow:** check warning path `f"⚠ {_surface_warning}  |  {base_msg}"`. Dwork warning ~175 chars; any suffix risks ~120-char clip.
+- **Focus-ring per-theme:** report contrast delta for BOTH themes, not just "PASS". macOS Sequoia = 3.53:1, GNOME = 3.31:1 — "peer-calibrated narrow-pass" band. Negative assertion test for "do not widen" caveat.
+- **Early-return-before-try trap (realtime-e4):** any `return` above the `try/finally` in a worker-result slot skips cursor restore and `_computing` clear → permanent soft-freeze. Flag as MEDIUM. Every `return` in a result slot must sit inside the `try`.
+- **Label-binding lag (realtime-e4):** `Computing {surface.label}…` bound at dispatch, not at user's current selection. Stale label during in-flight variety switch. 3D Slicer per-job status widget is the peer model.
+- **ParaView status-bar progress + Abort** is the canonical follow-on for text-only "Computing…" feedback. QThreadPool does NOT cancel running QRunnable — cancellation needs a cooperative flag.
 
 ## realtime-variety-render-e4 (CAND-4 background-thread mesh worker) — 2026-05-22
 
@@ -192,3 +173,21 @@
 
 ### First-launch / section-9 regressions
 - Pure label rename on a QGroupBox: fast check is `_build_*` method → does it call `_render_current` or touch `variety_combo`/`subtype_combo`? No → section-9.3 clean. Label is visible at launch as structural chrome, not as an interactive render trigger.
+
+---
+
+## render-busy-spinner-2026q3-e1 — 2026-05-22
+
+### Token-discipline near-misses
+- No short-hex, no shorthand-enum, no processEvents, no pv.add_mesh() color args. `TEXT_VALUE` routes through `_icon_color(theme)` → QPainter (not PyVista) — AI-13 clear by the fast gate. Fast dispose: status-bar-only diff with color going to QPainter, not add_mesh, is always AI-13 clean.
+- `setFlat(True)`, `setEnabled(False)`, `setVisible(bool)`, `setFixedSize(int,int)` are all primitives. AI-11 clear — no Qt enum calls anywhere in the new code.
+
+### Industry-comparison concrete findings
+- **VS Code's status-bar spinner tooltip** only activates while the spinner is VISIBLE — hovering the invisible-spinner region shows nothing. AVC's `setToolTip` on a `setEnabled(False)` widget with `AA_EnableToolTipsOnDisabledWidgets` fires even when `setVisible(False)`, so the tooltip is reachable in the idle state. Flag any disabled-widget tooltip that is misleading in the widget's hidden state.
+- **`setIconSize(QSize(16,16))` gap pattern:** every panel icon button calls `setIconSize` after `setIcon`; any new QPushButton with an icon that skips this call is HIGH (platform-dependent icon clipping on non-macOS). Fast check: grep for `setIcon(` in new code and confirm a companion `setIconSize(` exists on the same widget.
+
+### First-launch / section-9 regressions
+- Clean: spinner starts `setVisible(False)`, is only made visible inside `_render_current` after `_computing = True`, which is unreachable from `-- Select --` state. Fast verify holds: no touch of `variety_combo`, `subtype_combo`, or `_render_current` on first launch.
+
+### Re-entrancy pattern note
+- Dual busy indicator (wait cursor + spinner): Blender 4.x and ParaView both use the same dual-indicator pattern — cursor = pointer-proximity blocking; spinner = peripheral-vision feedback. The two serve different purposes and are NOT redundant. Flag any future attempt to remove one as a regression unless both use cases are addressed.

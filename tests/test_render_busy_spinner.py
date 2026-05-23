@@ -93,6 +93,17 @@ def test_app_render_busy_spinner_uses_qtawesome_spin_animation() -> None:
         "icons.py must NOT instantiate QMovie() — see import guard above "
         "for the AI-9 rationale.  qta.Spin is the canonical alternative."
     )
+    # rect adversary LOW-1: extend the QMovie guard to app.py as well for
+    # symmetry — the spinner widget construction site should also reject
+    # any future QMovie-based alternative implementation.  Historical-
+    # context mentions in comments are FINE; concrete usage is banned.
+    assert "from PySide6.QtGui import QMovie" not in _APP_SRC, (
+        "app.py must NOT import QMovie — same AI-9 rationale as the "
+        "icons.py guard above."
+    )
+    assert "QMovie(" not in _APP_SRC, (
+        "app.py must NOT instantiate QMovie() — see import guard above."
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -225,6 +236,31 @@ def test_icons_module_has_render_busy_spinner_icon_factory() -> None:
 # ---------------------------------------------------------------------------
 # 7. Factory docstring carries AI-9 audit anchor
 # ---------------------------------------------------------------------------
+
+
+def test_render_busy_spinner_widget_calls_set_icon_size() -> None:
+    """rect HIGH regression guard: the spinner widget MUST call
+    ``setIconSize(QSize(16, 16))`` so Qt does not fall back to
+    ``QStyle::PM_SmallIconSize`` (which is 16px on macOS Aqua/Fusion but
+    can be 22px on Linux Fusion themes).  Without the explicit pin, a
+    22-px-wide arc gets rendered inside the spinner's 16×16 frame and
+    the rotation clips on Linux.  All 7 peer icon-bearing buttons in
+    appearance_panel.py and view_panel.py already follow this
+    convention.  See CONTEXT.md §8.19 for the institutional-memory note.
+    """
+    # The setIconSize call must appear in the spinner construction block.
+    # Match either the standalone call form or the QSize(16, 16) literal
+    # passed as the argument — both confirm correct pinning.
+    assert (
+        "self._render_busy_spinner.setIconSize(QSize(16, 16))" in _APP_SRC
+        or "self._render_busy_spinner.setIconSize(QSize(16,16))" in _APP_SRC
+    ), (
+        "app.py must call self._render_busy_spinner.setIconSize(QSize(16, 16)) "
+        "after construction — Qt's default iconSize is PM_SmallIconSize which "
+        "varies per platform/style (16 on macOS, can be 22 on Linux Fusion); "
+        "without the explicit pin the spinner arc clips at 16×16. "
+        "See CONTEXT.md §8.19 for the rect HIGH closure."
+    )
 
 
 def test_render_busy_spinner_icon_docstring_carries_ai9_audit_anchor() -> None:
