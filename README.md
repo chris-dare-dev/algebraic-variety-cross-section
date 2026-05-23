@@ -226,9 +226,12 @@ Mouse-camera bindings (VTK trackball, no rebinding):
 algebraic-variety-cross-section/
 ├── app.py                  Main window — dropdowns, three docks, plotter wiring (~1,900 LOC)
 ├── surfaces.py             Mesh generators + Surface/ParamSpec dataclasses + VARIETIES registry (~1,811 LOC)
-├── parameters_panel.py     Dynamic slider panel (rebuilds per surface)
-├── appearance_panel.py     Color / wireframe / opacity / shading panel (right dock)
-├── view_panel.py           Camera presets, domain clipping, scene aids, screenshot (left dock)
+├── panels/                 UI panel subpackage (moved from root in restructure-full-audit-2026q2-r1 batch 4)
+│   ├── __init__.py         Subpackage root; documents canonical import paths
+│   ├── appearance.py       Color / wireframe / opacity / shading panel (right dock)
+│   ├── view.py             Camera presets, domain clipping, scene aids, screenshot (left dock)
+│   ├── parameters.py       Dynamic slider panel (rebuilds per surface)
+│   └── parameter_grid_panel.py  ParameterGrid Qt widget layer
 ├── styles.py               Centralized stylesheet constants (palette, typography)
 ├── requirements.txt        Pinned dependency ranges
 ├── pytest.ini              testpaths = tests
@@ -253,7 +256,7 @@ The render pipeline in [app.py](app.py) is short and linear:
 _on_subtype_changed   ──►  _render_current(reset_camera=True)
                                     │
                                     ▼
-                  parameters_panel.values()  →  kwargs
+              panels.parameters.values()  →  kwargs
                                     │
                                     ▼
                       surface.generate(**kwargs)  →  self._raw_mesh   (cached)
@@ -262,13 +265,13 @@ _on_subtype_changed   ──►  _render_current(reset_camera=True)
                 _apply_domain_and_render(reset_camera)
                                     │
                                     ▼
-                view_panel.clip_to_domain(self._raw_mesh)  →  (clipped, overlay)
+            panels.view.clip_to_domain(self._raw_mesh)  →  (clipped, overlay)
                                     │
                                     ▼
                       plotter.add_mesh(clipped)  →  self._actor
                                     │
                                     ▼
-              appearance_panel.apply_to_actor(self._actor)
+          panels.appearance.apply_to_actor(self._actor)
                                     │
                                     ▼
                               plotter.render()

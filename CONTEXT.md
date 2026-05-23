@@ -29,9 +29,15 @@ algebraic-variety-cross-section/
 ├── app.py              MainWindow — dropdowns, three docks, plotter wiring, async render dispatch
 ├── render_worker.py    Background-thread mesh worker (QThreadPool/QRunnable) — realtime-variety-render-e4
 ├── surfaces.py         All mesh generators + Surface/ParamSpec dataclasses + VARIETIES registry (~840 LOC)
-├── parameters_panel.py Dynamic slider panel; rebuilds from each Surface's ParamSpec list (~220 LOC)
-├── appearance_panel.py Color / wireframe / opacity / shading panel (right dock) (~300 LOC)
-├── view_panel.py       View presets, camera, scene aids, domain clip, screenshot (left dock) (~420 LOC)
+├── panels/             UI panel subpackage (moved from root, restructure-full-audit-2026q2-r1 batch 4)
+│   ├── appearance.py   Color / wireframe / opacity / shading panel (right dock) (~300 LOC)
+│   ├── view.py         View presets, camera, scene aids, domain clip, screenshot (left dock) (~420 LOC)
+│   ├── parameters.py   Dynamic slider panel; rebuilds from each Surface's ParamSpec list (~220 LOC)
+│   └── parameter_grid_panel.py  ParameterGrid Qt widget layer (~360 LOC)
+│
+│   (Root-level shims appearance_panel.py, view_panel.py, parameters_panel.py,
+│    parameter_grid_panel.py remain for backward compat; emit DeprecationWarning;
+│    removal milestone: M+1 / next /repository-architect run)
 ├── styles.py           Centralized stylesheet constants (palette, typography, dock-header CSS) (~140 LOC)
 ├── tests/              pytest suite — pure NumPy/PyVista, no Qt fixtures (AI-2)
 │   ├── test_mesh_generators.py     smoke tests for every generator + edge cases
@@ -120,17 +126,17 @@ Parametric generators (CY3 Hanson family) skip this and use `_grid_to_polydata(X
 ```
 _on_subtype_changed  → _render_current(reset_camera=True)
                                 ↓
-              parameters_panel.values()  → kwargs
+              panels.parameters.values()  → kwargs
                                 ↓
               surface.generate(**kwargs)  → self._raw_mesh
                                 ↓
               _apply_domain_and_render(reset_camera)
                                 ↓
-              view_panel.clip_to_domain(self._raw_mesh)  → (clipped, overlay)
+              panels.view.clip_to_domain(self._raw_mesh)  → (clipped, overlay)
                                 ↓
               plotter.add_mesh(clipped) → self._actor
                                 ↓
-              appearance_panel.apply_to_actor(self._actor)
+              panels.appearance.apply_to_actor(self._actor)
                                 ↓
               plotter.render()
 ```
@@ -170,7 +176,7 @@ button.setProperty("role", "display-toggle")  # checkable QPushButton — displa
 button.setProperty("role", "colors-button")   # left-aligned action button — appearance-panel-layout-pass-2026q3-e2
 ```
 
-The QSS role selectors in `_render_stylesheet` handle color + font for both themes via theme-aware cascade.  This was the H1 finding in this milestone's rectification pass — without it, dark-mode numeric readouts dropped to 1.21:1 contrast.  The legacy `MUTED_TEXT_STYLE` / `VALUE_MONO_STYLE` / `RANGE_LABEL_STYLE` constants remain in `styles.py` as backward-compat exports but are not consumed in-repo after `dark-mode-2026q2-e1`'s rectification commit.  The `test_no_inline_color_styles_in_panel_files` test in `tests/test_styles_palette.py` guards against re-introduction.  `test_dark_stylesheet_includes_role_selectors` enforces that every role selector in this list emits a rule in BOTH stylesheets (light + dark).
+The QSS role selectors in `_render_stylesheet` handle color + font for both themes via theme-aware cascade.  This was the H1 finding in this milestone's rectification pass — without it, dark-mode numeric readouts dropped to 1.21:1 contrast.  The legacy `MUTED_TEXT_STYLE` / `VALUE_MONO_STYLE` / `RANGE_LABEL_STYLE` constants remain in `styles.py` as backward-compat exports but are not consumed in-repo after `dark-mode-2026q2-e1`'s rectification commit.  The `test_no_inline_color_styles_in_panel_files` test in `tests/test_styles_palette.py` guards against re-introduction.  `test_dark_stylesheet_includes_role_selectors` enforces that every role selector in this list emits a rule in BOTH stylesheets (light + dark).  The `parameter_grid_panel.py` grid-scene background was similarly fixed in `dark-mode-2026q2-e1` rectification (batch 3): the old `self._view.setStyleSheet(f"background: {BG_GRID_SCENE}...")` hardcode was replaced with `setProperty("role", "bg-grid-scene")` + a role selector in `_render_stylesheet`; `BG_GRID_SCENE` is now a backward-compat constant only (see §8.16).
 
 **macOS Aqua trigger note.** `QPushButton` role rules MUST include at least one explicit `background:` property (commonly `background: transparent`) to force QSS paint mode on macOS Aqua — Aqua's native button renderer ignores `text-align` regardless of box-model properties because it draws labels at a hardcoded position inside a pre-composited native bead.  Padding + border-radius alone are sufficient on Fusion but NOT Aqua.  Both `display-toggle` and `colors-button` rules set `background: transparent` for this reason.
 
@@ -572,7 +578,7 @@ Logged as adversarial findings in the most recent reviews but skipped. Future ma
 
 ```bash
 # Static checks
-.venv/bin/python -c "import app, surfaces, view_panel, parameters_panel, appearance_panel; print('OK')"
+.venv/bin/python -c "import app, surfaces; from panels.appearance import AppearancePanel; from panels.view import ViewPanel; from panels.parameters import ParametersPanel; print('OK')"
 
 # Test suite
 .venv/bin/pytest tests/ -v          # 120 tests, ~4 s
