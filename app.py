@@ -520,7 +520,30 @@ class MainWindow(QMainWindow):
             # bug where the user enables HQ on Enriques fig 1, switches
             # to K3, and the toggle stays visually enabled despite the
             # generator not honoring the kwarg (K3 doesn't accept it).
+            #
+            # hq-disable-toast-2026q3-e1 (F-L2 closure from enriques-hq-
+            # smoothing-2026q3-e1): capture the PRIOR state BEFORE the
+            # eligible-clear call below — set_hq_smoothing_eligible(False)
+            # clears _hq_smoothing to False at the end of its body
+            # (appearance_panel.py blockSignals pattern), so this read
+            # must come first.  Composed into _hq_note string below and
+            # appended to each variety-branch showMessage so the user
+            # sees the WHY of the silent auto-disable.  Pure bool read,
+            # no signal emission, AI-9 safe.
+            _prior_hq = self.appearance_panel.hq_smoothing
             self.appearance_panel.set_hq_smoothing_eligible(False)
+            # The non-empty _hq_note is appended to every variety-
+            # branch showMessage below.  The Enriques branch never
+            # fires it because _on_subtype_changed re-enables HQ for
+            # figs 1+2 — but if the user lands on Enriques fig 3+4 the
+            # subtype-change handler surfaces its own toast (see
+            # _on_subtype_changed below).
+            _hq_note = (
+                "  Double-pass smooth disabled — only available on "
+                "Enriques figs 1+2."
+                if _prior_hq
+                else ""
+            )
             # For CY3 and Fano, include a brief contextual note in the status
             # bar AND in the Parameters dock banner so first-time users
             # understand they are viewing 2D shadows/slices, not the full
@@ -528,7 +551,7 @@ class MainWindow(QMainWindow):
             if name == "Calabi–Yau 3-fold":
                 self.statusBar().showMessage(
                     "Calabi–Yau 3-fold — each figure is a 2D real shadow of a "
-                    "6-dimensional manifold.  Now choose a model."
+                    f"6-dimensional manifold.  Now choose a model.{_hq_note}"
                 )
                 self.parameters_panel.set_context_hint(
                     "A Calabi–Yau 3-fold is 6-real-dimensional and cannot live in ℝ³. "
@@ -538,7 +561,7 @@ class MainWindow(QMainWindow):
             elif name == "Fano 3-fold (ρ=1)":
                 self.statusBar().showMessage(
                     "Fano 3-fold (ρ=1) — each figure is a 2D real slice of a "
-                    "6-dimensional variety.  Now choose a model."
+                    f"6-dimensional variety.  Now choose a model.{_hq_note}"
                 )
                 self.parameters_panel.set_context_hint(
                     "Smooth Fano 3-folds of Picard rank 1 are 6-real-dimensional. "
@@ -552,13 +575,19 @@ class MainWindow(QMainWindow):
                 # the canonical sextic's double-curve singularity knows WHY
                 # the seam reads clean (vs the pre-fix white zipper noise).
                 # Mirrors the CY3 / Fano pattern of variety-specific context.
+                # NB: _hq_note for Enriques is normally empty (the subsequent
+                # _on_subtype_changed re-enables for figs 1+2); only fires
+                # if the user lands on figs 3+4, in which case the subtype
+                # handler will fire its own more specific toast.
                 self.statusBar().showMessage(
                     "Enriques surface — back-face culling active to suppress "
-                    "the double-curve zipper seam.  Now choose a model."
+                    f"the double-curve zipper seam.  Now choose a model.{_hq_note}"
                 )
                 self.parameters_panel.set_context_hint("")
             else:
-                self.statusBar().showMessage(f"Variety: {name}. Now choose a model.")
+                self.statusBar().showMessage(
+                    f"Variety: {name}. Now choose a model.{_hq_note}"
+                )
                 self.parameters_panel.set_context_hint("")
         else:
             self._set_subtype_enabled(False)
@@ -619,11 +648,31 @@ class MainWindow(QMainWindow):
         # attenuates).  Figs. 3+4 have ordinary A₁ nodes and gain no
         # targeted benefit from the +138 ms second-pass cost; toggle
         # stays disabled there.
+        # hq-disable-toast-2026q3-e1: capture the prior HQ state BEFORE
+        # set_hq_smoothing_eligible() may clear it.  The Enriques Fig.1
+        # → Fig.3 transition is caught here ONLY (not in
+        # _on_variety_changed — that handler doesn't fire on a subtype-
+        # only change).  The toast fires immediately below if the user
+        # had Double-pass smooth enabled and the new subtype takes it
+        # out of scope; the message persists until the render-completion
+        # message ~449 ms later overwrites it.  Pure bool read, no
+        # signal emission, AI-9 safe.
+        _prior_hq = self.appearance_panel.hq_smoothing
         is_hq_eligible = (
             variety == "Enriques surface"
             and name in _HQ_SMOOTHING_ELIGIBLE_SUBTYPES
         )
         self.appearance_panel.set_hq_smoothing_eligible(is_hq_eligible)
+        if _prior_hq and not is_hq_eligible:
+            # F-L2 closure: explain WHY the toggle auto-disabled (per-
+            # subtype scope per CONTEXT.md §8.13 — the second Taubin
+            # pass targets double-curve topology which only figs 1+2
+            # have; figs 3+4 carry A₁ nodes and gain no targeted
+            # benefit from the +138 ms cost).
+            self.statusBar().showMessage(
+                f"Subtype: {name}.  Double-pass smooth disabled — only "
+                "available on Enriques figs 1+2 (double-curve topology)."
+            )
         # Repopulate the parameters panel for the new surface.
         self.parameters_panel.set_specs(surface.params)
         # qsettings-persistence-v1-2026q3-e1 (live write-back): persist

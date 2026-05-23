@@ -234,3 +234,12 @@
 - `QAction` is already imported in app.py (line 14); only `QFileDialog` needs adding to the PySide6.QtWidgets import block.
 - File menu position: calling `_build_file_menu()` BEFORE `_build_theme_menu()` in `__init__` automatically places File left of Theme (Qt addMenu order = left-to-right).
 - Diff size for a simple File menu + handler + tests: ~141 LOC, 3 files. Inline (no new module). The 8 tests are all source-text greps (AI-2 compliant).
+
+## hq-disable-toast-2026q3-e1 (2026-05-23)
+- **Brief F-L2 cross-citation was partially wrong.** The brief claimed qtawesome-icons-2026q2-e2 "re-flagged F-L2" but that milestone's F-L2 was a completely different finding (tooltip accessibility for rotated axis glyphs). Always read the OTHER milestone's adversary-critique before accepting a cross-citation as fact.
+- **Dual-call-site requirement from trigger analysis.** When a prior-state capture + toast must fire on "HQ was on, now isn't eligible", variety-only scope misses the Enriques Fig.1 → Fig.3 subtype-only transition (variety combo unchanged; `_on_variety_changed` does NOT fire). Always trace BOTH `_on_variety_changed` and `_on_subtype_changed` for any feature that gates on variety+subtype combination.
+- **Capture prior state BEFORE the clear call.** `set_hq_smoothing_eligible(False)` sets `_hq_smoothing = False` AFTER the `setChecked(False)` call (appearance_panel.py:614). Read `self.appearance_panel.hq_smoothing` BEFORE calling `set_hq_smoothing_eligible(False)` — reading after always yields False.
+- **Option B (timeout showMessage) is wrong for "append to existing variety message".** `showMessage(text, timeout_ms)` replaces the current message immediately; the timeout just auto-clears after N ms. Using it after a variety-branch `showMessage` would REPLACE, not append, the variety message. Option A (build combined string with `_hq_note` variable) is the correct approach.
+- **Option C (currentMessage + append) is fragile.** Reading `currentMessage()` after `showMessage(variety_text)` works but races any intervening signal-chain `showMessage`. Option A (pre-build the combined string) is cleaner.
+- **4 source-grep tests cover the lifecycle.** One test verifies idx_read < idx_clear (ordering guarantee). One verifies the `if _prior_hq` guard. One verifies the message text references the eligibility scope. One verifies dual-method presence (count >= 2).
+- **Diff size estimate: ~78 LOC** (app.py ~20 LOC, new test file ~55 LOC, CONTEXT.md ~3 LOC). Inline only, no new module.
