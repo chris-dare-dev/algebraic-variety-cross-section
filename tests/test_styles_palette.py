@@ -646,6 +646,7 @@ def test_no_inline_color_styles_in_panel_files() -> None:
         "appearance_panel.py",
         "view_panel.py",
         "parameters_panel.py",
+        "parameter_grid_panel.py",
     )
     for panel_name in panel_files:
         panel_path = repo_root / panel_name
