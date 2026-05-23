@@ -32,25 +32,61 @@ from styles import (
     BG_SURFACE_DEFAULT,
     BG_VIEWPORT,
     BORDER_SWATCH,
+    BORDER_SWATCH_DARK,
     VALUE_MONO_STYLE,
 )
 
 
-def _make_swatch(color: QColor, size: int = 20) -> QLabel:
-    """Return a QLabel styled as a solid color swatch."""
+def _make_swatch(
+    color: QColor, size: int = 20, *, border: str = BORDER_SWATCH
+) -> QLabel:
+    """Return a QLabel styled as a solid color swatch.
+
+    ``border`` is the border color hex (defaults to the LIGHT-theme
+    ``BORDER_SWATCH = #333333`` for backward compat — construction-time
+    callers pass the active theme's border explicitly).
+    """
     swatch = QLabel()
     swatch.setFixedSize(size, size)
     swatch.setFrameShape(QFrame.Shape.Box)
     swatch.setFrameShadow(QFrame.Shadow.Sunken)
-    _apply_swatch_color(swatch, color)
+    _apply_swatch_color(swatch, color, border=border)
     return swatch
 
 
-def _apply_swatch_color(swatch: QLabel, color: QColor) -> None:
+def _apply_swatch_color(
+    swatch: QLabel, color: QColor, *, border: str = BORDER_SWATCH
+) -> None:
+    """Re-paint ``swatch`` with the given ``color`` fill and ``border``.
+
+    rect HIGH (cleanup-deferred-findings-2026q3-e1 follow-up): the
+    ``border`` parameter is the load-bearing theme-awareness hook.
+    Previously this function used a hard-coded module-level
+    ``BORDER_SWATCH`` (= PALETTE_LIGHT["BORDER_SWATCH"]) which, after
+    the item-1 fix split that token per-palette, became a dark-mode
+    contrast regression — `#333333` on `BG_PANEL_DARK #252526` =
+    1.21:1, an invisible border.  Callers now route the correct
+    border via the active-theme-aware ``_border_for_theme`` helper
+    on ``AppearancePanel`` so light and dark each get their
+    palette-appropriate border value.
+    """
     hex_color = color.name()
     swatch.setStyleSheet(
-        f"background-color: {hex_color}; border: 1px solid {BORDER_SWATCH};"
+        f"background-color: {hex_color}; border: 1px solid {border};"
     )
+
+
+def _border_for_theme(theme: str) -> str:
+    """Return the swatch-border hex for the active theme.
+
+    Both values clear WCAG 1.4.11's 3:1 floor against their own
+    palette's `BG_PANEL`; the LIGHT value also clears 3:1 against
+    each of the 4 variety fills (which themselves fail vs the LIGHT
+    `BG_PANEL`), while the DARK value is structural — the dark
+    variety fills already clear 3:1 vs `BG_PANEL_DARK` so the border
+    is decorative rather than strict-dual-surface.
+    """
+    return BORDER_SWATCH_DARK if theme == "dark" else BORDER_SWATCH
 
 
 class AppearancePanel(QWidget):
@@ -94,6 +130,16 @@ class AppearancePanel(QWidget):
         # via the "Surface…" swatch still win for the rest of the session.
         self._surface_color = QColor(BG_SURFACE_DEFAULT)
         self._bg_color = QColor(BG_VIEWPORT)
+        # rect HIGH (cleanup-deferred-findings-2026q3-e1 follow-up):
+        # track active theme so swatch construction + repaint can route
+        # the correct BORDER_SWATCH (theme-split per item 1).  Defaults
+        # to "dark" because the app launches in dark mode by default
+        # (matches MainWindow's `self._active_theme = "dark"`).
+        # MainWindow's `refresh_icons(theme)` call from `_on_theme_changed`
+        # / `_apply_system_theme` updates this field via
+        # `set_swatch_theme()` so the swatches re-paint with the right
+        # border on every theme swap.
+        self._active_theme: str = "dark"
         self._wireframe = False
         self._show_edges = False
         self._opacity = 100          # 0-100 integer (maps to 0.0-1.0)
@@ -166,7 +212,9 @@ class AppearancePanel(QWidget):
         # Surface color row
         surf_row = QHBoxLayout()
         surf_row.setSpacing(6)
-        self._surf_swatch = _make_swatch(self._surface_color)
+        self._surf_swatch = _make_swatch(
+            self._surface_color, border=_border_for_theme(self._active_theme)
+        )
         surf_btn = QPushButton("Surface…")
         surf_btn.setToolTip("Choose the surface fill color")
         # appearance-panel-layout-pass-2026q3-e2 (F-M2 closure): tag the
@@ -184,7 +232,9 @@ class AppearancePanel(QWidget):
         # Background color row
         bg_row = QHBoxLayout()
         bg_row.setSpacing(6)
-        self._bg_swatch = _make_swatch(self._bg_color)
+        self._bg_swatch = _make_swatch(
+            self._bg_color, border=_border_for_theme(self._active_theme)
+        )
         bg_btn = QPushButton("Background…")
         bg_btn.setToolTip("Choose the viewport background color")
         # appearance-panel-layout-pass-2026q3-e2 (F-M2 closure): same as
@@ -371,7 +421,10 @@ class AppearancePanel(QWidget):
         )
         if color.isValid():
             self._surface_color = color
-            _apply_swatch_color(self._surf_swatch, color)
+            _apply_swatch_color(
+                self._surf_swatch, color,
+                border=_border_for_theme(self._active_theme),
+            )
             actor = self._get_actor()
             if actor is not None:
                 actor.prop.color = color.name()
@@ -385,7 +438,10 @@ class AppearancePanel(QWidget):
         )
         if color.isValid():
             self._bg_color = color
-            _apply_swatch_color(self._bg_swatch, color)
+            _apply_swatch_color(
+                self._bg_swatch, color,
+                border=_border_for_theme(self._active_theme),
+            )
             self._get_plotter().set_background(color.name())
             self._get_plotter().render()
 
@@ -512,7 +568,10 @@ class AppearancePanel(QWidget):
         if not color.isValid():
             return
         self._surface_color = color
-        _apply_swatch_color(self._surf_swatch, color)
+        _apply_swatch_color(
+            self._surf_swatch, color,
+            border=_border_for_theme(self._active_theme),
+        )
 
     def set_culling(self, value: str | None) -> None:
         """Set the back-face culling policy for the next actor render
@@ -651,6 +710,19 @@ class AppearancePanel(QWidget):
         """
         import icons
         from PySide6.QtCore import QSize
+
+        # rect HIGH (cleanup-deferred-findings-2026q3-e1 follow-up):
+        # track the active theme on the panel so subsequent live
+        # swatch repaints (`_pick_surface_color`, `set_default_color`)
+        # route the theme-appropriate `BORDER_SWATCH` value.  Also
+        # re-paint the existing swatches NOW with the new theme's
+        # border — without this, theme swaps would leave the swatch
+        # border at the OLD theme's value until the next user color
+        # pick or variety-default re-seed.
+        self._active_theme = theme
+        _border = _border_for_theme(theme)
+        _apply_swatch_color(self._surf_swatch, self._surface_color, border=_border)
+        _apply_swatch_color(self._bg_swatch, self._bg_color, border=_border)
 
         _ICON_SIZE = QSize(16, 16)
         self._wireframe_cb.setIconSize(_ICON_SIZE)

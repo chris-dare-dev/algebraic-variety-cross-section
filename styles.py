@@ -347,6 +347,13 @@ BG_VIEWPORT                = PALETTE_LIGHT["BG_VIEWPORT"]
 BG_PANEL                   = PALETTE_LIGHT["BG_PANEL"]
 BG_SURFACE_DEFAULT         = PALETTE_LIGHT["BG_SURFACE_DEFAULT"]
 BORDER_SWATCH              = PALETTE_LIGHT["BORDER_SWATCH"]
+# rect HIGH (cleanup-deferred-findings-2026q3-e1, item 1 follow-up):
+# explicit dark-theme export so appearance_panel can route the right
+# border color through `_apply_swatch_color` based on the active
+# theme.  Without this export, the module-level `BORDER_SWATCH`
+# constant is frozen to PALETTE_LIGHT's `#333333` and would render
+# at 1.21:1 against BG_PANEL_DARK (#252526) — invisible.
+BORDER_SWATCH_DARK         = PALETTE_DARK["BORDER_SWATCH"]
 COLOR_WIREFRAME_OVERLAY    = PALETTE_LIGHT["COLOR_WIREFRAME_OVERLAY"]
 
 # Parameter-grid mode tokens — consumed by parameter_grid_panel.py.
@@ -513,6 +520,17 @@ QMenu::item {{
 QMenu::item:selected {{
     background-color: {palette["BG_TOGGLE_CHECKED"]};
     color: {palette["TEXT_VALUE"]};
+}}
+/* rect MEDIUM-1 (frontend critic): QActionGroup checkmark in the
+   Theme menu (Light / Dark / Follow system) needs an explicit
+   ::item:checked rule, otherwise Qt falls back to the OS-native
+   checkmark which would not paint reliably against the dark-theme
+   stylesheet background.  Bold weight provides the visual indicator
+   for the currently-active selection without depending on the
+   native checkmark glyph. */
+QMenu::item:checked {{
+    font-weight: bold;
+    background-color: {palette["BG_TOGGLE_CHECKED"]};
 }}
 QMenu::separator {{
     height: 1px;

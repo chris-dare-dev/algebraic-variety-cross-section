@@ -244,10 +244,15 @@ def test_set_default_color_updates_surface_color() -> None:
 
     # Lightweight shim that mimics the AppearancePanel attributes
     # set_default_color reads/writes — no full panel construction needed.
+    # rect HIGH (cleanup-deferred-findings-2026q3-e1 follow-up):
+    # _active_theme is now read by set_default_color via
+    # _border_for_theme() so the swatch repaint uses the active
+    # theme's border color — shim must mock it.
     class _Shim:
         def __init__(self) -> None:
             self._surface_color = QColor("#000000")  # prior color
             self._surf_swatch = MagicMock()
+            self._active_theme = "dark"
 
     shim = _Shim()
     with patch.object(appearance_panel, "_apply_swatch_color") as mock_apply:
@@ -1045,12 +1050,89 @@ def test_border_swatch_dark_wcag_3_to_1_against_bg_panel() -> None:
     must still achieve ≥3:1 vs its BG_PANEL.  The split was needed
     because using #333333 (the light fix) on dark BG_PANEL #252526
     would collapse to ~1.40:1 — dark mode keeps #888888.
+
+    rect MEDIUM-3 (adversary critic) — asymmetry rationale: the
+    light-mode counterpart `test_border_swatch_light_wcag_3_to_1_against_all_variety_fills`
+    asserts the strict WCAG 1.4.11 *dual-surface* test (≥3:1 vs BOTH
+    BG_PANEL AND each variety fill).  The dark-mode test only asserts
+    vs BG_PANEL because the dark variety fills already independently
+    clear ≥5.83:1 vs BG_PANEL_DARK (#252526 → K3 5.83, Enriques 7.20,
+    CY3 5.99, Fano 6.22) — the swatch boundary is established by the
+    FILL-vs-PANEL transition itself, not by the border.  In light
+    mode the fills fail vs BG_PANEL (1.87-2.31:1), so the border has
+    to do the boundary work — hence the strict dual-surface test
+    there.  This asymmetry is principled, not an oversight.
     """
     border = styles.PALETTE_DARK["BORDER_SWATCH"]
     bg_panel = styles.PALETTE_DARK["BG_PANEL"]
     assert _ratio(border, bg_panel) >= 3.0, (
         f"PALETTE_DARK BORDER_SWATCH={border} vs BG_PANEL={bg_panel} = "
         f"{_ratio(border, bg_panel):.2f}:1 — must be >=3:1."
+    )
+    # Anchor the asymmetry's premise: every dark-theme variety fill
+    # must independently clear ≥3:1 vs BG_PANEL_DARK so the
+    # border-isn't-load-bearing reasoning holds.  If a future palette
+    # change makes a dark fill closer in luminance to BG_PANEL_DARK,
+    # this assertion will fail and force the maintainer to either
+    # darken the fill OR switch the dark BORDER_SWATCH to a
+    # dual-surface-compatible value.
+    for variety, fill in styles.VARIETY_DEFAULT_COLOR_DARK.items():
+        ratio = _ratio(fill, bg_panel)
+        assert ratio >= 3.0, (
+            f"PALETTE_DARK variety fill {variety}={fill} vs BG_PANEL="
+            f"{bg_panel} = {ratio:.2f}:1 — must be >=3:1 for the dark "
+            f"swatch border to remain structural rather than load-bearing."
+        )
+
+
+def test_border_swatch_dark_export_wired_through_appearance_panel() -> None:
+    """rect HIGH (cleanup-deferred-findings-2026q3-e1 follow-up):
+    ``styles.BORDER_SWATCH_DARK`` must be exported alongside
+    ``BORDER_SWATCH``, AND ``appearance_panel.py`` must import it,
+    AND the panel must route the active-theme value via
+    ``_border_for_theme(self._active_theme)`` to all `_apply_swatch_color`
+    call sites.
+
+    Without all three of these, the module-level `BORDER_SWATCH`
+    export (frozen to PALETTE_LIGHT's #333333) silently paints an
+    invisible 1.21:1 border on dark-mode swatches — the dark-mode
+    regression introduced by the item-1 split fix and caught by the
+    Phase 3 adversary critic.
+    """
+    import pathlib
+
+    # Export presence.
+    assert hasattr(styles, "BORDER_SWATCH_DARK"), (
+        "styles.py must export BORDER_SWATCH_DARK alongside BORDER_SWATCH "
+        "— rect HIGH closure."
+    )
+    assert styles.BORDER_SWATCH_DARK == styles.PALETTE_DARK["BORDER_SWATCH"], (
+        "BORDER_SWATCH_DARK export must match PALETTE_DARK[\"BORDER_SWATCH\"]."
+    )
+
+    # appearance_panel.py imports it.
+    panel_src = (
+        pathlib.Path(__file__).resolve().parent.parent / "appearance_panel.py"
+    ).read_text(encoding="utf-8")
+    assert "BORDER_SWATCH_DARK" in panel_src, (
+        "appearance_panel.py must import BORDER_SWATCH_DARK from styles."
+    )
+    # Theme-aware helper present.
+    assert "_border_for_theme" in panel_src, (
+        "appearance_panel.py must define a _border_for_theme(theme) helper "
+        "that maps the active theme to BORDER_SWATCH / BORDER_SWATCH_DARK."
+    )
+    # The helper is actually USED at call sites (not just defined).
+    # Count occurrences — definition site + at least 4 use sites
+    # (2 construction + 2 live-repaint + 1 refresh_icons + 1
+    # set_default_color = >=5).
+    use_count = panel_src.count("_border_for_theme(")
+    assert use_count >= 5, (
+        f"_border_for_theme should be called at multiple swatch-paint "
+        f"sites (construction + live repaint + refresh_icons); found "
+        f"{use_count} occurrences in appearance_panel.py.  All "
+        f"_apply_swatch_color callers must thread the theme-aware "
+        f"border value, not rely on the default."
     )
 
 

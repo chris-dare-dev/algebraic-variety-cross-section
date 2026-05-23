@@ -1644,8 +1644,15 @@ class MainWindow(QMainWindow):
         # Real-world impact: 0 (users rarely theme-swap, and never
         # during the 0.5-1.5s compute window when the spinner is
         # visible).  Tracked here for institutional memory; a future
-        # render-busy-spinner-v3 milestone could call `qta.Spin.stop()`
-        # on the prior animation explicitly if benchmarks ever flag it.
+        # render-busy-spinner-v3 milestone that wanted to stop the
+        # prior animation explicitly would need to (a) restructure
+        # `icons.render_busy_spinner_icon` to return the `qta.Spin`
+        # instance alongside the QIcon, and (b) retain that
+        # reference here so `prior_spin.stop()` can be called
+        # before `setIcon()` swaps in the new icon — the current
+        # factory does not return the Spin instance, so the
+        # qtawesome `Spin.stop()` hook is not directly callable
+        # from this site without that refactor.
         self._render_busy_spinner.setIcon(
             icons.render_busy_spinner_icon(
                 self._render_busy_spinner, self._active_theme

@@ -1709,9 +1709,12 @@ VARIETY_TOOLTIPS: dict[str, str] = {
 #                              Q₁²+Q₂²−ε² tube degenerates fast under
 #                              coarse marching cubes).
 _LOD_NOTE_COARSE = " · Drag = coarse preview; release = full render."
-_LOD_NOTE_HANSON = " · Renders full on every drag tick (parametric)."
+_LOD_NOTE_HANSON = (
+    " · Renders full at every debounced drag tick (~80 ms; parametric)."
+)
 _LOD_NOTE_RELEASE_ONLY = (
-    " · Release-only render (topology too fragile for drag preview)."
+    " · Release-only render (topology precision-sensitive; coarse drag "
+    "preview would degrade the mesh)."
 )
 
 SUBTYPE_TOOLTIPS: dict[str, str] = {

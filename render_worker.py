@@ -97,7 +97,7 @@ class MeshResult:
                           worker was dispatched with ``params["n"] =
                           surface.coarse_n``. The slot uses this flag to
                           switch the status-bar message to the AI-15
-                          ``"Preview — {label}{hq_label} — NNN ms"`` badge
+                          ``"Preview  ·  {label}{hq_label}  ·  NNN ms"`` badge
                           (with ``{hq_label}`` interpolated as ``" [HQ]"``
                           when applicable, and an optional ``"⚠ {warning}  |  "``
                           prefix for RuntimeWarning surfaces such as the
