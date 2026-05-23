@@ -4,7 +4,7 @@ An interactive desktop application for exploring **algebraic varieties** — K3 
 
 Built with **PySide6** (Qt) and **PyVista** (VTK), it renders implicit surfaces via marching cubes and parametric surfaces via direct triangulation.
 
-![architecture](https://img.shields.io/badge/python-3.12-blue) ![ui](https://img.shields.io/badge/ui-PySide6-green) ![3d](https://img.shields.io/badge/3d-PyVista%2FVTK-orange) ![tests](https://img.shields.io/badge/tests-120%20passing-brightgreen)
+![architecture](https://img.shields.io/badge/python-3.12-blue) ![ui](https://img.shields.io/badge/ui-PySide6-green) ![3d](https://img.shields.io/badge/3d-PyVista%2FVTK-orange) ![tests](https://img.shields.io/badge/tests-499%20passing-brightgreen)
 
 ---
 
@@ -146,7 +146,7 @@ A window titled **"Algebraic Variety Viewer"** should open at 1200×800. The sta
 # Verify imports
 python -c "import app, surfaces, view_panel, parameters_panel, appearance_panel; print('OK')"
 
-# Run the test suite (~4 seconds, 120 tests, no Qt window required)
+# Run the test suite (~7 seconds, 499 tests, no Qt window required)
 pytest tests/ -v
 ```
 
@@ -224,8 +224,8 @@ Mouse-camera bindings (VTK trackball, no rebinding):
 
 ```
 algebraic-variety-cross-section/
-├── app.py                  Main window — dropdowns, three docks, plotter wiring (~415 LOC)
-├── surfaces.py             Mesh generators + Surface/ParamSpec dataclasses + VARIETIES registry (~1,070 LOC)
+├── app.py                  Main window — dropdowns, three docks, plotter wiring (~1,900 LOC)
+├── surfaces.py             Mesh generators + Surface/ParamSpec dataclasses + VARIETIES registry (~1,811 LOC)
 ├── parameters_panel.py     Dynamic slider panel (rebuilds per surface)
 ├── appearance_panel.py     Color / wireframe / opacity / shading panel (right dock)
 ├── view_panel.py           Camera presets, domain clipping, scene aids, screenshot (left dock)
@@ -287,10 +287,10 @@ Read [CONTEXT.md](CONTEXT.md) for the full architecture rationale, the 5-phase d
 ## Running the tests
 
 ```bash
-pytest tests/ -v             # 120 tests, ~4 s
+pytest tests/ -v             # 499 tests, ~7 s
 ```
 
-The suite is **Qt-free** — every test exercises pure NumPy / PyVista / scikit-image, so it runs in CI without a display server. There are no end-to-end UI tests; Qt + VTK does not run reliably under offscreen platforms on macOS, so manual launch is the verification path for the GUI itself.
+The suite is **Qt-free** — every test exercises pure NumPy / PyVista / scikit-image / Numba, so it runs in CI without a display server. There are no end-to-end UI tests; Qt + VTK does not run reliably under offscreen platforms on macOS, so manual launch is the verification path for the GUI itself.
 
 The tests cover:
 
