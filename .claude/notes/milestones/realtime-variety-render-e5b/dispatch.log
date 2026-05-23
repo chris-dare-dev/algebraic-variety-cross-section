@@ -1,0 +1,6 @@
+2026-05-23T04:28:45Z | milestone-researcher | agent-a | dispatched
+2026-05-23T04:28:45Z | milestone-researcher | agent-b | dispatched
+2026-05-23T04:34:49Z | milestone-researcher | agent-a | returned
+2026-05-23T04:34:49Z | milestone-researcher | agent-b | returned
+2026-05-23T05:04:58Z | milestone-adversary-critic | solo | dispatched
+2026-05-23T05:15:27Z | milestone-adversary-critic | solo | returned

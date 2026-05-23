@@ -1,0 +1,86 @@
+{
+  "id": "realtime-variety-render-e5b",
+  "created_at": "2026-05-23T04:26:24Z",
+  "updated_at": "2026-05-23T05:20:58Z",
+  "phase": "complete",
+  "phase_history": [
+    {
+      "phase": "init",
+      "at": "2026-05-23T04:26:24Z"
+    },
+    {
+      "phase": "research-running",
+      "at": "2026-05-23T04:28:45Z"
+    },
+    {
+      "phase": "research-complete",
+      "at": "2026-05-23T04:34:49Z"
+    },
+    {
+      "phase": "implement-running",
+      "at": "2026-05-23T04:48:15Z"
+    },
+    {
+      "phase": "implement-complete",
+      "at": "2026-05-23T05:04:24Z"
+    },
+    {
+      "phase": "critique-running",
+      "at": "2026-05-23T05:04:52Z"
+    },
+    {
+      "phase": "critique-complete",
+      "at": "2026-05-23T05:16:20Z"
+    },
+    {
+      "phase": "rectify-running",
+      "at": "2026-05-23T05:16:36Z"
+    },
+    {
+      "phase": "complete",
+      "at": "2026-05-23T05:20:58Z"
+    }
+  ],
+  "milestone_brief": "Implement Numba JIT v1: extend the @njit(parallel=True, cache=True) field-evaluation kernel pattern established by realtime-variety-render-e5 (CAND-2 v0, Fermat + Enriques canonical) to the 9 remaining implicit generators in surfaces.py. e5b is a follow-on milestone NOT enumerated in plans/realtime-variety-render-roadmap.md section 6.3 (the roadmap only lists e1..e6); e5 deferred v1 explicitly (the e5 research brief: \"v0 scope is these 2 of 8 implicit generators; the rest are a future v1\").\n\nThe 9 remaining implicit generators: kummer_surface, enriques_figure_2, enriques_figure_3, enriques_figure_4, calabi_yau_dwork, fano_klein_cubic, fano_segre_cubic, fano_two_quadrics, fano_sextic_double_solid.\n\nScope: per-generator transcription only. The JIT mechanics (workqueue threading layer at surfaces.py import top, cache=True for once-per-machine compile, e4-worker absorbing first-call JIT off the GUI thread, no eager startup warm-up) are ALREADY shipped in e5 and reused as-is.\n\nSlice: (a) surfaces.py: 9 new @njit(parallel=True, cache=True) kernel functions in the Helpers section alongside _fermat_field_kernel and _enriques_fig1_field_kernel. (b) 9 generator field-block rewrites following the e5 recipe: delete the np.meshgrid + X2,Y2,Z2 + F = (...) + np.clip block, replace with: F = np.empty((n,n,n), dtype=np.float64); _<surface>_field_kernel(g, <params>, F); return _marching_cubes_to_polydata(F, bounds). (c) Preserve each generator's existing AI-8 int(round(n)) coercion. (d) Preserve Kummer pole/no-zero-set ValueError pre-checks. (e) Preserve Dwork RuntimeWarning at psi approximately 1 \u2014 it fires BEFORE the kernel call, not inside it. (f) tests/test_numba_field_kernels.py: extend the existing parametrize tables \u2014 9 new generators times 3 parameter-point smoke tests asserting kernel output np.allclose to the verbatim pre-e5b NumPy reference at rtol=atol=1e-9, plus per-generator clip-bounds tests where the kernel folds np.clip into scalar min/max.\n\nPer-generator math notes the implementer must respect: (1) Kummer uses np.sqrt(2.0) as a SCALAR pre-computed before meshgrid (passes through to the kernel as a literal or scalar arg), and lambda(mu) = (3*mu**2 - 1) / (3 - mu**2) is computed in the generator, not the kernel, so the pole and no-zero-set ValueErrors fire before any kernel call; (2) Enriques figs 2/3/4 are clean polynomial fields (verified: fig 3 Cayley is (x + y + z + xy + xz + yz)**2 - k*x*y*z, NOT a determinant); (3) Dwork pencil field is x**5 + y**5 + z**5 - 5*psi*x*y*z (a degree-5 polynomial, no transcendentals against meshgrid arrays); (4) the 4 Fano figures are similarly polynomial. All clip caps are folded into the kernel as scalar min/max \u2014 Kummer/Cayley both clip to about \u00b150; the others' clip caps must be read from the existing generator and preserved verbatim.\n\nAll Numba kernels must produce output numerically identical to the pre-e5b NumPy expressions in IDENTICAL operator order so the per-voxel IEEE-754 arithmetic matches NumPy elementwise evaluation \u2014 this is how e5 hit np.allclose at rtol=atol=1e-9 across all probe points and the same discipline must hold.\n\nHard constraints: AI-1 (numba is already a sanctioned compute dependency per e5; no new deps); AI-2 (Qt-free tests; numerical spot-checks are pure NumPy + Numba); AI-3 (pv.OFF_SCREEN for any off-screen render verification); AI-6 (implicit pipeline only; the kernels feed _marching_cubes_to_polydata; Hanson parametric generators stay untouched); AI-8 (int coercion stays in the generator; the kernel only sees float g axis + float params); AI-14 (generators still pv.PolyData or ValueError; the contract is unchanged; Kummer pole + no-zero-set guards and Dwork RuntimeWarning fire BEFORE any kernel call).\n\nCoarse-LOD interaction (e4b): 6 of the 9 generators carry a non-zero coarse_n in the VARIETIES registry (Kummer=100, Enriques figs 2/3/4=80, Dwork=100, fano_klein_cubic/segre_cubic/sextic_double_solid=80); after e5b, every coarse-mode drag tick on those surfaces dispatches the e4 worker at n=coarse_n WITH the new Numba kernel doing the field eval \u2014 the e5+e4b stack composes mechanically because the kernel is invoked from inside _marching_cubes_to_polydata which is downstream of any n. NO change to coarse_n floors as part of e5b \u2014 the e4b values were chosen for topology honesty, not perf, and the perf is now even better.\n\nPredecessors: realtime-variety-render-e5 (Numba v0, complete; established the kernel pattern, threading layer, cache=True, MeshWorker round-trip); realtime-variety-render-e4 (worker, complete); realtime-variety-render-e4b (coarse-LOD, complete; the kernels run at coarse_n during drag, full n on release). macOS arm64 on-device verification residuals from e3/e5 spikes carry forward as documented pre-ship gates.\n\nJIT-compile cost note: 9 more kernels add roughly 3-4 seconds total cold-cache first-touch latency, paid off-thread on the e4 worker, once-per-machine via cache=True. The first time a user clicks each new surface they pay roughly 300-400 ms of JIT compile silently. Acceptable per the e5 design; document in CONTEXT.md section 3 numba bullet that v0+v1 = all 11 implicit generators.",
+  "research_mode": "standard",
+  "oss_scout_requested": false,
+  "research_briefs": [
+    ".claude/notes/milestones/realtime-variety-render-e5b/research/agent-a-brief.md",
+    ".claude/notes/milestones/realtime-variety-render-e5b/research/agent-b-brief.md"
+  ],
+  "research_synthesis": "Both briefs converge: 9 @njit(parallel=True,cache=True) kernels mirror the e5 v0 template (out-fill, prange-outer-i, plain-range j/k, clip folded as if/elif). Per-generator (file:line + clip cap): Kummer (532 / \u00b150), Enriques 2 (633 / \u00b110), Enriques 3 Cayley (684 / \u00b150), Enriques 4 icosahedral (721 / \u00b120), Dwork (951 / \u00b1100), Klein cubic (1015 / \u00b150), Segre cubic (1056 / \u00b11000), two-quadrics (1103 / \u00b1200), sextic double solid (1169 / \u00b1200). Explicit-multiply for **5 (Dwork) / **3 (Segre) / **6 (sextic-DS) to preserve IEEE-754 op-order parity. ValueError pre-checks (Kummer pole + no-zero-set) and RuntimeWarnings (Dwork conifold + two-quadrics eps) all fire BEFORE kernel calls -- AI-14 preserved. workqueue single-flight obligation (CONTEXT.md 8.20) scales for free: same _computing guard handles 11 kernels. ~+1.5s test budget impact, ~+3s cumulative JIT cost (off-thread, once-per-machine via cache=True).",
+  "implementation_path": "inline",
+  "implementation_plan": ".claude/notes/milestones/realtime-variety-render-e5b/artifacts/implementation-plan.md",
+  "implementation_base": "9df4a4f387c7de91664575a892f019350d0044bd",
+  "implementation_commit_range": "9df4a4f..73bbc1c",
+  "implementation_commits": [
+    "73bbc1c632619e5e19c6a87b174de9b1e28efc83",
+    "20fa7ba67676b0410136b21d18aa543cb34b3aad"
+  ],
+  "implementation_branch": null,
+  "critique_path": ".claude/notes/milestones/realtime-variety-render-e5b/artifacts/adversary-critique.md",
+  "critics_run": [
+    "adversary"
+  ],
+  "critique_finding_counts": {
+    "critical": 0,
+    "high": 1,
+    "medium": 3,
+    "low": 3
+  },
+  "rectification_commit": "c3550d1",
+  "fixed_findings": [
+    "M1",
+    "L1",
+    "L2",
+    "L3"
+  ],
+  "deferred_findings": [
+    "H1",
+    "M3"
+  ],
+  "invalidated_findings": [
+    "M2"
+  ],
+  "regression_tests_added": []
+}
