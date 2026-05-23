@@ -1,8 +1,8 @@
 {
   "id": "hq-disable-toast-2026q3-e1",
   "created_at": "2026-05-23T05:34:42Z",
-  "updated_at": "2026-05-23T05:44:11Z",
-  "phase": "implement-running",
+  "updated_at": "2026-05-23T05:52:57Z",
+  "phase": "rectify-running",
   "phase_history": [
     {
       "phase": "init",
@@ -19,6 +19,22 @@
     {
       "phase": "implement-running",
       "at": "2026-05-23T05:40:50Z"
+    },
+    {
+      "phase": "implement-complete",
+      "at": "2026-05-23T05:44:12Z"
+    },
+    {
+      "phase": "critique-running",
+      "at": "2026-05-23T05:44:22Z"
+    },
+    {
+      "phase": "critique-complete",
+      "at": "2026-05-23T05:52:57Z"
+    },
+    {
+      "phase": "rectify-running",
+      "at": "2026-05-23T05:52:57Z"
     }
   ],
   "milestone_brief": "Close F-L2 deferred from enriques-hq-smoothing-2026q3-e1 (also flagged by qtawesome-icons-2026q2-e2 F-L2). When the user switches variety while the Double-pass smooth toggle is enabled, app.py:_on_variety_changed calls self.appearance_panel.set_hq_smoothing_eligible(False) which silently flips the toggle off via the blockSignals() programmatic-reset pattern. There is no user-visible acknowledgment that the toggle was auto-disabled \u2014 the user may notice the unchecked button after the variety switch and wonder if they did something wrong, or assume the next render is HQ-smoothed when it is not. Scope: in _on_variety_changed, BEFORE calling set_hq_smoothing_eligible(False), capture the prior hq_smoothing state via self.appearance_panel.hq_smoothing; if True, surface a one-shot statusBar().showMessage acknowledgment AFTER the variety status message (\"Variety: K3. Now choose a model. Double-pass smooth disabled \u2014 only available on Enriques figs 1+2.\"). The acknowledgment must NOT block, must NOT delay the variety switch, and must NOT use a modal dialog. AI-9 safe: pure showMessage call, no processEvents. AI-15 honest: explicitly explains WHY the auto-disable happened (per-subtype scope per CONTEXT.md \u00a78.13). Tests: pure source-grep (AI-2) asserting the captured-prior-state read + the conditional showMessage appears in _on_variety_changed. Acceptance: user enables Double-pass smooth on Enriques Fig.1, then switches variety to K3 \u2014 status bar shows the acknowledgment. User switches between Enriques figs (where HQ stays eligible) \u2014 no acknowledgment fires (silent transition).",
@@ -31,10 +47,10 @@
   "implementation_path": "inline",
   "implementation_plan": ".claude/notes/milestones/hq-disable-toast-2026q3-e1/artifacts/implementation-plan.md",
   "implementation_base": "a52fba3fa889e1e473b39091b2860ec2b6a9c545",
-  "implementation_commit_range": null,
+  "implementation_commit_range": "a52fba3..5a1f4a392079692365dfe706d750a0137764d61a",
   "implementation_commits": [],
   "implementation_branch": null,
-  "critique_path": null,
+  "critique_path": ".claude/notes/milestones/hq-disable-toast-2026q3-e1/artifacts/adversary-critique.md",
   "critics_run": [],
   "critique_finding_counts": {
     "critical": 0,

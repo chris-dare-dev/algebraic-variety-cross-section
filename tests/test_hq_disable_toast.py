@@ -144,8 +144,103 @@ def test_hq_disable_toast_fires_in_both_variety_and_subtype_handlers() -> None:
     # handler's — the subtype version adds "(double-curve topology)"
     # as the WHY explanation. Verify both message variants are present.
     assert "double-curve topology" in _APP_SRC, (
-        "_on_subtype_changed's toast must include '(double-curve "
-        "topology)' as the explanatory tail — distinguishes the "
+        "_on_subtype_changed's toast must include 'double-curve "
+        "topology' as the explanatory phrase — distinguishes the "
         "subtype-only message from the variety-change message and "
         "anchors the per-figure-topology reason per CONTEXT.md §8.13."
+    )
+
+
+# ---------------------------------------------------------------------------
+# rect Phase 4 regression guards
+# ---------------------------------------------------------------------------
+
+
+def test_hq_disable_toast_disclosure_leads_each_variety_message() -> None:
+    """rect HIGH (cross-critic) regression guard: when ``_prior_hq`` is
+    True, the HQ-disable disclosure MUST appear at the FRONT of every
+    variety-branch ``showMessage`` string — not appended.  My initial
+    implementation appended the note (Option A from the research
+    brief) which pushed CY3/Fano/Enriques combined messages to
+    165–174 chars — the entire "Double-pass smooth disabled" clause
+    clipped off the right edge of the ~120-char QStatusBar visible
+    band, defeating the feature.  Both Phase 3 critics flagged this
+    independently.  The hoist-to-front pattern keeps the most-
+    important clause visible even when the trailing variety context
+    clips.
+    """
+    # The prefix variable MUST be named to signal its leading role
+    # (not the original "_hq_note" suffix).  Search for the new name.
+    assert "_hq_prefix" in _APP_SRC, (
+        "app.py must use `_hq_prefix` (not `_hq_note`) to signal that "
+        "the HQ-disable disclosure leads, not trails, each variety-"
+        "branch message — rect HIGH (cross-critic) closure."
+    )
+    # The OLD _hq_note suffix pattern MUST NOT remain.  This catches
+    # the regression of going back to the append-after-context pattern.
+    assert "_hq_note" not in _APP_SRC, (
+        "app.py must NOT contain `_hq_note` (the original-append "
+        "pattern that caused the rect HIGH clip-band bug).  Use "
+        "`_hq_prefix` instead — disclosure leads each message."
+    )
+    # The format-string usage MUST place {_hq_prefix} BEFORE the
+    # variety-context content.  Check by locating the f-string for
+    # each variety branch and confirming {_hq_prefix} appears earlier
+    # in the same showMessage call.  Pattern: `f"{_hq_prefix}` immediately
+    # opening the format string puts the disclosure first.
+    assert 'f"{_hq_prefix}Calabi–Yau' in _APP_SRC, (
+        "CY3 branch f-string must open with `f\"{_hq_prefix}Calabi–Yau` "
+        "— disclosure leads, variety context follows."
+    )
+    assert 'f"{_hq_prefix}Fano' in _APP_SRC, (
+        "Fano branch f-string must open with `f\"{_hq_prefix}Fano` — "
+        "disclosure leads, variety context follows."
+    )
+    assert 'f"{_hq_prefix}Enriques' in _APP_SRC, (
+        "Enriques branch f-string must open with `f\"{_hq_prefix}Enriques` "
+        "— disclosure leads, variety context follows."
+    )
+    assert 'f"{_hq_prefix}Variety' in _APP_SRC, (
+        "else (generic-variety) branch f-string must open with "
+        "`f\"{_hq_prefix}Variety` — disclosure leads, variety context "
+        "follows."
+    )
+
+
+def test_hq_disable_toast_subtype_handler_captures_prior_before_eligible_call() -> None:
+    """rect MEDIUM (adversary critic) regression guard: the source-grep
+    ordering assertion in
+    ``test_hq_disable_toast_captures_prior_state_before_eligible_call``
+    finds the FIRST ``_prior_hq`` capture and verifies it precedes the
+    FIRST ``set_hq_smoothing_eligible(...)`` call — which validates
+    only the ``_on_variety_changed`` site, not the
+    ``_on_subtype_changed`` site.  This test explicitly anchors the
+    subtype-handler ordering.
+    """
+    # Find _on_subtype_changed body.
+    method_start = _APP_SRC.find("def _on_subtype_changed(")
+    assert method_start != -1, "app.py must define _on_subtype_changed."
+    method_end = _APP_SRC.find("\n    def ", method_start + 1)
+    body = _APP_SRC[method_start:method_end]
+
+    # Within the subtype-handler body, the capture must precede the
+    # eligible call.  Both must be present.
+    capture_pos = body.find("_prior_hq = self.appearance_panel.hq_smoothing")
+    eligible_pos = body.find(
+        "self.appearance_panel.set_hq_smoothing_eligible(is_hq_eligible)"
+    )
+    assert capture_pos != -1, (
+        "_on_subtype_changed must capture `_prior_hq = self."
+        "appearance_panel.hq_smoothing` — the Enriques Fig.1 → Fig.3 "
+        "transition is ONLY caught here, not in _on_variety_changed."
+    )
+    assert eligible_pos != -1, (
+        "_on_subtype_changed must call set_hq_smoothing_eligible("
+        "is_hq_eligible)."
+    )
+    assert capture_pos < eligible_pos, (
+        "_on_subtype_changed: _prior_hq capture must precede "
+        "set_hq_smoothing_eligible(is_hq_eligible) — the eligible "
+        "call may clear _hq_smoothing to False (when is_hq_eligible "
+        "is False), so reading after it loses the prior state."
     )

@@ -4,7 +4,8 @@
 
 - **AI-13 fast gate:** "does this color arg reach `pv.Plotter.add_mesh`?" QPainter / QSS is NOT PyVista.
 - **Fast token dispose:** diff adds no QColor / Qt.AlignmentFlag / processEvents / pv.add_mesh() → dispose AI-9/AI-11/AI-12/AI-13 in one sentence.
-- **Status-bar overflow:** empirical clip ~120 chars; hoist load-bearing tokens LEFT of any `|` separator.
+- **Status-bar overflow:** empirical clip ~120 chars; hoist load-bearing tokens LEFT of any `|` separator. Cannot safely append a note to a >60-char base message without measuring combined length. Hoist-before-CTA fix: put new token before `"Now choose a model."` not after.
+- **Append-to-long-base overflow trap:** base message 100+ chars + suffix 60+ chars = 160+ total, clipping the suffix. Measure base length first; if base > 60 chars, any suffix > 60 will overflow. The fallback/generic branch is usually short enough; the named-variety branches (CY3/Fano/Enriques) are the overflow risk.
 - **Early-return-before-try trap:** any `return` above `try/finally` skips cursor restore + `_computing` clear → soft-freeze. Flag MEDIUM.
 - **First-launch fast check:** does new method call `_render_current` or touch `variety_combo`/`subtype_combo`? No → section-9.3 clean.
 - **QSS `text-align` on macOS Aqua:** silently ignored unless `background:` also set. Flag any QPushButton QSS `text-align` without `background:`.
@@ -18,26 +19,18 @@
 - **Disabled-widget tooltip on macOS:** `AA_EnableToolTipsOnDisabledWidgets` at `app.py:1675` is the canonical fix. Confirm it's set before filing "tooltip invisible on greyed button" findings.
 - **Dead `_inflight_*` fields:** grep for the NAME; if only hits are init + set, it's dead code. Always LOW.
 - **Bool sentinel polarity:** `_pending_is_coarse = True` (AND-identity init) reads as "IS coarse" to maintainers. Flag whenever True is used as "no signal" sentinel. Prefer `Optional[bool] = None` or rename to OR-natural polarity.
+- **Dual-handler double-toast check:** when two event handlers (variety + subtype) both fire toasts, verify the first handler's state-clear prevents the second from double-firing. If handler A calls `set_eligible(False)` (which clears `_hq_smoothing`), handler B reads `_prior_hq = False` → silent. No double toast. Always trace the state-clear chain.
+- **ParaView status-bar discipline:** ParaView never composes a multi-clause >120-char message into a single status bar string. Peer convention = single-concept messages that fit the visible band. Use this as the HIGH-severity anchor for overflow findings on feature-purpose messages (not cosmetic ones).
+- **VS Code notification vs status-bar:** VS Code uses floating banners for "setting X auto-disabled". AVC has no notification framework; `showMessage` is correct. This distinction prevents an over-engineered "add a notification system" recommendation.
 
 ---
 
-## qtawesome-icons-2026q2-e2 + display-toggles-checkable-button-2026q3-e1 — 2026-05-22
+## qtawesome-icons + status-bar-bbox — 2026-05-22 (compacted)
 
-### Token-discipline near-misses
-- `QSize(16, 16)` is a plain constructor, not a Qt enum — AI-11 does not apply. Ask "is this a Qt.* / QSizePolicy.* enum call or a plain constructor?"
-- `BG_TOGGLE_CHECKED` flows only into QSS, NOT PyVista — AI-13 clear. Checked-state WCAG: fill needs text-on-fill contrast (9.89:1 / 10.20:1), NOT fill-vs-ground if border carries the non-text obligation.
-
-### Industry-comparison concrete findings
-- **Ghost-button unchecked state:** Blender 4.x / 3D Slicer / ParaView all give off-state toggles visible chrome. Transparent-unchecked is a Material Design web convention, not desktop sci-viz. Flag any transparent-unchecked display toggle as MEDIUM.
-- **Border-width jitter:** Changing `border-width` from 1px to 2px in checked QSS causes 1px content shift. Fix: compensate padding by -1px or use `outline:` which renders outside box model. Always LOW on any QPushButton changing border-width between pseudo-states.
-- **Pattern-A architecture for refresh_icons:** verify all 3 call sites are symmetric (`__init__`, `_on_theme_changed`, `_apply_system_theme`). Missing one = icons don't update on theme swap.
-
----
-
-## status-bar-bbox-2026q2-e2 — 2026-05-22 (compacted)
-
-- Token-discipline: text-only f-string change → all 4 axes clear in one sentence. Float format specifiers are NOT hex colors.
-- **Status-bar measurement-type signal:** renaming `bbox:` → `size:` drops the type qualifier. MeshLab uses "Bounding Box", ParaView uses "Bounds", Blender uses "Dimensions". Bare `size:` is always a regression from a qualified label. Fast flag: whenever a status-bar token is renamed, check if the new name preserves the MEASUREMENT TYPE signal.
+- **Ghost-button unchecked state:** Blender 4.x / 3D Slicer / ParaView all give off-state toggles visible chrome. Transparent-unchecked is a Material Design web convention, not desktop sci-viz. Flag as MEDIUM.
+- **Border-width jitter:** 1px→2px checked QSS causes content shift. Fix: compensate padding by -1px or use `outline:`. Always LOW.
+- **Status-bar measurement-type signal:** renaming `bbox:` → `size:` drops type qualifier. MeshLab "Bounding Box", ParaView "Bounds", Blender "Dimensions". Fast flag: renamed status-bar token loses MEASUREMENT TYPE signal.
+- `BG_TOGGLE_CHECKED` flows into QSS only, NOT PyVista — AI-13 clear. WCAG: text-on-fill contrast (9.89:1 / 10.20:1), not fill-vs-ground when border carries the non-text obligation.
 
 ---
 
@@ -184,3 +177,24 @@
 
 ### EN DASH in sanitised filenames — VTK Windows path risk
 - `"Dwork pencil (Calabi–Yau) [Fig. 4]"` → `"Dwork_pencil_(Calabi–Yau)_Fig._4.stl"`. The U+2013 EN DASH passes sanitisation. VTK's legacy C FILE* writer on Windows may fail with non-ASCII filenames. Fast check: grep `surface.label` entries in `surfaces.py` for non-ASCII chars; any that reach default-filename logic need Unicode-to-ASCII sanitisation.
+
+---
+
+## hq-disable-toast-2026q3-e1 — 2026-05-23
+
+### Token-discipline near-misses
+- Pure `showMessage` + bool-read diff: no QColor literals, no Qt.Align* shorthands, no processEvents. All four AI-9/AI-11/AI-12/AI-13 axes clear in one sentence. Fast dispose: if the entire diff is `_prior_hq = bool_property` + conditional `showMessage` strings with no renderer/color/enum additions, all axes are trivially clean.
+- `f"…{_hq_note}"` in a status-bar f-string is a Python interpolation, NOT a hex color or Qt enum. AI-13 gate: "does this reach PyVista color=?" — answer is no. AI-11 gate: "is this a Qt.* / QSizePolicy.* enum call?" — no, it's a str. Both clear.
+
+### Status-bar overflow — append-to-long-base pattern
+- When a short suffix is appended to an already-long (~100 char) base message, the COMBINED length easily exceeds the 120-char clip band even if the suffix alone is short (68 chars here). Fast check: measure BASE message length first, then add suffix length. If base > 60 chars, any suffix > 60 chars will overflow. The lesson: **you cannot safely append a UX-disclosure note to a pre-existing > 60-char status bar message without measuring the combined length.**
+- The hoist-before-CTA fix pattern: if a message is `"Noun — description.  Now choose a model."`, rewrite as `"Noun — description.{note}  Now choose a model."` so the new token appears before the generic call-to-action rather than after. This keeps the note in the visible band while preserving variety context before and CTA after.
+- The fallback/generic branch (`"Variety: K3. Now choose a model."` = 40 chars) can safely absorb the 68-char note; only the CY3/Fano/Enriques branches (100-106 chars) cannot.
+
+### Industry-comparison concrete findings
+- **ParaView status-bar discipline:** ParaView never composes a multi-clause >120-char message into a single status bar string. It either truncates deliberately (summary-only) or uses a two-line status area. The 174-char variety+note composite is outside all peer conventions. This peer reference directly justified HIGH severity for the overflow finding.
+- **VS Code notification vs status-bar:** VS Code uses floating notification banners for "setting X was auto-disabled" messages (a dedicated notification framework). AVC has no notification framework — status bar is the only ephemeral channel. Using `showMessage` is the correct architectural choice for this scope. This distinction prevents an over-engineered "add a notification system" recommendation.
+
+### First-launch / section-9 regressions
+- Clean by fast check: new code paths (`_prior_hq` capture + conditional `showMessage`) contain no calls to `_render_current`, `variety_combo`, or `subtype_combo`. Section 9.3 safe.
+- The dual-call-site pattern (variety + subtype handlers) does NOT cause double-toasting: the variety handler clears `_hq_smoothing` via `set_hq_smoothing_eligible(False)`, so when `_on_subtype_changed` fires next, `_prior_hq = False` and the subtype guard stays silent. This is a recurring pattern to verify: "does handler A's state-clear prevent handler B's toast from double-firing?"

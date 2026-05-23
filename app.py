@@ -526,21 +526,32 @@ class MainWindow(QMainWindow):
             # eligible-clear call below — set_hq_smoothing_eligible(False)
             # clears _hq_smoothing to False at the end of its body
             # (appearance_panel.py blockSignals pattern), so this read
-            # must come first.  Composed into _hq_note string below and
+            # must come first.  Composed into _hq_prefix string below and
             # appended to each variety-branch showMessage so the user
             # sees the WHY of the silent auto-disable.  Pure bool read,
             # no signal emission, AI-9 safe.
             _prior_hq = self.appearance_panel.hq_smoothing
             self.appearance_panel.set_hq_smoothing_eligible(False)
-            # The non-empty _hq_note is appended to every variety-
-            # branch showMessage below.  The Enriques branch never
-            # fires it because _on_subtype_changed re-enables HQ for
-            # figs 1+2 — but if the user lands on Enriques fig 3+4 the
-            # subtype-change handler surfaces its own toast (see
-            # _on_subtype_changed below).
-            _hq_note = (
-                "  Double-pass smooth disabled — only available on "
-                "Enriques figs 1+2."
+            # rect HIGH (cross-critic): HOIST the HQ-disable note to
+            # the FRONT of each variety-branch message so the
+            # disclosure stays visible even when the combined string
+            # exceeds the ~120-char QStatusBar visible-clip band.  My
+            # initial implementation appended the note (Option A from
+            # the research brief) which pushed combined CY3/Fano/
+            # Enriques messages to 165-174 chars — the entire
+            # "Double-pass smooth disabled" clause clipped off the
+            # right edge, defeating the feature.  Both Phase 3 critics
+            # flagged this independently as a HIGH/MEDIUM headline.
+            # Hoisting puts the most-important clause first, so even if
+            # the trailing variety-context message clips the user sees
+            # the auto-disable disclosure clearly.
+            #
+            # The Enriques branch's prefix is normally empty (the
+            # subsequent _on_subtype_changed re-enables HQ for figs
+            # 1+2) — but if the user lands on figs 3+4 the subtype-
+            # change handler surfaces its own more specific toast.
+            _hq_prefix = (
+                "Double-pass smooth disabled (Enriques figs 1+2 only).  "
                 if _prior_hq
                 else ""
             )
@@ -550,8 +561,9 @@ class MainWindow(QMainWindow):
             # 6-dimensional manifold.
             if name == "Calabi–Yau 3-fold":
                 self.statusBar().showMessage(
-                    "Calabi–Yau 3-fold — each figure is a 2D real shadow of a "
-                    f"6-dimensional manifold.  Now choose a model.{_hq_note}"
+                    f"{_hq_prefix}Calabi–Yau 3-fold — each figure is a 2D "
+                    "real shadow of a 6-dimensional manifold.  Now "
+                    "choose a model."
                 )
                 self.parameters_panel.set_context_hint(
                     "A Calabi–Yau 3-fold is 6-real-dimensional and cannot live in ℝ³. "
@@ -560,8 +572,9 @@ class MainWindow(QMainWindow):
                 )
             elif name == "Fano 3-fold (ρ=1)":
                 self.statusBar().showMessage(
-                    "Fano 3-fold (ρ=1) — each figure is a 2D real slice of a "
-                    f"6-dimensional variety.  Now choose a model.{_hq_note}"
+                    f"{_hq_prefix}Fano 3-fold (ρ=1) — each figure is a 2D "
+                    "real slice of a 6-dimensional variety.  Now choose "
+                    "a model."
                 )
                 self.parameters_panel.set_context_hint(
                     "Smooth Fano 3-folds of Picard rank 1 are 6-real-dimensional. "
@@ -575,18 +588,15 @@ class MainWindow(QMainWindow):
                 # the canonical sextic's double-curve singularity knows WHY
                 # the seam reads clean (vs the pre-fix white zipper noise).
                 # Mirrors the CY3 / Fano pattern of variety-specific context.
-                # NB: _hq_note for Enriques is normally empty (the subsequent
-                # _on_subtype_changed re-enables for figs 1+2); only fires
-                # if the user lands on figs 3+4, in which case the subtype
-                # handler will fire its own more specific toast.
                 self.statusBar().showMessage(
-                    "Enriques surface — back-face culling active to suppress "
-                    f"the double-curve zipper seam.  Now choose a model.{_hq_note}"
+                    f"{_hq_prefix}Enriques surface — back-face culling "
+                    "active to suppress the double-curve zipper seam.  "
+                    "Now choose a model."
                 )
                 self.parameters_panel.set_context_hint("")
             else:
                 self.statusBar().showMessage(
-                    f"Variety: {name}. Now choose a model.{_hq_note}"
+                    f"{_hq_prefix}Variety: {name}. Now choose a model."
                 )
                 self.parameters_panel.set_context_hint("")
         else:
@@ -669,9 +679,16 @@ class MainWindow(QMainWindow):
             # pass targets double-curve topology which only figs 1+2
             # have; figs 3+4 carry A₁ nodes and gain no targeted
             # benefit from the +138 ms cost).
+            #
+            # rect HIGH (cross-critic): HOIST the disclosure to the
+            # FRONT so it survives the ~120-char QStatusBar clip band.
+            # The longest subtype name ("Diagonal λ-family  [Fig. 2]")
+            # would push the combined message past 134 chars if the
+            # subtype context led — clipping the "(double-curve
+            # topology)" explanation precisely when it's most needed.
             self.statusBar().showMessage(
-                f"Subtype: {name}.  Double-pass smooth disabled — only "
-                "available on Enriques figs 1+2 (double-curve topology)."
+                "Double-pass smooth disabled (Enriques figs 1+2 only "
+                f"— double-curve topology).  Subtype: {name}."
             )
         # Repopulate the parameters panel for the new surface.
         self.parameters_panel.set_specs(surface.params)
