@@ -480,10 +480,11 @@ QPushButton {{
    The Surface… / Background… buttons sit in HBoxLayout rows with a small
    color swatch to their LEFT.  Without text-align: left their label text
    centers within the button's remaining width, which creates a visible
-   vertical-rhythm fracture against the Render Mode group below (whose
-   QPushButton[role="display-toggle"] toggles use text-align: left for
-   their icon+label layout).  Adding text-align: left here aligns both
-   groups uniformly.
+   vertical-rhythm fracture against the Display & Quality group below
+   (whose QPushButton[role="display-toggle"] toggles use text-align: left
+   for their icon+label layout — group renamed from "Render Mode" by
+   appearance-panel-render-mode-split-2026q3-e3).  Adding text-align:
+   left here aligns both groups uniformly.
 
    The rule re-states `padding` + `border-radius` from the base
    QPushButton rule above — NOT because the values differ, but because

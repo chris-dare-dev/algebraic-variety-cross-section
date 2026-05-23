@@ -153,12 +153,14 @@ class AppearancePanel(QWidget):
         box = QGroupBox("Colors")
         vl = QVBoxLayout(box)
         # appearance-panel-layout-pass-2026q3-e2 rect F-L2: 6→4 to match
-        # the Render Mode group's intra-row spacing.  The 6px was a
+        # the Display & Quality group's intra-row spacing.  The 6px was a
         # holdover from center-aligned buttons (extra spacing to
         # compensate for sparse-text feel); after left-align the
-        # discontinuity vs the 4px Render Mode group below reads as a
-        # rhythm break across the group boundary.  Blender 4.x N-panel
+        # discontinuity vs the 4px Display & Quality group below reads as
+        # a rhythm break across the group boundary.  Blender 4.x N-panel
         # uses uniform 4px intra-row spacing across all sub-sections.
+        # (Group renamed Render Mode → Display & Quality by
+        # appearance-panel-render-mode-split-2026q3-e3, F-M2 closure.)
         vl.setSpacing(4)
 
         # Surface color row
@@ -170,9 +172,9 @@ class AppearancePanel(QWidget):
         # appearance-panel-layout-pass-2026q3-e2 (F-M2 closure): tag the
         # color-picker buttons with the `colors-button` role so they pick
         # up the `text-align: left` QSS rule and visually align with the
-        # display-toggle buttons in the Render Mode group below.  See
-        # CONTEXT.md §4.3b for the role-property pattern (NOT §4.3a —
-        # rect M1 citation fix).
+        # display-toggle buttons in the Display & Quality group below.
+        # See CONTEXT.md §4.3b for the role-property pattern (NOT §4.3a
+        # — rect M1 citation fix).
         surf_btn.setProperty("role", "colors-button")
         surf_btn.clicked.connect(self._pick_surface_color)
         surf_row.addWidget(self._surf_swatch)
@@ -197,15 +199,26 @@ class AppearancePanel(QWidget):
 
     def _build_toggles_group(self) -> QGroupBox:
         # appearance-panel-layout-pass-2026q3-e2 (F-L2 closure):
-        # "Render Mode" replaces the generic "Display" header.  MeshLab
-        # uses this exact term for its wireframe/solid/flat toggle set,
-        # which is the closest peer to AVC's Wireframe / Show edges / HQ
-        # smoothing trio.  Blender uses "Viewport Overlays" / "Shading";
-        # ParaView uses "Representation"; 3D Slicer uses "Display Type"
-        # within a "Display" section.  "Render Mode" was the more
-        # specific option the prior milestone's frontend critic
-        # recommended (F-L2).
-        box = QGroupBox("Render Mode")
+        # "Render Mode" replaced the generic "Display" header.  MeshLab
+        # uses that exact term for its wireframe/solid/flat toggle set,
+        # which was the closest peer to AVC's Wireframe / Show edges /
+        # Double-pass-smooth trio.  Blender uses "Viewport Overlays" /
+        # "Shading"; ParaView uses "Representation"; 3D Slicer uses
+        # "Display Type" within a "Display" section.
+        #
+        # appearance-panel-render-mode-split-2026q3-e3 (F-M2 closure):
+        # "Display & Quality" supersedes "Render Mode".  Double-pass
+        # smooth is NOT a render-mode toggle — it triggers a full mesh
+        # regeneration (the second Taubin pass moves every vertex), so
+        # the prior label misclassified it.  "Display & Quality"
+        # acknowledges both axes: Wireframe / Show edges are display-
+        # pipeline toggles (change `actor.prop.*`); Double-pass smooth
+        # is a quality toggle (changes mesh fidelity).  Single-group-
+        # multiple-axes pattern matches ParaView's Display tab.  The
+        # `&&` is the Qt literal-ampersand escape — `QGroupBox` inherits
+        # the `&` mnemonic interpretation from `QLabel`, so a single
+        # `&` would underline `Q` and bind it as an Alt+Q accelerator.
+        box = QGroupBox("Display && Quality")
         vl = QVBoxLayout(box)
         vl.setSpacing(4)
 

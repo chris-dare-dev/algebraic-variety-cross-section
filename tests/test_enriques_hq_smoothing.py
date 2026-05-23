@@ -352,10 +352,11 @@ def test_hq_smoothing_disabled_by_default_in_appearance_panel() -> None:
 
 
 def test_appearance_panel_uses_double_pass_smooth_label() -> None:
-    """The Render Mode group's third button must read 'Double-pass smooth'
-    (not 'HQ smoothing').  F-L1 closure: marketing-tone label replaced
-    with a descriptive name that names the implementation (two Taubin
-    passes total).
+    """The Display & Quality group's third button must read 'Double-pass
+    smooth' (not 'HQ smoothing').  F-L1 closure: marketing-tone label
+    replaced with a descriptive name that names the implementation
+    (two Taubin passes total).  Group renamed Render Mode → Display &
+    Quality by appearance-panel-render-mode-split-2026q3-e3.
     """
     src = (
         pathlib.Path(__file__).resolve().parent.parent / "appearance_panel.py"
