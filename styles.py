@@ -100,7 +100,16 @@ PALETTE_LIGHT: dict[str, str] = {
     "BORDER_GROUP_BOX":         "#d0d0d0",   # QGroupBox outline
 
     # === Color swatches in Appearance panel ===
-    "BORDER_SWATCH":            "#888888",   # swatch outline — 6-digit (resolves AI-13 adjacency, UPL-21)
+    # cleanup-deferred-findings-2026q3-e1 item 1 (variety-palette MF1
+    # closure): darkened from #888888 → #333333 (TEXT_VALUE).  The
+    # original #888888 only achieved ~1.35-1.67:1 vs the variety
+    # fills (K3 #8e9ed4, Enriques #c4a882, CY3 #85b5d0, Fano #8fbe85)
+    # — failing WCAG 1.4.11's 3:1 floor for UI-component boundaries.
+    # #333333 measures 4.81-5.94:1 vs each fill AND 11.09:1 vs the
+    # BG_PANEL (#f0f0f0).  Theme-split: PALETTE_DARK keeps #888888
+    # because dark mode's BG_PANEL (#252526) needs a brighter border
+    # to maintain contrast.
+    "BORDER_SWATCH":            "#333333",   # 4.81-5.94:1 vs variety fills + 11.09:1 vs BG_PANEL
 
     # === Reset-defaults button (destructive variant) ===
     "BG_RESET_BTN":             "#f5e8e8",
@@ -218,7 +227,10 @@ def get_variety_default_colors(theme: str = "dark") -> dict[str, str]:
 # Tokens shared between themes (intentionally identical):
 #   BG_VIEWPORT         #2f2f2f   canvas is always dark
 #   BG_SURFACE_DEFAULT  #b0c4de   flows to PyVista; reads on either background
-#   BORDER_SWATCH       #888888   neutral grey reads on either panel
+#   (BORDER_SWATCH WAS shared #888888 — split per-theme by
+#    cleanup-deferred-findings-2026q3-e1 item 1: light uses #333333
+#    for ≥3:1 against the 4 family fills; dark keeps #888888 for
+#    contrast against the dark #252526 BG_PANEL.)
 #   COLOR_WIREFRAME_OVERLAY #888888  same — 4.32:1 vs #252526 PASS
 #
 # Every text token re-audited vs BG_PANEL_DARK at the 4.5:1 floor; every
@@ -261,7 +273,12 @@ PALETTE_DARK: dict[str, str] = {
     "BORDER_GROUP_BOX":          "#777777",   # 3.42:1 vs BG_PANEL — non-text 3:1 PASS
 
     # === Color swatches in Appearance panel ===
-    "BORDER_SWATCH":             "#888888",   # SHARED — 6-digit, reads on either ground
+    # cleanup-deferred-findings-2026q3-e1 item 1: theme-split — light
+    # mode darkened BORDER_SWATCH to #333333 for the variety-fill 3:1
+    # contrast floor.  Dark mode keeps #888888 because the inverse
+    # (a dark border on a dark BG_PANEL) would disappear into the
+    # panel chrome and lose the boundary contrast entirely.
+    "BORDER_SWATCH":             "#888888",   # 4.32:1 vs BG_PANEL_DARK (#252526)
 
     # === Reset-defaults button (destructive variant) — dark-wine on dark ===
     "BG_RESET_BTN":              "#4a1a1a",   # structural dark wine
@@ -467,6 +484,40 @@ QGroupBox::title {{
     subcontrol-position: top left;
     padding: 0 4px;
     left: 8px;
+}}
+
+/* --- Context menus and popup menus ------------------------------------ */
+/* cleanup-deferred-findings-2026q3-e1 item 7 (dark-mode M_menu_nest
+   closure): Qt right-click / popup `QMenu` widgets inherit the OS
+   QPalette rather than the QApplication stylesheet by default on
+   macOS Aqua — the menu paints with native light chrome even when
+   the rest of the app is dark.  Adding an explicit `QMenu` rule
+   forces Qt's stylesheet renderer instead of the native renderer.
+   The Theme menu in the menubar (the only QMenu surface in the
+   current app) and any future right-click context menus will all
+   inherit this rule.
+   AI-12: TEXT_VALUE on BG_PANEL = 11.09/11.60:1 (PASS).
+          TEXT_VALUE on BG_TOGGLE_CHECKED = 9.89/10.20:1 (PASS).
+          FOCUS_RING on BG_PANEL = 3.56/5.17:1 (PASS — boundary).
+   AI-13: all hex via palette tokens; no inline literals.
+   AI-9:  pure paint-path rule; no processEvents, no signal. */
+QMenu {{
+    background-color: {palette["BG_PANEL"]};
+    color: {palette["TEXT_VALUE"]};
+    border: 1px solid {palette["FOCUS_RING"]};
+    padding: 4px;
+}}
+QMenu::item {{
+    padding: 4px 20px;
+}}
+QMenu::item:selected {{
+    background-color: {palette["BG_TOGGLE_CHECKED"]};
+    color: {palette["TEXT_VALUE"]};
+}}
+QMenu::separator {{
+    height: 1px;
+    background: {palette["BORDER_GROUP_BOX"]};
+    margin: 2px 0;
 }}
 
 /* --- Push buttons -- default style ------------------------------------ */

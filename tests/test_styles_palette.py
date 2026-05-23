@@ -1004,3 +1004,176 @@ def test_get_variety_default_colors_returns_correct_dict() -> None:
     assert styles.get_variety_default_colors() is styles.VARIETY_DEFAULT_COLOR_DARK, (
         "get_variety_default_colors() (no arg) must default to dark dict"
     )
+
+
+# ---------------------------------------------------------------------------
+# cleanup-deferred-findings-2026q3-e1 regression guards
+# ---------------------------------------------------------------------------
+
+
+def test_border_swatch_light_wcag_3_to_1_against_all_variety_fills() -> None:
+    """Item 1 (variety-palette MF1 closure): the light-theme
+    ``BORDER_SWATCH`` must achieve ≥3:1 WCAG 1.4.11 contrast against
+    BOTH the panel background AND each of the 4 variety fill colors
+    — otherwise the swatch chip's color boundary is invisible against
+    its neighboring surfaces and the swatch fails as a UI component
+    identifier.  Previously #888888 only met the BG_PANEL contrast
+    (3.11:1) but failed all 4 fills (1.35-1.67:1).
+    """
+    border = styles.PALETTE_LIGHT["BORDER_SWATCH"]
+    bg_panel = styles.PALETTE_LIGHT["BG_PANEL"]
+    # Border vs panel background.
+    assert _ratio(border, bg_panel) >= 3.0, (
+        f"BORDER_SWATCH={border} vs BG_PANEL={bg_panel} = "
+        f"{_ratio(border, bg_panel):.2f}:1 — must be >=3:1 (WCAG 1.4.11)."
+    )
+    # Border vs each variety fill (the swatch's interior color).
+    # NB: light-theme variety colors live in `VARIETY_DEFAULT_COLOR`
+    # (no `_LIGHT` suffix — the dark dict is the explicit-suffix one).
+    for variety, fill in styles.VARIETY_DEFAULT_COLOR.items():
+        ratio = _ratio(border, fill)
+        assert ratio >= 3.0, (
+            f"BORDER_SWATCH={border} vs {variety} fill={fill} = "
+            f"{ratio:.2f}:1 — must be >=3:1 (WCAG 1.4.11 UI-component "
+            f"boundary).  The swatch border must remain visible against "
+            f"every family color, not just the panel background."
+        )
+
+
+def test_border_swatch_dark_wcag_3_to_1_against_bg_panel() -> None:
+    """Item 1 (theme-split companion): the dark-theme ``BORDER_SWATCH``
+    must still achieve ≥3:1 vs its BG_PANEL.  The split was needed
+    because using #333333 (the light fix) on dark BG_PANEL #252526
+    would collapse to ~1.40:1 — dark mode keeps #888888.
+    """
+    border = styles.PALETTE_DARK["BORDER_SWATCH"]
+    bg_panel = styles.PALETTE_DARK["BG_PANEL"]
+    assert _ratio(border, bg_panel) >= 3.0, (
+        f"PALETTE_DARK BORDER_SWATCH={border} vs BG_PANEL={bg_panel} = "
+        f"{_ratio(border, bg_panel):.2f}:1 — must be >=3:1."
+    )
+
+
+def test_border_swatch_light_and_dark_diverge() -> None:
+    """Item 1 (theme-split regression guard): PALETTE_LIGHT and
+    PALETTE_DARK must use DIFFERENT ``BORDER_SWATCH`` values.  A
+    shared value would re-introduce the MF1 finding in one theme or
+    the other (each theme's BG_PANEL+fill contrast budget needs a
+    different border darkness).
+    """
+    light = styles.PALETTE_LIGHT["BORDER_SWATCH"]
+    dark = styles.PALETTE_DARK["BORDER_SWATCH"]
+    assert light != dark, (
+        f"BORDER_SWATCH should be theme-split (light={light}, dark={dark}) — "
+        f"a shared value re-introduces the MF1 contrast failure in one theme."
+    )
+
+
+def test_qmenu_rule_present_in_both_stylesheets() -> None:
+    """Item 7 (dark-mode M_menu_nest closure): both ``APP_STYLESHEET``
+    and ``APP_STYLESHEET_DARK`` must include a ``QMenu`` rule.  Qt
+    right-click and menubar popups inherit the OS QPalette by default
+    on macOS Aqua — the explicit QSS forces stylesheet-render mode so
+    the Theme menu (and any future right-click context menu) paints
+    with the app's chrome, not the OS light chrome.
+    """
+    for name, sheet in (
+        ("APP_STYLESHEET", styles.APP_STYLESHEET),
+        ("APP_STYLESHEET_DARK", styles.APP_STYLESHEET_DARK),
+    ):
+        assert "QMenu" in sheet, (
+            f"{name} must include a QMenu rule — without it, Qt context "
+            f"menus inherit the OS QPalette and break theme consistency."
+        )
+        # The selected-item highlight must also be styled (avoids the
+        # OS-native hover highlight bleeding through).
+        assert "QMenu::item:selected" in sheet, (
+            f"{name} must include a QMenu::item:selected rule so hover "
+            f"highlight uses the app palette, not the OS native highlight."
+        )
+
+
+def test_preview_badge_separator_matches_base_msg() -> None:
+    """Item 5 (e4b L3 closure): the coarse-preview badge in
+    ``_on_mesh_ready`` and the base success message must use the SAME
+    separator (`"  ·  "` — U+00B7 interpunct + double-space) — the
+    established status-bar vocabulary across all milestone formats.
+    Previously the badge used `" — "` (em-dash + single-space) which
+    created a visual cue at the cost of vocabulary fracture.
+    """
+    import pathlib
+    src = (
+        pathlib.Path(__file__).resolve().parent.parent / "app.py"
+    ).read_text(encoding="utf-8")
+    # Locate the Preview badge format string.
+    assert 'f"Preview  ·  ' in src, (
+        "app.py must construct the coarse Preview badge with the "
+        "interpunct separator: f\"Preview  ·  {surface.label}...\""
+    )
+    # The em-dash separator pattern " — " (single space on each side)
+    # MUST NOT appear inside the coarse preview message format.  The
+    # standalone em-dash CAN appear elsewhere (comments, longer
+    # disclosures) — this assertion specifically guards the badge
+    # format string.
+    assert 'f"Preview — ' not in src, (
+        "app.py must NOT contain f\"Preview — {...}\" — rect closure "
+        "of e4b L3 (item 5): the badge separator was unified to the "
+        "interpunct `\"  ·  \"` matching base_msg + status-bar-bbox "
+        "convention."
+    )
+
+
+def test_spinner_icon_rebind_sites_have_qtimer_lifetime_comment() -> None:
+    """Item 8 (render-busy-spinner LOW-2 closure): each call to
+    ``icons.render_busy_spinner_icon(...)`` in ``app.py`` must have a
+    nearby comment explaining the qtawesome Spin QTimer lifetime
+    semantics.  Without the institutional-memory anchor, a future
+    maintainer reading the rebind code would not know that each call
+    creates a NEW Spin with its OWN QTimer (the prior QTimer remains
+    parented to the widget and continues to fire until the widget is
+    destroyed).
+    """
+    import pathlib
+    src = (
+        pathlib.Path(__file__).resolve().parent.parent / "app.py"
+    ).read_text(encoding="utf-8")
+    # Count the comment-anchor presence — at least 3 sites should
+    # carry either "QTimer" or "Spin" in a nearby comment.  Use a
+    # simpler proxy: count occurrences of "Spin QTimer" or similar
+    # near the spinner-icon construction.
+    assert src.count("render_busy_spinner_icon") >= 3, (
+        "Expected >=3 call sites to icons.render_busy_spinner_icon in "
+        "app.py (init + _on_theme_changed + _apply_system_theme)."
+    )
+    # Each of the three rebind sites should have a nearby Spin/QTimer
+    # comment.  Source-grep that "Spin QTimer" appears at least once
+    # (the comprehensive comment in _on_theme_changed) plus the cross-
+    # references at the other two sites.
+    assert "Spin QTimer" in src, (
+        "app.py must contain a 'Spin QTimer' comment anchor at one of "
+        "the spinner-icon rebind sites — documents the qtawesome "
+        "lifetime semantics for future maintainers (item 8 closure)."
+    )
+
+
+def test_subtype_tooltips_have_lod_disclosure() -> None:
+    """Item 3 (e4b M7 closure): every entry in ``SUBTYPE_TOOLTIPS``
+    must include a render-mode disclosure suffix.  Three classes per
+    the realtime-variety-render-e4b LOD architecture: coarse-preview
+    implicit surfaces get the drag/release note; Hanson parametric
+    surfaces get the full-resolution-every-tick note; the two-quadrics
+    opt-out gets the release-only note.  Without these the user can't
+    predict what drag will trigger from the tooltip alone.
+    """
+    from surfaces import SUBTYPE_TOOLTIPS
+
+    for subtype, tooltip in SUBTYPE_TOOLTIPS.items():
+        assert any(
+            note in tooltip
+            for note in ("preview", "drag tick", "Release-only")
+        ), (
+            f"SUBTYPE_TOOLTIPS[{subtype!r}] is missing the LOD disclosure "
+            f"suffix — item 3 closure requires every tooltip to indicate "
+            f"the render-mode behavior (coarse preview / full on every "
+            f"tick / release-only)."
+        )

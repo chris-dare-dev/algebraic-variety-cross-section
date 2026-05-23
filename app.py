@@ -387,6 +387,13 @@ class MainWindow(QMainWindow):
         # spinner icon AFTER QApplication is fully live.  Same constraint
         # as the panel refresh_icons calls above — qta.icon() returns null
         # without a live QApplication (CONTEXT.md §8.12).
+        #
+        # cleanup-deferred-findings-2026q3-e1 item 8 (Spin QTimer note):
+        # qtawesome's `qta.Spin(widget)` creates a `QTimer(parent_widget)`
+        # on first paint.  See the matching comment block in
+        # `_on_theme_changed` for the QTimer lifetime + theme-swap
+        # accumulation semantics — this site is the initial bind so the
+        # accumulation story doesn't apply yet (single Spin instance).
         self._render_busy_spinner.setIcon(
             icons.render_busy_spinner_icon(
                 self._render_busy_spinner, self._active_theme
@@ -865,7 +872,7 @@ class MainWindow(QMainWindow):
             # realtime-variety-render-e4b rect H3: read `_pending_is_coarse`
             # (just AND-promoted with the latest request) so the busy-branch
             # message reflects what the catch-up will actually dispatch — no
-            # flicker between "Computing …" and "Preview — …" during a coarse
+            # flicker between "Computing …" and "Preview  ·  …" during a coarse
             # drag burst.
             _busy_label = (
                 "Computing preview" if self._pending_is_coarse else "Computing"
@@ -1071,18 +1078,27 @@ class MainWindow(QMainWindow):
 
             # realtime-variety-render-e4b (CAND-3): coarse-preview LOD —
             # the AI-15 Preview-badge state machine.  On a coarse result we
-            # write "Preview — {label}{hq_label} — NNN ms" to the status
+            # write "Preview  ·  {label}{hq_label}  ·  NNN ms" to the status
             # bar and SKIP the verts/faces/bbox readout (those numbers are
             # precise but TRANSIENT — printing them at coarse `n` is
             # mathematically dishonest: the user is mid-drag viewing an
             # approximation, and a precise "401,592 verts" readout would
             # imply more fidelity than the rendered mesh actually has).
             #
+            # cleanup-deferred-findings-2026q3-e1 item 5 (L3 closure):
+            # separator unified on `"  ·  "` (U+00B7 interpunct, double-
+            # space) — the established base_msg/status-bar-bbox convention.
+            # Previously the badge used `" — "` (em-dash, single-space)
+            # which created a visual cue but broke the broader status-bar
+            # separator vocabulary.  All status-bar messages now use the
+            # same interpunct convention.
+            #
             # Badge persistence: each rapid drag tick OVERWRITES the badge
-            # with a fresh "Preview — … — NNN ms" line; only a non-coarse
-            # result (the full-res release path) calls `showMessage(base_msg)`
-            # below, which REPLACES the Preview text — Qt's QStatusBar
-            # has no separate "clear" semantic, replacement IS the clear.
+            # with a fresh "Preview  ·  …  ·  NNN ms" line; only a non-
+            # coarse result (the full-res release path) calls
+            # `showMessage(base_msg)` below, which REPLACES the Preview
+            # text — Qt's QStatusBar has no separate "clear" semantic,
+            # replacement IS the clear.
             #
             # AI-15: the Preview prefix is the math-honesty disclaimer for
             # the coarse mesh.  A user looking at the status bar always
@@ -1093,16 +1109,16 @@ class MainWindow(QMainWindow):
             # scheduling) still runs.
             if result.is_coarse:
                 preview_msg = (
-                    f"Preview — {surface.label}{hq_label}"
-                    f" — {result.gen_ms:.0f} ms"
+                    f"Preview  ·  {surface.label}{hq_label}"
+                    f"  ·  {result.gen_ms:.0f} ms"
                 )
                 if result.warning_text:
                     # realtime-variety-render-e4b rect M-front-1: hoist the
                     # Preview badge to the LEFT of the pipe so the load-bearing
-                    # "Preview — {label} — NNN ms" tokens stay visible even
-                    # when QStatusBar clips the right edge (~120 chars).  Same
-                    # rescue pattern as the full-result warning path's bbox
-                    # hoist, see CONTEXT.md §4.3 warning-path note.
+                    # "Preview  ·  {label}  ·  NNN ms" tokens stay visible
+                    # even when QStatusBar clips the right edge (~120 chars).
+                    # Same rescue pattern as the full-result warning path's
+                    # bbox hoist, see CONTEXT.md §4.3 warning-path note.
                     preview_msg = (
                         f"{preview_msg}  |  ⚠ {result.warning_text}"
                     )
@@ -1612,6 +1628,24 @@ class MainWindow(QMainWindow):
         self.view_panel.refresh_icons(self._active_theme)
         self.parameters_panel.refresh_icons(self._active_theme)
         self.appearance_panel.refresh_icons(self._active_theme)
+        # cleanup-deferred-findings-2026q3-e1 item 8 (Spin QTimer
+        # accumulation note): each call to render_busy_spinner_icon
+        # creates a fresh `qta.Spin(widget)` instance with its OWN
+        # `QTimer(parent_widget)` (created lazily on first paintEvent).
+        # When setIcon() replaces the icon, the prior Spin's QTimer is
+        # NOT auto-deleted — it remains parented to the spinner widget
+        # and continues firing widget.update() at the 10ms interval
+        # until the QPushButton is destroyed (Qt parent-based auto-
+        # delete at QObject destruction).  Impact: N theme swaps in
+        # one session leave N concurrent QTimers firing widget.update().
+        # All N produce visually identical paint (the QIcon held by the
+        # widget is always the most-recent one), so the spinner stays
+        # color-correct — but the repaint rate is N-times-nominal.
+        # Real-world impact: 0 (users rarely theme-swap, and never
+        # during the 0.5-1.5s compute window when the spinner is
+        # visible).  Tracked here for institutional memory; a future
+        # render-busy-spinner-v3 milestone could call `qta.Spin.stop()`
+        # on the prior animation explicitly if benchmarks ever flag it.
         self._render_busy_spinner.setIcon(
             icons.render_busy_spinner_icon(
                 self._render_busy_spinner, self._active_theme
@@ -1660,6 +1694,11 @@ class MainWindow(QMainWindow):
         self.view_panel.refresh_icons(resolved)
         self.parameters_panel.refresh_icons(resolved)
         self.appearance_panel.refresh_icons(resolved)
+        # cleanup-deferred-findings-2026q3-e1 item 8 (Spin QTimer
+        # accumulation note): mirror of the comment in _on_theme_changed
+        # above — OS-driven follow-system theme swaps re-bind the
+        # spinner icon the same way as user-driven theme swaps, with
+        # identical Spin QTimer accumulation semantics.
         self._render_busy_spinner.setIcon(
             icons.render_busy_spinner_icon(self._render_busy_spinner, resolved)
         )

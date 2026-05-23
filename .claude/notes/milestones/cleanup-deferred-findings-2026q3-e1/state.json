@@ -1,0 +1,50 @@
+{
+  "id": "cleanup-deferred-findings-2026q3-e1",
+  "created_at": "2026-05-23T15:08:14Z",
+  "updated_at": "2026-05-23T15:19:02Z",
+  "phase": "implement-running",
+  "phase_history": [
+    {
+      "phase": "init",
+      "at": "2026-05-23T15:08:14Z"
+    },
+    {
+      "phase": "research-running",
+      "at": "2026-05-23T15:08:28Z"
+    },
+    {
+      "phase": "research-complete",
+      "at": "2026-05-23T15:19:02Z"
+    },
+    {
+      "phase": "implement-running",
+      "at": "2026-05-23T15:19:02Z"
+    }
+  ],
+  "milestone_brief": "Batch-close the highest-value real deferred findings across 5 completed milestones. SCOPED to 8 items (NOT a verify-and-clear pass on stale deferrals \u2014 those are tracked separately):\n\n(1) variety-palette-2026q2-e1 MF1: swatch chip contrast on BG_PANEL fails WCAG AA for all 4 family colors \u2014 pick higher-contrast swatch chip border or background.\n\n(2) panel-refresh-2026q2-e2 M4: FOCUS_RING palette comment claims \">= 3:1 vs adjacent widget bg\" but actual ratio is 2.60:1 \u2014 verify with WCAG luminance calculation and either correct the comment OR pick a token that meets 3:1.\n\n(3) realtime-variety-render-e4b M7: per-surface tooltips in SUBTYPE_TOOLTIPS dont mention coarse-preview LOD \u2014 add one line per Hanson/Fermat tooltip noting that drag triggers coarse preview, release triggers full render.\n\n(4) realtime-variety-render-e4b L2: self._inflight_is_coarse is set in app.py but never read \u2014 remove the dead assignment OR document why it stays.\n\n(5) realtime-variety-render-e4b L3: em-dash separator inconsistency between coarse-Preview badge (uses \" \u2014 \") and base success message (uses \"  \u00b7  \") \u2014 pick one, update both.\n\n(6) realtime-variety-render-e5b M3: _dwork_ref and _segre_cubic_ref test references are NOT verbatim pre-e5b expressions per the milestones research brief \u2014 restore verbatim X**5 / X**3 power operators OR explicitly document the explicit-multiply-chain transcription with a comment explaining the ULP independence implications.\n\n(7) dark-mode-2026q2-e1 M_menu_nest: Qt right-click context menus inherit OS palette, not the app stylesheet \u2014 explicit QSS rule (QMenu { background-color: %(BG_PANEL)s; color: %(TEXT_VALUE)s; }) added to both APP_STYLESHEET and APP_STYLESHEET_DARK so dark-mode context menus dont flash light chrome on right-click.\n\n(8) render-busy-spinner-2026q3-e1 adversary LOW-2: Spin QTimer accumulation across theme changes is undocumented \u2014 add inline comment at the icon-rebind site noting the qtawesome QTimer is GC-bound to the widget lifetime and a new icon() call on theme swap correctly supersedes the prior animation.\n\nDEFERRED (NOT in this milestone): dark-mode L_macos_native, enriques-backface adv_L1/front_L3, qtawesome-icons-e1 front_L2, focus-ring-contrast L1, hq-smoothing-label-rename M2/M3/L1-3 frontend, render-busy-spinner LOW-3 + frontend LOW-1/LOW-2 \u2014 all are pure comment-only nudges with marginal value. Test: per item, source-grep or contrast-token regression guard. AI-12 WCAG audit required for items (1) and (2). All other items: app.py + surfaces.py + styles.py changes with corresponding test additions.",
+  "research_mode": "single",
+  "oss_scout_requested": false,
+  "research_briefs": [
+    ".claude/notes/milestones/cleanup-deferred-findings-2026q3-e1/research/agent-solo-brief.md"
+  ],
+  "research_synthesis": "Researcher confirmed 3 of 8 already closed (items 2/4/6 by focus-ring-contrast/e4b-rect/e5b-rect). 5 open items, ~86 LOC inline: (1) split BORDER_SWATCH per-palette: light #333333 dark #888888 (WCAG 1.4.11 4.81-11.09:1 vs all 4 fills); (3) add coarse-preview LOD note to 11 implicit SUBTYPE_TOOLTIPS + opposite note to 3 Hanson + 1 two-quadrics opt-out; (5) Preview badge `\" \u2014 \"` \u2192 `\"  \u00b7  \"` matching base_msg interpunct convention; (7) QMenu+::item+::selected+::separator QSS rule added to _render_stylesheet using BG_PANEL/TEXT_VALUE/BG_TOGGLE_CHECKED/BORDER_GROUP_BOX tokens \u2014 forces Aqua-bypass for context menus; (8) inline comments at 3 spinner icon-rebind sites documenting qtawesome QTimer parent-based lifetime semantics.",
+  "implementation_path": "inline",
+  "implementation_plan": null,
+  "implementation_base": "969bdd1524891000555f6196f5735dbf64f33f55",
+  "implementation_commit_range": null,
+  "implementation_commits": [],
+  "implementation_branch": null,
+  "critique_path": null,
+  "critics_run": [],
+  "critique_finding_counts": {
+    "critical": 0,
+    "high": 0,
+    "medium": 0,
+    "low": 0
+  },
+  "rectification_commit": null,
+  "fixed_findings": [],
+  "deferred_findings": [],
+  "invalidated_findings": [],
+  "regression_tests_added": []
+}
