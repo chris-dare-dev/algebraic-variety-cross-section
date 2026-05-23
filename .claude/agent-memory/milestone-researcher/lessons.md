@@ -89,3 +89,14 @@
 - qtawesome Spin animation requires QIcon.paint() in paintEvent — only QAbstractButton subclasses do this. QLabel.setPixmap() is static. Use QPushButton(flat=True, enabled=False) for status-bar spinner host widget.
 - qta.Spin default step=1 → 3.6s/rotation (too slow for 0.5-1.5s window). Use step=6 → 600ms/rotation.
 - mdi6.loading (0xf0772) IS in MDI6 6.9.96. AI-9 for spinner: QTimer.timeout → _update() → widget.update() → paintEvent = pure paint path, no re-entry. Toggle at the two _computing=True/False sites directly (app.py:670, 829) — no property setter needed.
+
+## qsettings-persistence-v1-2026q3-e1 (2026-05-23)
+- "Lift §9 non-goal" pattern: audit the exact §9 text to confirm it is a deferral ("doesn't do X"), not a principled rejection ("decided against X"). The §9 "shipped" spinner entry is a precedent that §9 items are closeable.
+- QSettings restore must go at the END of `__init__`, AFTER ALL `addDockWidget`/`splitDockWidget` calls. `restoreState()` before `addDockWidget()` is silently overridden by the subsequent dock calls.
+- Global singleton form preferred: `QApplication.setOrganizationName("AVC") + setApplicationName("AlgebraicVarietyCrossSection")` in `main()` before `QApplication(sys.argv)`; then `QSettings()` no-arg at every call site. Per-call `QSettings("AVC", "...")` works but repeats the string literal.
+- Application name: CamelCase `"AlgebraicVarietyCrossSection"` (not hyphenated `"algebraic-variety-cross-section"`) per Qt convention; produces readable plist/INI filenames.
+- schema_version key costs 1 LOC and enables V2 migration; add it in V1.
+- Live write-back of LastSession/variety+subtype in `_on_variety_changed`/_on_subtype_changed survives SIGKILL; the write-back is a no-op when fired from `_restore_settings()` setCurrentText — QSettings.setValue is synchronous, no signal re-entry.
+- `closeEvent` save ordering: `_save_settings()` FIRST, then signal disconnect, then `waitForDone(30000)`, then `plotter.close()`, then `super().closeEvent(event)`.
+- AI-2 compliant tests: pure source-text greps; `QSettings()` is never constructed in tests. Pattern: `_APP_SRC.find("...")` for positional checks, `assert "..." in _APP_SRC` for presence.
+- AI-9 audit note: `setCurrentText()` fires handlers that call `_render_current` (correct), and also write-back `setValue()` (safe no-op). The write-back does NOT call `processEvents` and does NOT re-enter `_on_variety_changed`.

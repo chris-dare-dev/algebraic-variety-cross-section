@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import sys
 
-from PySide6.QtCore import Qt, QSize, QThreadPool, QTimer, Slot
+from PySide6.QtCore import Qt, QSettings, QSize, QThreadPool, QTimer, Slot
 from PySide6.QtGui import (
     QAction,
     QActionGroup,
@@ -356,6 +356,17 @@ class MainWindow(QMainWindow):
         # --- Keyboard shortcuts ----------------------------------------------
         self._setup_shortcuts()
 
+        # qsettings-persistence-v1-2026q3-e1 (UPL-25 partial — CONTEXT.md
+        # §9 V1 lift): restore geometry + dock layout + last-used variety
+        # and subtype.  MUST be called AFTER every addDockWidget /
+        # splitDockWidget / setStatusBar call above, otherwise the
+        # subsequent addDockWidget overrides the restored layout (Qt's
+        # restoreState contract).  Also AFTER _setup_shortcuts so the
+        # restored state can interact with shortcut-bound actions.
+        # First-launch (no saved state): guarded by schema_version check
+        # inside _restore_settings; method returns a no-op.
+        self._restore_settings()
+
     # --- keyboard shortcuts ------------------------------------------------
 
     def _setup_shortcuts(self) -> None:
@@ -382,6 +393,12 @@ class MainWindow(QMainWindow):
         self.subtype_combo.clear()
         self.subtype_combo.addItem(_PLACEHOLDER)
         if name in VARIETIES:
+            # qsettings-persistence-v1-2026q3-e1 (live write-back):
+            # persist the chosen variety the instant it's selected so
+            # the last choice survives a process kill that bypasses
+            # closeEvent (SIGKILL, crash).  Synchronous; no signal
+            # re-emission; AI-9 safe (no _render_current re-entry).
+            QSettings().setValue("LastSession/variety", name)
             subtypes = list(VARIETIES[name].keys())
             self.subtype_combo.addItems(subtypes)
             # Attach per-subtype tooltips
@@ -536,6 +553,13 @@ class MainWindow(QMainWindow):
         self.appearance_panel.set_hq_smoothing_eligible(is_hq_eligible)
         # Repopulate the parameters panel for the new surface.
         self.parameters_panel.set_specs(surface.params)
+        # qsettings-persistence-v1-2026q3-e1 (live write-back): persist
+        # the chosen subtype the instant it's selected — same crash-
+        # safety rationale as the variety write-back above.  Written
+        # AFTER the parameters_panel.set_specs so a slot triggered by
+        # set_specs that errors would NOT leave the saved subtype out-
+        # of-sync with what's actually selected.
+        QSettings().setValue("LastSession/subtype", name)
         self._render_current(reset_camera=True)
 
     def _on_params_changed(self, _values: dict) -> None:
@@ -1035,9 +1059,13 @@ class MainWindow(QMainWindow):
         """Construct the menu bar's Theme menu (Light / Dark / Follow system).
 
         Dark is the launch default (the viewport is always #2f2f2f, so dark
-        chrome is the coherent baseline).  Theme choice is V0-scope only:
-        the next launch returns to dark.  Persisting the user's pick is
-        UPL-25's territory (QSettings dock + theme state).
+        chrome is the coherent baseline).  Theme persistence remains V2 /
+        UPL-25 scope — qsettings-persistence-v1-2026q3-e1 shipped only the
+        geometry + dock-layout + last-variety/subtype slice (CONTEXT.md §9
+        V1 lift); the user's theme choice still resets to dark on every
+        launch.  Lifting that to a fourth V2 key (`LastSession/theme`)
+        would be one additional `setValue` + read pair in `_save_settings`
+        / `_restore_settings`.
         """
         theme_menu = self.menuBar().addMenu("Theme")
         # AI-11: fully qualified Qt enums.  QAction + QActionGroup live in
@@ -1186,7 +1214,89 @@ class MainWindow(QMainWindow):
 
     # --- lifecycle ---------------------------------------------------------
 
+    # qsettings-persistence-v1-2026q3-e1 (UPL-25 partial — CONTEXT.md §9 V1
+    # lift): save+restore window geometry, dock layout, and last-used
+    # variety+subtype across launches.  See CONTEXT.md §4.5 for the full key
+    # schema and save/restore timing contract.  V2/V3 scope (per-subtype
+    # slider values, theme preference, surface/bg colors, camera pose,
+    # clip state) is explicitly OUT-OF-SCOPE for this V1 milestone and
+    # remains §9-deferred.
+
+    _SETTINGS_SCHEMA_VERSION = 1
+
+    def _save_settings(self) -> None:
+        """Persist window geometry, dock layout, and current variety+subtype.
+
+        Called from :meth:`closeEvent` BEFORE the system-theme signal
+        disconnect and BEFORE ``_render_pool.waitForDone`` — the GUI must
+        still be live (``saveGeometry`` reads the current window state) and
+        the save must complete before any teardown blocks the event loop.
+
+        ``settings.sync()`` flushes to the per-OS backing store synchronously
+        so the save survives a force-kill of the parent process immediately
+        after ``closeEvent`` returns.
+        """
+        settings = QSettings()
+        settings.setValue("Window/geometry", self.saveGeometry())
+        settings.setValue("Window/state", self.saveState())
+        settings.setValue("Window/schema_version", self._SETTINGS_SCHEMA_VERSION)
+        # LastSession/variety and LastSession/subtype are written live in
+        # _on_variety_changed / _on_subtype_changed so they survive even a
+        # SIGKILL before closeEvent.  No need to re-write them here.
+        settings.sync()
+
+    def _restore_settings(self) -> None:
+        """Restore geometry, dock layout, and last variety+subtype.
+
+        Called at the END of :meth:`__init__`, AFTER all ``addDockWidget``,
+        ``splitDockWidget``, ``setStatusBar``, and menu-bar setup — Qt
+        documents that ``restoreState`` returns silently false if a dock
+        listed in the saved blob isn't yet added at restore time, OR if a
+        subsequent ``addDockWidget`` call overrides the restored geometry.
+        Adding the restore at the tail of ``__init__`` is the canonical
+        order (Qt Forum, pythonguis.com — both cited in the research brief).
+
+        Schema-version guard: if no V1 state is present (``schema_version <
+        1`` — default 0 on a fresh launch with no settings file), the
+        method returns immediately as a no-op.  Forward-compat: V2 can read
+        the schema_version and migrate / discard older state.
+        """
+        settings = QSettings()
+        schema = settings.value("Window/schema_version", 0, type=int)
+        if schema < self._SETTINGS_SCHEMA_VERSION:
+            return  # No saved state, or pre-V1 state — graceful no-op.
+
+        geom = settings.value("Window/geometry", None)
+        if geom is not None:
+            self.restoreGeometry(geom)
+
+        state = settings.value("Window/state", None)
+        if state is not None:
+            self.restoreState(state)
+
+        saved_variety = settings.value("LastSession/variety", "", type=str)
+        if saved_variety and saved_variety in VARIETIES:
+            # setCurrentText fires _on_variety_changed, which writes
+            # LastSession/variety back to QSettings (a no-op same-value
+            # write).  Synchronous; no processEvents; AI-9 safe.  The
+            # handler also rebuilds subtype_combo's items, so the
+            # subsequent setCurrentText on subtype_combo can find the
+            # saved subtype if it's still in the registry.
+            self.variety_combo.setCurrentText(saved_variety)
+            saved_subtype = settings.value("LastSession/subtype", "", type=str)
+            if saved_subtype and saved_subtype in VARIETIES[saved_variety]:
+                # setCurrentText fires _on_subtype_changed which triggers
+                # _render_current.  _computing is False at this point
+                # (no worker in flight); dispatch is queued via the
+                # existing MeshWorker path; no re-entrancy.
+                self.subtype_combo.setCurrentText(saved_subtype)
+
     def closeEvent(self, event):
+        # qsettings-persistence-v1-2026q3-e1: persist FIRST — must run
+        # while GUI is still live (saveGeometry/saveState read current
+        # window state) and before _render_pool.waitForDone potentially
+        # blocks for up to 30 s.
+        self._save_settings()
         # dark-mode-2026q2-e1 rect L2: disconnect the follow-system signal
         # if active.  Harmless in the current single-window main() pattern
         # (process exits after app.exec()), but the lambda captures `self` —
@@ -1222,6 +1332,17 @@ def main() -> int:
     QApplication.setAttribute(
         Qt.ApplicationAttribute.AA_EnableToolTipsOnDisabledWidgets, True
     )
+    # qsettings-persistence-v1-2026q3-e1 (UPL-25 partial — CONTEXT.md §9
+    # V1 lift): set the organization + application name BEFORE any
+    # QSettings construction.  The no-arg QSettings() form (used at
+    # every call site below) inherits these as its scope identifiers,
+    # so the saved state lands in the canonical per-OS backing store:
+    #   Linux: ~/.config/AVC/AlgebraicVarietyCrossSection.ini
+    #   macOS: ~/Library/Preferences/AVC.AlgebraicVarietyCrossSection.plist
+    #   Windows: HKCU\\Software\\AVC\\AlgebraicVarietyCrossSection
+    # See CONTEXT.md §4.5 for the key schema and save/restore timing.
+    QApplication.setOrganizationName("AVC")
+    QApplication.setApplicationName("AlgebraicVarietyCrossSection")
     app = QApplication(sys.argv)
     # dark-mode-2026q2-e1 (UPL-1): dark is the launch default because the
     # VTK viewport is always #2f2f2f.  Users can toggle to Light or Follow

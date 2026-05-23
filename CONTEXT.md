@@ -186,6 +186,34 @@ The async render path:
 
 Re-entrancy analysis (AI-9): `_on_mesh_ready` runs on the GUI thread via `QueuedConnection`, so it is serialized with every other GUI event — it cannot re-enter itself. The catch-up `singleShot(0)` runs on a later event-loop turn with `_computing` already `False`, so it enters `_render_current` cleanly. With the `_computing` single-flight guard at most one worker is in flight and at most one catch-up is queued; the `_generation` counter is *defensive* idempotency insurance on top. **All VTK GL calls (`add_mesh` / `render` / `reset_camera`) stay on the GUI thread — the worker only touches `surface.generate()` data construction.** If you add a code path that dispatches a worker outside `_render_current`, or lift the `_computing` guard, re-do this analysis.
 
+### 4.4a Session persistence (qsettings-persistence-v1-2026q3-e1, UPL-25 partial)
+
+`MainWindow` persists three categories of state on `closeEvent` via `QSettings`:
+
+**Key schema (V1):**
+
+| Key | Type | Description |
+|-----|------|-------------|
+| `Window/geometry` | `QByteArray` | `saveGeometry()` — position, size, multi-monitor handling |
+| `Window/state` | `QByteArray` | `saveState()` — dock layout (floating/docked, sizes, visibility) |
+| `Window/schema_version` | `int` | `1` — anchor for future V2 migration |
+| `LastSession/variety` | `str` | e.g. `"K3 surface"` |
+| `LastSession/subtype` | `str` | e.g. `"Fermat quartic  [Fig. 1]"` |
+
+**Org / app identifiers** (`main()`, before `QApplication(sys.argv)`): `QApplication.setOrganizationName("AVC")` + `QApplication.setApplicationName("AlgebraicVarietyCrossSection")`. Every subsequent `QSettings()` no-arg call inherits these. Backing store: INI on Linux, plist on macOS, registry on Windows — user-invisible.
+
+**Save timing:**
+- **Primary** (`closeEvent`): `self._save_settings()` runs FIRST, before the system-theme signal disconnect and before `_render_pool.waitForDone(30000)`. The drain can block up to 30 s and `saveGeometry`/`saveState` need a live GUI to read current state. `settings.sync()` flushes to the backing store synchronously so saves survive a force-kill of the parent immediately after `closeEvent` returns.
+- **Secondary** (live write-back): `_on_variety_changed` and `_on_subtype_changed` each call `QSettings().setValue(...)` the instant a valid choice is made — preserves the last variety/subtype even on SIGKILL / crash before `closeEvent` fires.
+
+**Restore timing:** end of `MainWindow.__init__`, AFTER all `addDockWidget` / `splitDockWidget` / `setStatusBar` / `_build_theme_menu` / `_setup_shortcuts` calls. Qt's `restoreState` contract requires the docks to already exist; calling it before `addDockWidget` makes the restore a silent no-op AND the subsequent `addDockWidget` overrides whatever geometry the saved blob carried.
+
+**First-launch behavior:** `Window/schema_version` defaults to `0` when no settings file exists; `_restore_settings()` returns immediately as a graceful no-op. `restoreGeometry(None)` and `restoreState(None)` are NOT called — the `if geom is not None:` guard avoids the silent-false-return path. The combo-box restore is guarded by `if saved_variety in VARIETIES:` so a saved variety later removed from the registry becomes a no-op.
+
+**AI-9 close call:** the restore path's `setCurrentText(saved_variety)` fires the existing `_on_variety_changed` handler, which itself writes `LastSession/variety` back to QSettings — a synchronous same-value no-op write. Does NOT call `processEvents`, does NOT emit a signal that reaches `_render_current`, does NOT recursively re-enter the handler. AI-9 safe.
+
+**Out-of-scope (V2/V3):** per-subtype slider values (ParamSpec-range versioning needed), theme preference (would conflict with the V2 theme-aware `set_default_color` reset), surface/bg colors, camera pose (resolution-fragile), clip mode + radius. The comment at `app.py:_build_theme_menu` documents the V2 theme-persistence boundary explicitly.
+
 ### 4.5 Domain clipping (sphere / cube)
 
 `view_panel.py` exposes `clip_to_domain(mesh) -> (clipped_mesh, overlay_mesh_or_None)`. Both modes use the same scalar-clipping approach: tag every vertex with a "domain function" (Euclidean distance for sphere, Chebyshev `max(|x|,|y|,|z|)` for cube), then `clip_scalar(invert=True)` keeps the interior. **Don't use `clip_box`** — its `invert` semantics on PolyData are unreliable in current PyVista (see commit `b68456f`).
@@ -511,7 +539,7 @@ Bonus (rect HIGH closure): an animated qtawesome `QPushButton` MUST also call `s
 
 Logged as adversarial findings in the most recent reviews but skipped. Future maintainers can pick these up.
 
-- **No state persistence.** App doesn't save window layout, last-used surface, slider values, or color choices via `QSettings`. Every launch starts fresh.
+- **State persistence — V1 shipped** in `qsettings-persistence-v1-2026q3-e1` (UPL-25 partial). Window geometry (size + position), dock layout (`QMainWindow.saveState`), and last-used variety + subtype are saved to `QSettings()` (org `"AVC"`, app `"AlgebraicVarietyCrossSection"`) on `closeEvent` and restored at the end of `MainWindow.__init__`. Key schema: `Window/geometry`, `Window/state`, `Window/schema_version` (= 1 for forward-compat migration), `LastSession/variety`, `LastSession/subtype`. Backing store per OS: INI on Linux (`~/.config/AVC/AlgebraicVarietyCrossSection.ini`), plist on macOS (`~/Library/Preferences/AVC.AlgebraicVarietyCrossSection.plist`), registry on Windows (`HKCU\Software\AVC\AlgebraicVarietyCrossSection`). V2/V3 follow-ons remain explicitly out-of-scope: per-subtype slider values (would require ParamSpec-range versioning to handle stale saves cleanly), theme preference, surface/bg color overrides (would override the V2 theme-aware `set_default_color` reset logic), camera pose (a pose saved at one resolution gives a wrongly-angled view if the window is resized), clip mode + radius. See §4.4a for the persistence architecture.
 - **No 3D mesh export.** Only PNG screenshot is supported. Adding STL/OBJ/PLY export is one line: `mesh.save("file.stl")`.
 - **Render-busy spinner icon — shipped** in `render-busy-spinner-2026q3-e1` (UPL-4 v2; closes the original §9 deferral). The original blocker — `QMovie.updated` signals firing during `QApplication.processEvents()` in `_render_current` touching the AI-9 re-entrancy surface — was mooted by `realtime-variety-render-e4`'s background-thread worker move (option (b) from the original deferral text: that milestone moved `surface.generate()` onto a `QThreadPool` worker AND removed the synchronous `processEvents()` call entirely). Implementation: a flat disabled `QPushButton` (16×16) added to the status bar via `addPermanentWidget()` — RIGHT side, never obscured by `showMessage()` calls (and the app fires `showMessage` at every render event, so the alternative `addWidget()` slot would have hidden the spinner at the exact moment it was most needed). Icon: `mdi6.loading` rendered via `icons.render_busy_spinner_icon(widget, theme)` which wraps `qta.icon("mdi6.loading", color=_icon_color(theme), animation=qta.Spin(widget, interval=10, step=6))` (one 360° rotation per ~600 ms). Toggled `setVisible(True)/(False)` at the two `self._computing = True/False` sites in `_render_current` and `_on_mesh_ready`. Two load-bearing implementation details worth preserving across future maintenance: (1) widget MUST be `QPushButton`, not `QLabel` — qtawesome's `Spin` animation triggers via `QIcon.paint()` in `paintEvent`, which only `QAbstractButton` subclasses call; `QLabel.setPixmap()` captures a static frame and the animation dies; (2) position MUST be `addPermanentWidget`, not `addWidget`, per the showMessage-obscure trap above. AI-15: spinner indicates compute *activity* only, not percent-complete progress — Flying Edges and Taubin smoothing emit no intermediate progress signal, so the status-bar text remains the ground truth.
 - **No first-launch auto-render.** App opens to a `— Select —` placeholder and an empty plotter. The UI/UX agent considered auto-selecting the first surface and decided it would feel presumptuous in a research tool.

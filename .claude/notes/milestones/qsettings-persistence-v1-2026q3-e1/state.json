@@ -1,0 +1,50 @@
+{
+  "id": "qsettings-persistence-v1-2026q3-e1",
+  "created_at": "2026-05-23T04:30:25Z",
+  "updated_at": "2026-05-23T04:37:51Z",
+  "phase": "implement-running",
+  "phase_history": [
+    {
+      "phase": "init",
+      "at": "2026-05-23T04:30:25Z"
+    },
+    {
+      "phase": "research-running",
+      "at": "2026-05-23T04:30:45Z"
+    },
+    {
+      "phase": "research-complete",
+      "at": "2026-05-23T04:36:44Z"
+    },
+    {
+      "phase": "implement-running",
+      "at": "2026-05-23T04:37:25Z"
+    }
+  ],
+  "milestone_brief": "Lift CONTEXT.md \u00a79 non-goal \"No state persistence\" for V1 scope only: save+restore window geometry (size+position), dock layout, last-used variety, and last-used subtype across launches via QSettings. Per-subtype slider values, surface/bg colors, theme preference, display toggles, camera pose, and clip state are EXPLICITLY OUT-OF-SCOPE (V2/V3 follow-ons). V0 \u2192 V1 jump only. Implementation: QMainWindow.saveGeometry()/saveState() into a QSettings(\"AVC\", \"algebraic-variety-cross-section\") store at closeEvent; restoreGeometry/restoreState in __init__ AFTER widget construction (Qt convention \u2014 must restore after addDockWidget/setStatusBar/etc.). For last variety+subtype: on _on_variety_changed and _on_subtype_changed, write settings.setValue(\"LastSession/variety\", name) + setValue(\"LastSession/subtype\", name); on __init__ end (after panels built), read both and call self.variety_combo.setCurrentText(saved_variety) if saved_variety in VARIETIES. The setCurrentText fires _on_variety_changed which builds the subtype list; then setCurrentText on subtype_combo restores the subtype. AI-9: closeEvent is the safest persist point (deterministic, no signal storms). AI-2: tests are pure source-text greps asserting QSettings is used, the org+app name match, and the key names match the documented schema \u2014 no QApplication construction. AI-15: zero math claim involved. Cross-platform note: QSettings backing store is INI on Linux, plist on macOS, registry on Windows \u2014 user-invisible.",
+  "research_mode": "single",
+  "oss_scout_requested": false,
+  "research_briefs": [
+    ".claude/notes/milestones/qsettings-persistence-v1-2026q3-e1/research/agent-solo-brief.md"
+  ],
+  "research_synthesis": "V1 scope only: QApplication.setOrganizationName(\"AVC\") + setApplicationName(\"AlgebraicVarietyCrossSection\") in main() before QApplication(sys.argv) construction; QSettings() no-arg form everywhere else. Key schema: Window/geometry, Window/state, Window/schema_version=1, LastSession/variety, LastSession/subtype. New _save_settings() + _restore_settings() methods on MainWindow. Save: closeEvent FIRST step (before signal disconnect + waitForDone). Live write-back: setValue in _on_variety_changed and _on_subtype_changed for crash safety. Restore: end of __init__ AFTER _setup_shortcuts(). Schema-version guard for graceful V0 fallback. 8 source-grep tests (AI-2/AI-3 compliant). AI-9 verified: restore-time setCurrentText fires existing handlers, write-back is synchronous (no processEvents).",
+  "implementation_path": "inline",
+  "implementation_plan": ".claude/notes/milestones/qsettings-persistence-v1-2026q3-e1/artifacts/implementation-plan.md",
+  "implementation_base": "4b9e5923dcacdf4f2f5420ec15bee7c7a476e712",
+  "implementation_commit_range": null,
+  "implementation_commits": [],
+  "implementation_branch": null,
+  "critique_path": null,
+  "critics_run": [],
+  "critique_finding_counts": {
+    "critical": 0,
+    "high": 0,
+    "medium": 0,
+    "low": 0
+  },
+  "rectification_commit": null,
+  "fixed_findings": [],
+  "deferred_findings": [],
+  "invalidated_findings": [],
+  "regression_tests_added": []
+}
