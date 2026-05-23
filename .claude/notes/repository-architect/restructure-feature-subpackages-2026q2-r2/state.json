@@ -1,0 +1,79 @@
+{
+  "id": "restructure-feature-subpackages-2026q2-r2",
+  "created_at": "2026-05-23T20:44:24Z",
+  "updated_at": "2026-05-23T21:52:18Z",
+  "phase": "design-complete",
+  "phase_history": [
+    {
+      "phase": "init",
+      "at": "2026-05-23T20:44:24Z"
+    },
+    {
+      "phase": "audit-running",
+      "at": "2026-05-23T20:44:35Z"
+    },
+    {
+      "phase": "audit-complete",
+      "at": "2026-05-23T20:57:02Z"
+    },
+    {
+      "phase": "design-running",
+      "at": "2026-05-23T21:08:49Z"
+    },
+    {
+      "phase": "design-complete",
+      "at": "2026-05-23T21:24:36Z"
+    }
+  ],
+  "restructure_brief": "Feature-subpackage decomposition of AVC. This is the substantive structural work that the prior restructure (restructure-full-audit-2026q2-r1) explicitly deferred under 'conservative bias' even though scout-B flagged it as the highest-ROI change. The conservative bias is RELAXED for this run; the design-adversary now has axis 12 (under-engineering vs evidence, added in commit b5235ab) and SHOULD push back on deferrals that don't address audit citations head-on. SCOPE: introduce feature subpackages at the root (NOT under src/avcs/ -- flat-package + feature subpackages, per scout-B's pragmatic recommendation). Target tree shape per scout-B's napari analogy: (1) varieties/ subpackage extracted from surfaces.py -- one module per variety family (k3, enriques, calabi_yau, fano), a varieties/_kernels.py for the 11 Numba @njit field kernels (per scout-A 4.2 cleanest seam), a varieties/_marching.py for _marching_cubes_to_polydata + _grid_to_polydata helpers, and a varieties/registry.py for the VARIETIES dict + tooltips (load-bearing per AI-8 -- must remain importable via 'from varieties.registry import VARIETIES'); (2) render/ subpackage absorbing render_worker.py to render/worker.py and any rendering helpers that emerge; (3) cross_section/ subpackage with view_panel.clip_to_domain extracted as a pure function; (4) _qt/ subpackage following napari's underscore-prefix convention for framework adapters -- RENAME of existing panels/ to _qt/panels/ + move icons.py + ui_helpers.py + styles.py inside as _qt/icons.py, _qt/helpers.py, _qt/styles.py (styles.py is data but is QSS-coupled and used only by Qt code); (5) keep app.py at root as the entry point (do NOT Extract Class on it in this restructure -- that's a separate milestone gated behind successful structural decomposition); (6) keep parameter_grid.py at root for now since it's pure-math infrastructure (or move into varieties/parameter_grid.py if the designer judges it belongs there -- the math is for variety parameter grids). HARD CONSTRAINTS: AI-1..AI-15 invariants from .claude/references/app-invariants.md are inviolable. Specifically AI-2, AI-6, AI-7, AI-8, AI-9, AI-12, AI-15. NON-NEGOTIABLE: every old import path gets a __getattr__ shim for one milestone. tests/test_numba_field_kernels.py specifically uses 'from surfaces import _<name>_field_kernel' -- preserve this. Plan a per-batch rollback tag protocol (refactor-batch{N}-end). README + CONTEXT.md WILL need substantive rewrites; both authorized for Batch 4+ anchor-updater. EFFORT EXPECTATION: this is materially larger than r1 (which moved 4 panel files); expect 6-9 batches, ~3-5 h wall-clock. Sequence low-risk-first per design-adversary axis 10: structural moves before semantic extractions before content edits.",
+  "stop_after_phase": null,
+  "audit_briefs": [
+    ".claude/notes/repository-architect/restructure-feature-subpackages-2026q2-r2/audit/current-state-brief.md",
+    ".claude/notes/repository-architect/restructure-feature-subpackages-2026q2-r2/audit/best-practices-brief.md",
+    ".claude/notes/repository-architect/restructure-feature-subpackages-2026q2-r2/audit/refactor-pattern-brief.md"
+  ],
+  "evaluator_report": ".claude/notes/repository-architect/restructure-feature-subpackages-2026q2-r2/audit/evaluator-report.md",
+  "plan_path": ".claude/notes/repository-architect/restructure-feature-subpackages-2026q2-r2/design/PLAN.md",
+  "symbol_map_path": ".claude/notes/repository-architect/restructure-feature-subpackages-2026q2-r2/design/symbol-map.json",
+  "design_adversary_path": ".claude/notes/repository-architect/restructure-feature-subpackages-2026q2-r2/design/design-adversary-critique.md",
+  "design_adversary_finding_counts": {
+    "critical": 0,
+    "high": 3,
+    "medium": 4,
+    "low": 2
+  },
+  "restructure_base": null,
+  "baseline_dir": null,
+  "dry_run_report_path": null,
+  "dry_run_verdict": null,
+  "execute_batches_planned": 0,
+  "execute_batches_landed": 0,
+  "execute_commit_range": null,
+  "execute_commits": [],
+  "parity_verifier_reports": [],
+  "anchor_updater_reports": [],
+  "execution_critic_path": null,
+  "test_suggester_path": null,
+  "critique_finding_counts": {
+    "critical": 0,
+    "high": 0,
+    "medium": 0,
+    "low": 0
+  },
+  "rectification_commit": null,
+  "fixed_findings": [],
+  "deferred_findings": [],
+  "invalidated_findings": [],
+  "user_gate_history": [
+    {
+      "gate": 1,
+      "at": "2026-05-23T20:57:30Z",
+      "response": "y"
+    },
+    {
+      "gate": 2,
+      "at": "2026-05-23T21:25:00Z",
+      "response": "y"
+    }
+  ]
+}

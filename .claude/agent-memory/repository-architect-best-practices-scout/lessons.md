@@ -54,3 +54,62 @@
   remains the right recommendation for AVC's conservative-bias brief.
 - **pyproject.toml: HIGH → confirmed HIGH.** PyPA canonical, required for peer review, no
   counter-argument.
+
+---
+
+## Lesson from restructure-feature-subpackages-2026q2-r2 (2026-05-23)
+
+### New 2026 patterns observed
+
+- **ETH Zurich study (arxiv 2602.11988v1) confirms context files add cost without proportional
+  benefit.** LLM-generated files: -2-3% success, +23% cost. Human-curated: +4% success, +19%
+  cost. Implication: AGENTS.md should be minimal (only what agents cannot discover from code).
+  Per-subpackage CLAUDE.md should be under 20 lines or skipped entirely.
+  Source: https://arxiv.org/html/2602.11988v1 (confirmed live 2026-05-23)
+
+- **napari's `_qt/` isolation principle is now explicitly documented** in napari's architecture
+  guide (not just implied by directory name). Direct quote: "we try to confine code that
+  directly imports Qt to the folders `_qt/` and `_vispy/`." This is the strongest available
+  citation for the `_qt/` subpackage pattern in Qt+VTK Python apps.
+  Source: https://napari.org/dev/developers/architecture/dir_organization.html (live 2026-05-23)
+
+- **Augment Code (2026) guidance says split AGENTS.md at 150-200 lines** (per-directory
+  files). AVC's AGENTS.md at 148 lines is right at the split boundary.
+  Source: https://www.augmentcode.com/guides/how-to-build-agents-md (live 2026-05-23)
+
+- **"Flat package + feature subpackages" is the practiced pattern for scipy, pandas, django,
+  pyvista** — all flat-at-root, domain-split inside. Not named in the literature as a distinct
+  pattern (no canonical name found), but consistently practiced. No 2026 dissent found.
+
+### Source changes since r1
+
+- **napari architecture docs now explicitly state `_qt/` policy** (2026). Previously only
+  implied. Use this as the primary citation for `_qt/` isolation in Qt+VTK apps.
+
+- **ETH Zurich AGENTS.md study** is a new primary source that changes the per-subpackage
+  CLAUDE.md recommendation from LOW to "only if genuinely non-obvious constraints exist."
+
+### AVC-specific lessons (do not generalize)
+
+- **r1 closed items 2, 3, 6, 7, 8, 21, 22, 25, 28** — evaluator score went from 14/28 to
+  21/28 PASS. r2 targets items 17 (surfaces.py LOC) and 24 (framework adapter isolation).
+
+- **The r2 evaluator report is at:**
+  `.claude/notes/repository-architect/restructure-feature-subpackages-2026q2-r2/audit/evaluator-report.md`
+  Result: 21/28 PASS.
+
+- **panels/ is now at root as a working subpackage.** The 4 root-level shim files
+  (appearance_panel.py, view_panel.py, parameters_panel.py, parameter_grid_panel.py) are 18
+  LOC each and function via `__getattr__`. This counts as item #11 PASS but item #24 is still
+  FAIL (icons.py, ui_helpers.py, styles.py remain at root with Qt coupling).
+
+### Recommendation strength updates (r2)
+
+- **napari `_qt/` pattern: confirmed HIGH** — now has explicit documentation, not just
+  directory convention. Use the architecture docs URL as the citation.
+- **Per-subpackage CLAUDE.md: downgraded from LOW to "avoid unless < 20 lines"** — ETH Zurich
+  finding changes the calculus for single-developer projects.
+- **varieties/ subpackage: confirmed HIGH** — surfaces.py at 1811 LOC is the primary r2 target;
+  no dissent found on this decomposition approach.
+- **AGENTS.md size cap: updated to 200 lines** (from 300) — Anthropic docs confirmed; ETH Zurich
+  supports minimalism; AVC is currently at 148 lines (well-positioned).
