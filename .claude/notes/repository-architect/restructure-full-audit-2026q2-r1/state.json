@@ -1,8 +1,8 @@
 {
   "id": "restructure-full-audit-2026q2-r1",
   "created_at": "2026-05-23T17:23:26Z",
-  "updated_at": "2026-05-23T20:18:38Z",
-  "phase": "execute-running",
+  "updated_at": "2026-05-23T20:20:05Z",
+  "phase": "execute-complete",
   "phase_history": [
     {
       "phase": "init",
@@ -35,6 +35,10 @@
     {
       "phase": "execute-running",
       "at": "2026-05-23T19:21:31Z"
+    },
+    {
+      "phase": "execute-complete",
+      "at": "2026-05-23T20:20:05Z"
     }
   ],
   "restructure_brief": "Broad cleanup audit of the AVC repo. Surface and address structural improvements: monolith hotspots (app.py 1893 LOC, surfaces.py 1808 LOC), the dual parameter_panel implementations (parameters_panel.py vs parameter_grid_panel.py), missing top-level files (LICENSE, CHANGELOG, AGENTS.md, pyproject.toml), the src-vs-flat layout question for an 11-file flat app, the four panel files at root that could group into panels/, and any AI-navigability gaps. The current layout is flat: 11 .py files at root, tests/ directory, .claude/ and .github/ standard tool folders. AI-1..AI-15 invariants from .claude/references/app-invariants.md are inviolable. Conservative bias: prefer low-risk wins (panels/ subpackage, AGENTS.md symlink, dead-code consolidation if parameter_grid_panel.py supersedes parameters_panel.py) over speculative reorganizations (src/avcs/ migration only if scouts surface strong evidence). Author all batches in low-risk-first order so high-risk Extract Class operations are gated behind successful low-risk batches.",
@@ -60,8 +64,33 @@
   "dry_run_verdict": "GREEN",
   "execute_batches_planned": 4,
   "execute_batches_landed": 4,
-  "execute_commit_range": null,
-  "execute_commits": [],
+  "execute_commit_range": "c7b2bd869aaea9b1d6c50ab199dd7f65ed48e95c..5f38db3df2b85694f7903542c002ab6efae2f46b",
+  "execute_commits": [
+    "5f38db3df2b85694f7903542c002ab6efae2f46b",
+    "0e51719d3460f30c7dea1bcec432c1bc766f3b9e",
+    "3a7a4b8bbfc0e4c23ff2f32f4deb3d9b1c61ffd5",
+    "63eb4c75165f7e4bb1a9e33fc7ae267a82cf40b1",
+    "6751c708895fc282f9e2113b7c9312f1947ae8c1",
+    "c2f7bfeb00210c65be2b9a6f5c9f6b657aba55f2",
+    "7202c8920717c660e93bcbbfcf0c6234b56df8c8",
+    "2f7b4bf8c7f873a759da7cddb51b6f59290384d6",
+    "8c555f72bf624e0a28a4453ade3e24c8d3946c2a",
+    "ffd358a7268e386ca9002fa09a2a8a6ed1befb35",
+    "572c5b15aa169a3f839579918c50c354cebf3211",
+    "13a1d7c05eb95b2fc7fff63355f5be7c5c6d89db",
+    "5d5a5bc4617b6862a47d5314487d45c64bb7fc35",
+    "1a92515af9832cacb18cd51a1fbf2f953cfac6ba",
+    "f989b9dab12db7bef640bc9d12a7033f3bc76b77",
+    "c106914186ad4116da53a918e561482f3529d7fe",
+    "954255544351aa2a25a42ca84bd74742881c9d89",
+    "974a33332bc1536279c2ed7b3e67df6af51472e8",
+    "a9ad4a895db3ed2bbd82062247f71ceda4f527df",
+    "79fb0e0df2cf3c5751deed1e68dcd045198be78e",
+    "bb5913dfd4ee03878d8b27e4b420083c7bdd546b",
+    "7669db81c52f0eb66acb707f177c931bfaba16ce",
+    "0475d349ec71f5cc0bd055759647f3c0bf2116ae",
+    "e980da8bb834865a2398f6f368c7feaf256c49d3"
+  ],
   "parity_verifier_reports": [
     ".claude/notes/repository-architect/restructure-full-audit-2026q2-r1/execute/parity-verifier-batch-1-report.md",
     ".claude/notes/repository-architect/restructure-full-audit-2026q2-r1/execute/parity-verifier-batch-2-report.md",

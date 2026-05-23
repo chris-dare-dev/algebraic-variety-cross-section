@@ -1,0 +1,1631 @@
+{
+  "DebounceCounter": [
+    "ui_helpers.py:37"
+  ],
+  "Debouncer": [
+    "ui_helpers.py:96"
+  ],
+  "build_slider_row": [
+    "ui_helpers.py:168"
+  ],
+  "clamp_value": [
+    "parameter_grid.py:43"
+  ],
+  "value_to_norm": [
+    "parameter_grid.py:52"
+  ],
+  "norm_to_value": [
+    "parameter_grid.py:65"
+  ],
+  "snap_to_step": [
+    "parameter_grid.py:80"
+  ],
+  "norm_to_scene": [
+    "parameter_grid.py:95"
+  ],
+  "scene_to_norm": [
+    "parameter_grid.py:108"
+  ],
+  "value_to_scene": [
+    "parameter_grid.py:119"
+  ],
+  "scene_to_value": [
+    "parameter_grid.py:126"
+  ],
+  "grid_enabled": [
+    "parameter_grid.py:143"
+  ],
+  "default_axis_count": [
+    "parameter_grid.py:152"
+  ],
+  "AxisAssignment": [
+    "parameter_grid.py:171"
+  ],
+  "assign_axes": [
+    "parameter_grid.py:189"
+  ],
+  "default_axis_names": [
+    "parameter_grid.py:240"
+  ],
+  "tick_count": [
+    "parameter_grid.py:268"
+  ],
+  "value_to_tick": [
+    "parameter_grid.py:279",
+    "tests/test_parameters_panel.py:44"
+  ],
+  "tick_to_value": [
+    "parameter_grid.py:289",
+    "tests/test_parameters_panel.py:48"
+  ],
+  "format_value": [
+    "parameter_grid.py:294"
+  ],
+  "plane_axes": [
+    "parameter_grid.py:326"
+  ],
+  "held_axis": [
+    "parameter_grid.py:348"
+  ],
+  "is_stale_result": [
+    "render_worker.py:42"
+  ],
+  "MeshResult": [
+    "render_worker.py:66"
+  ],
+  "WorkerSignals": [
+    "render_worker.py:124",
+    ".claude/notes/roadmaps/realtime-variety-render/spike-thread-test.py:81"
+  ],
+  "MeshWorker": [
+    "render_worker.py:135",
+    ".claude/notes/roadmaps/realtime-variety-render/spike-thread-test.py:94"
+  ],
+  "ParamSpec": [
+    "surfaces.py:43"
+  ],
+  "Surface": [
+    "surfaces.py:55"
+  ],
+  "should_render_on_drag": [
+    "surfaces.py:99"
+  ],
+  "dispatch_mode": [
+    "surfaces.py:120"
+  ],
+  "_marching_cubes_to_polydata": [
+    "surfaces.py:173"
+  ],
+  "_fermat_field_kernel": [
+    "surfaces.py:315"
+  ],
+  "_enriques_fig1_field_kernel": [
+    "surfaces.py:348"
+  ],
+  "_kummer_field_kernel": [
+    "surfaces.py:393"
+  ],
+  "_enriques_fig2_field_kernel": [
+    "surfaces.py:427"
+  ],
+  "_enriques_fig3_field_kernel": [
+    "surfaces.py:460"
+  ],
+  "_enriques_fig4_field_kernel": [
+    "surfaces.py:487"
+  ],
+  "_dwork_field_kernel": [
+    "surfaces.py:520"
+  ],
+  "_klein_cubic_field_kernel": [
+    "surfaces.py:556"
+  ],
+  "_segre_cubic_field_kernel": [
+    "surfaces.py:582"
+  ],
+  "_two_quadrics_field_kernel": [
+    "surfaces.py:614"
+  ],
+  "_sextic_double_solid_field_kernel": [
+    "surfaces.py:651"
+  ],
+  "_grid_to_polydata": [
+    "surfaces.py:686"
+  ],
+  "_concat_polydata": [
+    "surfaces.py:717"
+  ],
+  "fermat_quartic": [
+    "surfaces.py:749"
+  ],
+  "kummer_surface": [
+    "surfaces.py:841"
+  ],
+  "enriques_figure_1": [
+    "surfaces.py:899"
+  ],
+  "enriques_figure_2": [
+    "surfaces.py:943"
+  ],
+  "enriques_figure_3": [
+    "surfaces.py:990"
+  ],
+  "enriques_figure_4": [
+    "surfaces.py:1028"
+  ],
+  "_hanson_cross_section": [
+    "surfaces.py:1087"
+  ],
+  "calabi_yau_quintic": [
+    "surfaces.py:1182"
+  ],
+  "calabi_yau_cubic": [
+    "surfaces.py:1209"
+  ],
+  "calabi_yau_asymmetric": [
+    "surfaces.py:1233"
+  ],
+  "calabi_yau_dwork": [
+    "surfaces.py:1258"
+  ],
+  "fano_klein_cubic": [
+    "surfaces.py:1328"
+  ],
+  "fano_segre_cubic": [
+    "surfaces.py:1371"
+  ],
+  "fano_two_quadrics": [
+    "surfaces.py:1419"
+  ],
+  "fano_sextic_double_solid": [
+    "surfaces.py:1491"
+  ],
+  "_get_qta": [
+    "icons.py:78"
+  ],
+  "_icon_color": [
+    "icons.py:106"
+  ],
+  "_reset_defaults_icon_color": [
+    "icons.py:122"
+  ],
+  "reset_camera_icon": [
+    "icons.py:140"
+  ],
+  "screenshot_icon": [
+    "icons.py:154"
+  ],
+  "reset_defaults_icon": [
+    "icons.py:164"
+  ],
+  "preset_plus_x_icon": [
+    "icons.py:197"
+  ],
+  "preset_minus_x_icon": [
+    "icons.py:207"
+  ],
+  "preset_plus_y_icon": [
+    "icons.py:231"
+  ],
+  "preset_minus_y_icon": [
+    "icons.py:236"
+  ],
+  "preset_plus_z_icon": [
+    "icons.py:241"
+  ],
+  "preset_minus_z_icon": [
+    "icons.py:246"
+  ],
+  "preset_isometric_icon": [
+    "icons.py:251"
+  ],
+  "wireframe_icon": [
+    "icons.py:262"
+  ],
+  "show_edges_icon": [
+    "icons.py:272"
+  ],
+  "hq_smoothing_icon": [
+    "icons.py:284"
+  ],
+  "render_busy_spinner_icon": [
+    "icons.py:302"
+  ],
+  "__getattr__": [
+    "view_panel.py:6",
+    "parameters_panel.py:6",
+    "parameter_grid_panel.py:6",
+    "appearance_panel.py:6"
+  ],
+  "get_variety_default_colors": [
+    "styles.py:203"
+  ],
+  "_render_stylesheet": [
+    "styles.py:424"
+  ],
+  "clipped_cache_is_valid": [
+    "app.py:83"
+  ],
+  "MainWindow": [
+    "app.py:113"
+  ],
+  "main": [
+    "app.py:1865",
+    ".claude/scripts/enriques-taubin-spike.py:113",
+    ".claude/notes/roadmaps/realtime-variety-render/spike-thread-test.py:352",
+    ".claude/scripts/repository-architect/audit-tree.py:150",
+    ".claude/scripts/repository-architect/validate-shims.py:46",
+    ".claude/scripts/repository-architect/checkpoint.py:152",
+    ".claude/scripts/repository-architect/rewrite-imports.py:149",
+    ".claude/scripts/repository-architect/validate-state.py:111",
+    ".claude/scripts/repository-architect/snapshot-baseline.py:113",
+    ".claude/scripts/repository-architect/evaluate-checklist.py:395",
+    ".claude/scripts/repository-architect/verify-anchors.py:83",
+    ".claude/scripts/repository-architect/diff-baselines.py:126",
+    ".claude/scripts/capability-scout/checkpoint.py:154",
+    ".claude/scripts/roadmap/score-rice.py:223",
+    ".claude/scripts/roadmap/validate-roadmap.py:224",
+    ".claude/scripts/roadmap/score-moscow.py:154",
+    ".claude/scripts/frontend-uplift/checkpoint.py:155",
+    ".claude/scripts/frontend-uplift/render-panel-chrome.py:98",
+    ".claude/scripts/milestone-pipeline/checkpoint.py:164",
+    ".claude/scripts/milestone-pipeline/validate-state.py:124",
+    ".claude/scripts/milestone-pipeline/dedupe-findings.py:113"
+  ],
+  "_DraggableDot": [
+    "panels/parameter_grid_panel.py:68"
+  ],
+  "ParameterGridPanel": [
+    "panels/parameter_grid_panel.py:122"
+  ],
+  "ViewPanel": [
+    "panels/view.py:43"
+  ],
+  "ParametersPanel": [
+    "panels/parameters.py:36"
+  ],
+  "_make_swatch": [
+    "panels/appearance.py:40"
+  ],
+  "_apply_swatch_color": [
+    "panels/appearance.py:57"
+  ],
+  "_border_for_theme": [
+    "panels/appearance.py:79"
+  ],
+  "AppearancePanel": [
+    "panels/appearance.py:92"
+  ],
+  "test_enriques_fig1_hq_default_is_false": [
+    "tests/test_enriques_hq_smoothing.py:34"
+  ],
+  "test_enriques_fig2_hq_default_is_false": [
+    "tests/test_enriques_hq_smoothing.py:48"
+  ],
+  "test_marching_cubes_second_smooth_iter_default_is_zero": [
+    "tests/test_enriques_hq_smoothing.py:56"
+  ],
+  "test_enriques_fig3_has_no_hq_kwarg": [
+    "tests/test_enriques_hq_smoothing.py:77"
+  ],
+  "test_enriques_fig4_has_no_hq_kwarg": [
+    "tests/test_enriques_hq_smoothing.py:92"
+  ],
+  "test_enriques_fig1_hq_on_returns_valid_mesh": [
+    "tests/test_enriques_hq_smoothing.py:102"
+  ],
+  "test_enriques_fig2_hq_on_returns_valid_mesh": [
+    "tests/test_enriques_hq_smoothing.py:111"
+  ],
+  "test_enriques_fig1_hq_on_moves_vertices_vs_hq_off": [
+    "tests/test_enriques_hq_smoothing.py:118"
+  ],
+  "test_hq_smoothing_toggle_is_checkable_qpushbutton_in_appearance_panel": [
+    "tests/test_enriques_hq_smoothing.py:154"
+  ],
+  "test_hq_smoothing_frozensets_stay_in_sync_with_varieties_registry": [
+    "tests/test_enriques_hq_smoothing.py:198"
+  ],
+  "test_set_hq_smoothing_eligible_blocks_signals_around_setchecked": [
+    "tests/test_enriques_hq_smoothing.py:261"
+  ],
+  "test_hq_smoothing_disabled_by_default_in_appearance_panel": [
+    "tests/test_enriques_hq_smoothing.py:317"
+  ],
+  "test_appearance_panel_uses_double_pass_smooth_label": [
+    "tests/test_enriques_hq_smoothing.py:354"
+  ],
+  "test_appearance_panel_does_not_use_old_hq_smoothing_label": [
+    "tests/test_enriques_hq_smoothing.py:370"
+  ],
+  "test_app_status_bar_uses_double_pass_suffix": [
+    "tests/test_enriques_hq_smoothing.py:387"
+  ],
+  "test_app_status_bar_does_not_use_old_hq_suffix": [
+    "tests/test_enriques_hq_smoothing.py:402"
+  ],
+  "test_double_pass_smooth_tooltip_uses_imperative_verb": [
+    "tests/test_enriques_hq_smoothing.py:418"
+  ],
+  "_assert_nonempty": [
+    "tests/test_mesh_generators.py:39",
+    "tests/test_coarse_n.py:198"
+  ],
+  "_assert_consistent_winding": [
+    "tests/test_mesh_generators.py:53"
+  ],
+  "test_fermat_quartic_defaults": [
+    "tests/test_mesh_generators.py:91"
+  ],
+  "test_kummer_surface_defaults": [
+    "tests/test_mesh_generators.py:96"
+  ],
+  "test_enriques_figure_1_defaults": [
+    "tests/test_mesh_generators.py:101"
+  ],
+  "test_enriques_figure_2_defaults": [
+    "tests/test_mesh_generators.py:106"
+  ],
+  "test_enriques_figure_3_defaults": [
+    "tests/test_mesh_generators.py:111"
+  ],
+  "test_enriques_figure_4_defaults": [
+    "tests/test_mesh_generators.py:116"
+  ],
+  "test_numba_kernel_generators_round_trip": [
+    "tests/test_mesh_generators.py:125"
+  ],
+  "test_enriques_figures_padded_bounds_spike_path_b": [
+    "tests/test_mesh_generators.py:141"
+  ],
+  "test_enriques_figure_1_consistent_winding": [
+    "tests/test_mesh_generators.py:193"
+  ],
+  "test_kummer_surface_consistent_winding": [
+    "tests/test_mesh_generators.py:199"
+  ],
+  "test_fermat_quartic_consistent_winding": [
+    "tests/test_mesh_generators.py:204"
+  ],
+  "test_kummer_surface_pole_raises": [
+    "tests/test_mesh_generators.py:213"
+  ],
+  "test_kummer_surface_no_zero_set_raises": [
+    "tests/test_mesh_generators.py:219",
+    "tests/test_marching_cubes_empty.py:34"
+  ],
+  "test_fermat_quartic_c_low": [
+    "tests/test_mesh_generators.py:229"
+  ],
+  "test_fermat_quartic_c_high": [
+    "tests/test_mesh_generators.py:235"
+  ],
+  "test_calabi_yau_quintic_defaults": [
+    "tests/test_mesh_generators.py:245"
+  ],
+  "test_calabi_yau_cubic_defaults": [
+    "tests/test_mesh_generators.py:252"
+  ],
+  "test_calabi_yau_asymmetric_defaults": [
+    "tests/test_mesh_generators.py:259"
+  ],
+  "test_calabi_yau_dwork_defaults": [
+    "tests/test_mesh_generators.py:266"
+  ],
+  "test_calabi_yau_dwork_psi_zero": [
+    "tests/test_mesh_generators.py:273"
+  ],
+  "test_calabi_yau_dwork_conifold_warns": [
+    "tests/test_mesh_generators.py:280"
+  ],
+  "test_fano_klein_cubic_default": [
+    "tests/test_mesh_generators.py:290"
+  ],
+  "test_fano_segre_cubic_default": [
+    "tests/test_mesh_generators.py:297"
+  ],
+  "test_fano_two_quadrics_default": [
+    "tests/test_mesh_generators.py:304"
+  ],
+  "test_fano_sextic_double_solid_default": [
+    "tests/test_mesh_generators.py:311"
+  ],
+  "test_fano_klein_cubic_z0_zero": [
+    "tests/test_mesh_generators.py:318"
+  ],
+  "test_fano_two_quadrics_real_empty": [
+    "tests/test_mesh_generators.py:325"
+  ],
+  "test_fano_two_quadrics_low_eps_warns": [
+    "tests/test_mesh_generators.py:331"
+  ],
+  "test_fano_sextic_double_solid_two_sheets": [
+    "tests/test_mesh_generators.py:337"
+  ],
+  "test_fano_sextic_double_solid_alpha_zero_is_octahedral": [
+    "tests/test_mesh_generators.py:347"
+  ],
+  "test_is_stale_result_same_generation_is_fresh": [
+    "tests/test_render_worker.py:35"
+  ],
+  "test_is_stale_result_older_generation_is_stale": [
+    "tests/test_render_worker.py:40"
+  ],
+  "test_is_stale_result_newer_generation_is_stale": [
+    "tests/test_render_worker.py:45"
+  ],
+  "test_is_stale_result_zero_initial_generation": [
+    "tests/test_render_worker.py:51"
+  ],
+  "test_mesh_result_success_defaults": [
+    "tests/test_render_worker.py:61"
+  ],
+  "test_mesh_result_value_error_payload": [
+    "tests/test_render_worker.py:73"
+  ],
+  "test_mesh_result_generic_error_payload": [
+    "tests/test_render_worker.py:87"
+  ],
+  "test_mesh_result_carries_warning_text": [
+    "tests/test_render_worker.py:99"
+  ],
+  "_compute": [
+    "tests/test_render_worker.py:119"
+  ],
+  "test_compute_success_returns_mesh": [
+    "tests/test_render_worker.py:124"
+  ],
+  "test_compute_captures_warning_on_success": [
+    "tests/test_render_worker.py:134"
+  ],
+  "test_compute_captures_warning_emitted_before_raise": [
+    "tests/test_render_worker.py:144"
+  ],
+  "test_compute_value_error_payload": [
+    "tests/test_render_worker.py:160"
+  ],
+  "test_compute_generic_exception_not_flagged_value_error": [
+    "tests/test_render_worker.py:171"
+  ],
+  "test_compute_captures_error_type_on_empty_message": [
+    "tests/test_render_worker.py:181"
+  ],
+  "test_mesh_result_is_coarse_default_false": [
+    "tests/test_render_worker.py:197"
+  ],
+  "test_compute_tags_result_with_is_coarse_true": [
+    "tests/test_render_worker.py:204"
+  ],
+  "test_compute_tags_result_with_is_coarse_false": [
+    "tests/test_render_worker.py:215"
+  ],
+  "test_compute_tags_failure_with_is_coarse": [
+    "tests/test_render_worker.py:224"
+  ],
+  "_format_bbox": [
+    "tests/test_status_bar_bbox.py:52"
+  ],
+  "test_bbox_format_matches_regex_on_fermat_quartic": [
+    "tests/test_status_bar_bbox.py:62"
+  ],
+  "test_bbox_extents_are_positive_for_symmetric_generator": [
+    "tests/test_status_bar_bbox.py:72"
+  ],
+  "test_bbox_format_matches_regex_on_kummer_surface": [
+    "tests/test_status_bar_bbox.py:93"
+  ],
+  "test_bbox_format_matches_regex_on_hanson_quintic": [
+    "tests/test_status_bar_bbox.py:104"
+  ],
+  "test_bbox_format_matches_regex_on_hanson_asymmetric": [
+    "tests/test_status_bar_bbox.py:131"
+  ],
+  "test_valueerror_path_cannot_produce_bbox": [
+    "tests/test_status_bar_bbox.py:162"
+  ],
+  "test_app_has_file_menu": [
+    "tests/test_mesh_export.py:28"
+  ],
+  "test_app_has_export_mesh_action": [
+    "tests/test_mesh_export.py:51"
+  ],
+  "test_export_mesh_handler_uses_pyvista_save": [
+    "tests/test_mesh_export.py:67"
+  ],
+  "test_export_mesh_uses_raw_mesh_not_clipped": [
+    "tests/test_mesh_export.py:89"
+  ],
+  "test_export_mesh_action_disabled_until_render": [
+    "tests/test_mesh_export.py:118"
+  ],
+  "test_export_mesh_format_filter_includes_stl_obj_ply": [
+    "tests/test_mesh_export.py:154"
+  ],
+  "test_export_mesh_failure_surfaces_to_status_bar": [
+    "tests/test_mesh_export.py:192"
+  ],
+  "test_export_mesh_action_re_disabled_on_variety_clear": [
+    "tests/test_mesh_export.py:222"
+  ],
+  "test_export_mesh_tracks_coarse_fidelity_for_ai15_disclosure": [
+    "tests/test_mesh_export.py:254"
+  ],
+  "test_export_mesh_success_message_uses_basename_not_full_path": [
+    "tests/test_mesh_export.py:289"
+  ],
+  "test_export_mesh_auto_appends_extension_from_selected_filter": [
+    "tests/test_mesh_export.py:308"
+  ],
+  "test_export_mesh_re_guards_raw_mesh_after_dialog": [
+    "tests/test_mesh_export.py:334"
+  ],
+  "test_export_mesh_uses_ctrl_shift_e_shortcut": [
+    "tests/test_mesh_export.py:359"
+  ],
+  "test_export_mesh_default_filename_is_ascii_safe": [
+    "tests/test_mesh_export.py:377"
+  ],
+  "test_export_mesh_tooltip_drops_ai15_internal_jargon": [
+    "tests/test_mesh_export.py:427"
+  ],
+  "test_app_has_render_busy_spinner_widget": [
+    "tests/test_render_busy_spinner.py:45"
+  ],
+  "test_app_render_busy_spinner_uses_qtawesome_spin_animation": [
+    "tests/test_render_busy_spinner.py:70"
+  ],
+  "test_app_render_busy_spinner_starts_hidden": [
+    "tests/test_render_busy_spinner.py:114"
+  ],
+  "test_app_render_busy_spinner_shown_on_computing_true": [
+    "tests/test_render_busy_spinner.py:144"
+  ],
+  "test_app_render_busy_spinner_hidden_on_computing_false": [
+    "tests/test_render_busy_spinner.py:175"
+  ],
+  "test_icons_module_has_render_busy_spinner_icon_factory": [
+    "tests/test_render_busy_spinner.py:212"
+  ],
+  "test_render_busy_spinner_widget_calls_set_icon_size": [
+    "tests/test_render_busy_spinner.py:241"
+  ],
+  "test_render_busy_spinner_icon_docstring_carries_ai9_audit_anchor": [
+    "tests/test_render_busy_spinner.py:266"
+  ],
+  "_reload_shim": [
+    "tests/test_panels_shims.py:19"
+  ],
+  "test_appearance_panel_shim_emits_deprecation": [
+    "tests/test_panels_shims.py:24"
+  ],
+  "test_view_panel_shim_emits_deprecation": [
+    "tests/test_panels_shims.py:43"
+  ],
+  "test_parameters_panel_shim_emits_deprecation": [
+    "tests/test_panels_shims.py:62"
+  ],
+  "test_parameter_grid_panel_shim_emits_deprecation": [
+    "tests/test_panels_shims.py:81"
+  ],
+  "_FakePlotter": [
+    "tests/test_clip_domain.py:28"
+  ],
+  "_make_panel": [
+    "tests/test_clip_domain.py:44"
+  ],
+  "_panel_with_settings": [
+    "tests/test_clip_domain.py:61"
+  ],
+  "_sphere_mesh": [
+    "tests/test_clip_domain.py:75"
+  ],
+  "test_domain_off_returns_original": [
+    "tests/test_clip_domain.py:84"
+  ],
+  "test_sphere_clip_large_radius_preserves_all_points": [
+    "tests/test_clip_domain.py:93"
+  ],
+  "test_sphere_clip_tiny_radius_returns_empty": [
+    "tests/test_clip_domain.py:104"
+  ],
+  "test_sphere_clip_overlay_present_when_requested": [
+    "tests/test_clip_domain.py:114"
+  ],
+  "test_cube_clip_preserves_xyz_symmetry": [
+    "tests/test_clip_domain.py:123"
+  ],
+  "test_cube_clip_large_halfside_preserves_all": [
+    "tests/test_clip_domain.py:140"
+  ],
+  "test_no_cache_is_invalid": [
+    "tests/test_clip_cache.py:25"
+  ],
+  "test_cached_and_unchanged_is_valid": [
+    "tests/test_clip_cache.py:31"
+  ],
+  "test_raw_mesh_change_invalidates": [
+    "tests/test_clip_cache.py:37"
+  ],
+  "test_domain_change_invalidates": [
+    "tests/test_clip_cache.py:42"
+  ],
+  "test_both_changed_invalidates": [
+    "tests/test_clip_cache.py:49"
+  ],
+  "_ClipCacheSim": [
+    "tests/test_clip_cache.py:59"
+  ],
+  "test_appearance_only_rerender_does_not_reclip": [
+    "tests/test_clip_cache.py:98"
+  ],
+  "test_domain_change_triggers_one_reclip": [
+    "tests/test_clip_cache.py:112"
+  ],
+  "test_new_surface_triggers_one_reclip": [
+    "tests/test_clip_cache.py:122"
+  ],
+  "test_raw_mesh_untouched_by_domain_change": [
+    "tests/test_clip_cache.py:131"
+  ],
+  "test_hq_disable_toast_captures_prior_state_before_eligible_call": [
+    "tests/test_hq_disable_toast.py:38"
+  ],
+  "test_hq_disable_toast_conditional_guard_present": [
+    "tests/test_hq_disable_toast.py:74"
+  ],
+  "test_hq_disable_toast_message_explains_eligibility_scope": [
+    "tests/test_hq_disable_toast.py:94"
+  ],
+  "test_hq_disable_toast_fires_in_both_variety_and_subtype_handlers": [
+    "tests/test_hq_disable_toast.py:123"
+  ],
+  "test_hq_disable_toast_disclosure_leads_each_variety_message": [
+    "tests/test_hq_disable_toast.py:159"
+  ],
+  "test_hq_disable_toast_subtype_handler_captures_prior_before_eligible_call": [
+    "tests/test_hq_disable_toast.py:210"
+  ],
+  "_fermat_ref": [
+    "tests/test_numba_field_kernels.py:74"
+  ],
+  "_enriques_ref": [
+    "tests/test_numba_field_kernels.py:88"
+  ],
+  "test_fermat_field_kernel_matches_numpy": [
+    "tests/test_numba_field_kernels.py:117"
+  ],
+  "test_fermat_field_kernel_respects_clip_bounds": [
+    "tests/test_numba_field_kernels.py:130"
+  ],
+  "test_enriques_fig1_field_kernel_matches_numpy": [
+    "tests/test_numba_field_kernels.py:146"
+  ],
+  "test_enriques_fig1_field_kernel_respects_clip_bounds": [
+    "tests/test_numba_field_kernels.py:158"
+  ],
+  "test_kernels_have_a_zero_crossing_at_defaults": [
+    "tests/test_numba_field_kernels.py:166"
+  ],
+  "_kummer_lambda": [
+    "tests/test_numba_field_kernels.py:266"
+  ],
+  "_kummer_ref": [
+    "tests/test_numba_field_kernels.py:271"
+  ],
+  "_enriques_fig2_ref": [
+    "tests/test_numba_field_kernels.py:286"
+  ],
+  "_enriques_fig3_ref": [
+    "tests/test_numba_field_kernels.py:300"
+  ],
+  "_enriques_fig4_ref": [
+    "tests/test_numba_field_kernels.py:308"
+  ],
+  "_dwork_ref": [
+    "tests/test_numba_field_kernels.py:325"
+  ],
+  "_klein_cubic_ref": [
+    "tests/test_numba_field_kernels.py:343"
+  ],
+  "_segre_cubic_ref": [
+    "tests/test_numba_field_kernels.py:351"
+  ],
+  "_two_quadrics_ref": [
+    "tests/test_numba_field_kernels.py:364"
+  ],
+  "_sextic_double_solid_ref": [
+    "tests/test_numba_field_kernels.py:378"
+  ],
+  "test_kummer_field_kernel_matches_numpy": [
+    "tests/test_numba_field_kernels.py:404"
+  ],
+  "test_kummer_field_kernel_respects_clip_bounds": [
+    "tests/test_numba_field_kernels.py:419"
+  ],
+  "test_enriques_fig2_field_kernel_matches_numpy": [
+    "tests/test_numba_field_kernels.py:443"
+  ],
+  "test_enriques_fig2_field_kernel_respects_clip_bounds": [
+    "tests/test_numba_field_kernels.py:456"
+  ],
+  "test_enriques_fig3_field_kernel_matches_numpy": [
+    "tests/test_numba_field_kernels.py:475"
+  ],
+  "test_enriques_fig3_field_kernel_respects_clip_bounds": [
+    "tests/test_numba_field_kernels.py:487"
+  ],
+  "test_enriques_fig4_field_kernel_matches_numpy": [
+    "tests/test_numba_field_kernels.py:504"
+  ],
+  "test_enriques_fig4_field_kernel_respects_clip_bounds": [
+    "tests/test_numba_field_kernels.py:519"
+  ],
+  "test_dwork_field_kernel_matches_numpy": [
+    "tests/test_numba_field_kernels.py:542"
+  ],
+  "test_dwork_field_kernel_respects_clip_bounds": [
+    "tests/test_numba_field_kernels.py:554"
+  ],
+  "test_klein_cubic_field_kernel_matches_numpy": [
+    "tests/test_numba_field_kernels.py:572"
+  ],
+  "test_klein_cubic_field_kernel_respects_clip_bounds": [
+    "tests/test_numba_field_kernels.py:584"
+  ],
+  "test_segre_cubic_field_kernel_matches_numpy": [
+    "tests/test_numba_field_kernels.py:606"
+  ],
+  "test_segre_cubic_field_kernel_respects_clip_bounds": [
+    "tests/test_numba_field_kernels.py:618"
+  ],
+  "test_two_quadrics_field_kernel_matches_numpy": [
+    "tests/test_numba_field_kernels.py:641"
+  ],
+  "test_two_quadrics_field_kernel_respects_clip_bounds": [
+    "tests/test_numba_field_kernels.py:662"
+  ],
+  "test_sextic_double_solid_field_kernel_matches_numpy": [
+    "tests/test_numba_field_kernels.py:687"
+  ],
+  "test_sextic_double_solid_field_kernel_respects_clip_bounds": [
+    "tests/test_numba_field_kernels.py:701"
+  ],
+  "_all_surfaces": [
+    "tests/test_typical_ms.py:43"
+  ],
+  "test_typical_ms_field_exists_with_default_zero": [
+    "tests/test_typical_ms.py:53"
+  ],
+  "test_hanson_surfaces_have_positive_typical_ms": [
+    "tests/test_typical_ms.py:63"
+  ],
+  "test_implicit_surfaces_keep_typical_ms_zero": [
+    "tests/test_typical_ms.py:74"
+  ],
+  "test_hanson_typical_ms_under_fast_threshold": [
+    "tests/test_typical_ms.py:86"
+  ],
+  "test_predicate_true_for_hanson_surface": [
+    "tests/test_typical_ms.py:98"
+  ],
+  "test_predicate_false_for_implicit_surface": [
+    "tests/test_typical_ms.py:104"
+  ],
+  "test_predicate_false_for_none": [
+    "tests/test_typical_ms.py:111"
+  ],
+  "test_predicate_false_for_too_slow_surface": [
+    "tests/test_typical_ms.py:116"
+  ],
+  "test_predicate_true_at_threshold_boundary": [
+    "tests/test_typical_ms.py:123"
+  ],
+  "test_every_hanson_registry_surface_is_fast_pathed": [
+    "tests/test_typical_ms.py:130"
+  ],
+  "_luminance": [
+    "tests/test_styles_palette.py:26"
+  ],
+  "_ratio": [
+    "tests/test_styles_palette.py:37"
+  ],
+  "test_palette_light_has_minimum_tokens": [
+    "tests/test_styles_palette.py:44"
+  ],
+  "test_every_palette_value_is_six_digit_hex": [
+    "tests/test_styles_palette.py:59"
+  ],
+  "test_pyvista_bound_tokens_are_present": [
+    "tests/test_styles_palette.py:75"
+  ],
+  "test_backward_compat_named_constants_match_palette": [
+    "tests/test_styles_palette.py:85"
+  ],
+  "test_new_named_exports_match_palette": [
+    "tests/test_styles_palette.py:98"
+  ],
+  "test_no_raw_hex_in_pyvista_color_kwargs_at_app_py": [
+    "tests/test_styles_palette.py:106"
+  ],
+  "test_no_raw_hex_in_pyvista_color_kwargs_at_appearance_panel": [
+    "tests/test_styles_palette.py:130"
+  ],
+  "test_app_stylesheet_substitutes_no_raw_hex_outside_palette": [
+    "tests/test_styles_palette.py:143"
+  ],
+  "test_variety_default_color_has_all_four_families": [
+    "tests/test_styles_palette.py:159"
+  ],
+  "test_variety_default_color_all_six_digit_hex": [
+    "tests/test_styles_palette.py:182"
+  ],
+  "test_variety_default_color_wcag_on_bg_viewport": [
+    "tests/test_styles_palette.py:190"
+  ],
+  "test_variety_default_color_keys_match_surfaces_varieties": [
+    "tests/test_styles_palette.py:207"
+  ],
+  "test_set_default_color_updates_surface_color": [
+    "tests/test_styles_palette.py:237"
+  ],
+  "test_set_culling_stores_back_value": [
+    "tests/test_styles_palette.py:272"
+  ],
+  "test_set_culling_clears_to_none": [
+    "tests/test_styles_palette.py:293"
+  ],
+  "test_set_default_color_ignores_invalid_hex": [
+    "tests/test_styles_palette.py:314"
+  ],
+  "test_critical_text_tokens_meet_wcag_aa_on_bg_panel": [
+    "tests/test_styles_palette.py:339"
+  ],
+  "test_palette_dark_has_minimum_tokens": [
+    "tests/test_styles_palette.py:371"
+  ],
+  "test_palette_dark_every_value_is_six_digit_hex": [
+    "tests/test_styles_palette.py:379"
+  ],
+  "test_palette_dark_pyvista_bound_tokens_match_light": [
+    "tests/test_styles_palette.py:389"
+  ],
+  "test_dark_text_tokens_meet_wcag_aa_on_bg_panel_dark": [
+    "tests/test_styles_palette.py:405"
+  ],
+  "test_dark_non_text_borders_meet_wcag_aa_on_bg_panel_dark": [
+    "tests/test_styles_palette.py:424"
+  ],
+  "test_light_structural_borders_intentionally_below_3_1": [
+    "tests/test_styles_palette.py:445"
+  ],
+  "test_light_non_text_focus_ring_meets_wcag_aa_on_bg_panel": [
+    "tests/test_styles_palette.py:488"
+  ],
+  "test_app_stylesheet_dark_no_raw_hex": [
+    "tests/test_styles_palette.py:523"
+  ],
+  "test_variety_default_color_dark_has_all_four_families": [
+    "tests/test_styles_palette.py:542"
+  ],
+  "test_variety_default_color_dark_all_six_digit_hex": [
+    "tests/test_styles_palette.py:555"
+  ],
+  "test_variety_default_color_dark_wcag_on_bg_viewport": [
+    "tests/test_styles_palette.py:563"
+  ],
+  "test_variety_default_color_dark_swatch_chip_vs_bg_panel_dark": [
+    "tests/test_styles_palette.py:584"
+  ],
+  "test_variety_default_color_dark_keys_match_surfaces_varieties": [
+    "tests/test_styles_palette.py:603"
+  ],
+  "test_no_inline_color_styles_in_panel_files": [
+    "tests/test_styles_palette.py:620"
+  ],
+  "test_dark_stylesheet_includes_role_selectors": [
+    "tests/test_styles_palette.py:669"
+  ],
+  "test_bg_toggle_checked_token_is_six_digit_hex_in_both_palettes": [
+    "tests/test_styles_palette.py:739"
+  ],
+  "test_bg_toggle_checked_value_appears_in_both_stylesheets": [
+    "tests/test_styles_palette.py:774"
+  ],
+  "test_appearance_panel_colors_buttons_have_colors_button_role": [
+    "tests/test_styles_palette.py:800"
+  ],
+  "test_appearance_panel_display_and_quality_group_header": [
+    "tests/test_styles_palette.py:849"
+  ],
+  "test_appearance_panel_display_toggles_are_qpushbutton_not_qcheckbox": [
+    "tests/test_styles_palette.py:901"
+  ],
+  "test_dark_stylesheet_dock_title_has_explicit_color": [
+    "tests/test_styles_palette.py:963"
+  ],
+  "test_dark_stylesheet_statusbar_has_explicit_background": [
+    "tests/test_styles_palette.py:977"
+  ],
+  "test_get_variety_default_colors_returns_correct_dict": [
+    "tests/test_styles_palette.py:993"
+  ],
+  "test_border_swatch_light_wcag_3_to_1_against_all_variety_fills": [
+    "tests/test_styles_palette.py:1020"
+  ],
+  "test_border_swatch_dark_wcag_3_to_1_against_bg_panel": [
+    "tests/test_styles_palette.py:1049"
+  ],
+  "test_border_swatch_dark_export_wired_through_appearance_panel": [
+    "tests/test_styles_palette.py:1089"
+  ],
+  "test_border_swatch_light_and_dark_diverge": [
+    "tests/test_styles_palette.py:1140"
+  ],
+  "test_qmenu_rule_present_in_both_stylesheets": [
+    "tests/test_styles_palette.py:1155"
+  ],
+  "test_preview_badge_separator_matches_base_msg": [
+    "tests/test_styles_palette.py:1179"
+  ],
+  "test_spinner_icon_rebind_sites_have_qtimer_lifetime_comment": [
+    "tests/test_styles_palette.py:1209"
+  ],
+  "test_subtype_tooltips_have_lod_disclosure": [
+    "tests/test_styles_palette.py:1242"
+  ],
+  "test_grid_to_polydata_2x2_shape": [
+    "tests/test_grid_helpers.py:24"
+  ],
+  "test_grid_to_polydata_3x3_shape": [
+    "tests/test_grid_helpers.py:34"
+  ],
+  "test_grid_to_polydata_wrong_shape_raises": [
+    "tests/test_grid_helpers.py:45"
+  ],
+  "test_grid_to_polydata_1d_raises": [
+    "tests/test_grid_helpers.py:54"
+  ],
+  "_make_2x2_grid": [
+    "tests/test_grid_helpers.py:67"
+  ],
+  "test_concat_polydata_empty_list": [
+    "tests/test_grid_helpers.py:75"
+  ],
+  "test_concat_polydata_two_grids_vertex_count": [
+    "tests/test_grid_helpers.py:83"
+  ],
+  "test_concat_polydata_two_grids_face_count": [
+    "tests/test_grid_helpers.py:91"
+  ],
+  "test_concat_polydata_face_indices_offset": [
+    "tests/test_grid_helpers.py:99"
+  ],
+  "test_concat_polydata_single_mesh": [
+    "tests/test_grid_helpers.py:114"
+  ],
+  "test_ten_rapid_requests_collapse_to_one_callback": [
+    "tests/test_debounce.py:28"
+  ],
+  "test_first_request_arms_subsequent_absorbed": [
+    "tests/test_debounce.py:42"
+  ],
+  "test_separate_windows_each_fire_once": [
+    "tests/test_debounce.py:50"
+  ],
+  "test_fire_when_not_armed_is_noop": [
+    "tests/test_debounce.py:63"
+  ],
+  "test_flush_bypasses_and_cancels_pending_debounce": [
+    "tests/test_debounce.py:69"
+  ],
+  "test_flush_without_pending_still_fires": [
+    "tests/test_debounce.py:83"
+  ],
+  "test_default_interval_is_80ms": [
+    "tests/test_debounce.py:90"
+  ],
+  "_qt_available": [
+    "tests/test_debounce.py:103"
+  ],
+  "test_real_debouncer_coalesces_rapid_requests": [
+    "tests/test_debounce.py:112"
+  ],
+  "test_real_debouncer_flush_fires_immediately_and_cancels": [
+    "tests/test_debounce.py:137"
+  ],
+  "test_default_round_trips": [
+    "tests/test_parameters_panel.py:75"
+  ],
+  "test_minimum_tick_is_zero": [
+    "tests/test_parameters_panel.py:86"
+  ],
+  "test_maximum_tick_is_positive": [
+    "tests/test_parameters_panel.py:93"
+  ],
+  "test_default_within_range": [
+    "tests/test_parameters_panel.py:105"
+  ],
+  "test_app_imports_qsettings": [
+    "tests/test_qsettings_persistence.py:29"
+  ],
+  "test_app_sets_org_and_app_name_in_main": [
+    "tests/test_qsettings_persistence.py:56"
+  ],
+  "test_app_persists_window_geometry": [
+    "tests/test_qsettings_persistence.py:81"
+  ],
+  "test_app_persists_window_state": [
+    "tests/test_qsettings_persistence.py:99"
+  ],
+  "test_app_persists_last_session_variety_and_subtype": [
+    "tests/test_qsettings_persistence.py:120"
+  ],
+  "test_app_settings_schema_version_key_present": [
+    "tests/test_qsettings_persistence.py:142"
+  ],
+  "test_app_save_called_in_close_event": [
+    "tests/test_qsettings_persistence.py:160"
+  ],
+  "test_app_restore_is_guarded_against_first_launch": [
+    "tests/test_qsettings_persistence.py:200"
+  ],
+  "test_close_event_wraps_save_settings_in_try_except": [
+    "tests/test_qsettings_persistence.py:246"
+  ],
+  "test_live_write_back_calls_sync_for_sigkill_safety": [
+    "tests/test_qsettings_persistence.py:284"
+  ],
+  "test_restore_surfaces_stale_variety_to_user": [
+    "tests/test_qsettings_persistence.py:315"
+  ],
+  "_RenderSim": [
+    "tests/test_render_queue_latest.py:23"
+  ],
+  "test_single_request_renders_once": [
+    "tests/test_render_queue_latest.py:66"
+  ],
+  "test_fast_drag_release_renders_final_position_not_dropped": [
+    "tests/test_render_queue_latest.py:74"
+  ],
+  "test_burst_collapses_to_one_catch_up": [
+    "tests/test_render_queue_latest.py:111"
+  ],
+  "test_no_pending_render_means_no_catch_up": [
+    "tests/test_render_queue_latest.py:132"
+  ],
+  "test_icons_module_does_not_import_qtawesome_at_module_load": [
+    "tests/test_icons.py:38"
+  ],
+  "test_icon_color_for_theme_routes_to_correct_palette_token": [
+    "tests/test_icons.py:54"
+  ],
+  "test_icon_functions_call_qta_icon_with_correct_args": [
+    "tests/test_icons.py:78"
+  ],
+  "test_icons_return_valid_qicons_with_qapplication": [
+    "tests/test_icons.py:142"
+  ],
+  "test_v0_icons_still_bind_correctly": [
+    "tests/test_icons.py:206"
+  ],
+  "test_camera_preset_icons_correct_names_and_colors": [
+    "tests/test_icons.py:239"
+  ],
+  "test_display_toggle_icons_correct_names_and_colors": [
+    "tests/test_icons.py:278"
+  ],
+  "test_wireframe_and_edges_icons_are_distinct_names": [
+    "tests/test_icons.py:307"
+  ],
+  "test_all_positive_field_raises": [
+    "tests/test_marching_cubes_empty.py:20"
+  ],
+  "test_all_negative_field_raises": [
+    "tests/test_marching_cubes_empty.py:27"
+  ],
+  "test_kummer_surface_below_one_third_boundary": [
+    "tests/test_marching_cubes_empty.py:40"
+  ],
+  "test_uniform_field_at_level_raises": [
+    "tests/test_marching_cubes_empty.py:46"
+  ],
+  "test_field_with_zero_crossing_does_not_raise": [
+    "tests/test_marching_cubes_empty.py:60"
+  ],
+  "test_surface_coarse_n_default_is_zero": [
+    "tests/test_coarse_n.py:57"
+  ],
+  "test_varieties_registry_coarse_n_matches_table": [
+    "tests/test_coarse_n.py:89"
+  ],
+  "test_hanson_generators_have_coarse_n_zero": [
+    "tests/test_coarse_n.py:101"
+  ],
+  "test_fano_two_quadrics_is_opt_out": [
+    "tests/test_coarse_n.py:117"
+  ],
+  "_surf": [
+    "tests/test_coarse_n.py:132"
+  ],
+  "test_dispatch_mode": [
+    "tests/test_coarse_n.py:158"
+  ],
+  "test_dispatch_mode_real_surfaces": [
+    "tests/test_coarse_n.py:169"
+  ],
+  "test_coarse_n_fermat_quartic_smoke": [
+    "tests/test_coarse_n.py:203"
+  ],
+  "test_coarse_n_kummer_16_node_symmetry": [
+    "tests/test_coarse_n.py:221"
+  ],
+  "test_coarse_n_enriques_figure_1_smoke": [
+    "tests/test_coarse_n.py:241"
+  ],
+  "test_coarse_n_enriques_figure_2_smoke": [
+    "tests/test_coarse_n.py:253"
+  ],
+  "test_coarse_n_enriques_figure_3_smoke": [
+    "tests/test_coarse_n.py:258"
+  ],
+  "test_coarse_n_enriques_figure_4_smoke": [
+    "tests/test_coarse_n.py:263"
+  ],
+  "test_coarse_n_dwork_smoke": [
+    "tests/test_coarse_n.py:268"
+  ],
+  "test_coarse_n_fano_klein_smoke": [
+    "tests/test_coarse_n.py:274"
+  ],
+  "test_coarse_n_fano_segre_smoke": [
+    "tests/test_coarse_n.py:279"
+  ],
+  "test_e4b_h2_hq_smoothing_gated_off_on_coarse_dispatches": [
+    "tests/test_coarse_n.py:284"
+  ],
+  "test_coarse_n_fano_sextic_double_solid_two_sheets": [
+    "tests/test_coarse_n.py:313"
+  ],
+  "test_value_scene_round_trip": [
+    "tests/test_parameter_grid.py:46"
+  ],
+  "test_norm_endpoints": [
+    "tests/test_parameter_grid.py:59"
+  ],
+  "test_invert_flips_vertical_axis": [
+    "tests/test_parameter_grid.py:65"
+  ],
+  "test_scene_past_edge_clamps_to_bounds": [
+    "tests/test_parameter_grid.py:78"
+  ],
+  "test_clamp_value_inside_and_outside": [
+    "tests/test_parameter_grid.py:87"
+  ],
+  "test_snap_matches_slider_tick_set": [
+    "tests/test_parameter_grid.py:94"
+  ],
+  "test_grid_disabled_for_zero_or_one_param": [
+    "tests/test_parameter_grid.py:108"
+  ],
+  "test_grid_enabled_for_two_or_more_params": [
+    "tests/test_parameter_grid.py:114"
+  ],
+  "test_default_axis_count": [
+    "tests/test_parameter_grid.py:120"
+  ],
+  "test_two_param_surface_gets_two_axes": [
+    "tests/test_parameter_grid.py:128"
+  ],
+  "test_assign_axes_2d_fermat_residual_split": [
+    "tests/test_parameter_grid.py:143"
+  ],
+  "test_assign_axes_3d_fermat_residual_split": [
+    "tests/test_parameter_grid.py:150"
+  ],
+  "test_assign_axes_3d_exact_no_residual": [
+    "tests/test_parameter_grid.py:157"
+  ],
+  "test_assign_axes_fields_are_tuples": [
+    "tests/test_parameter_grid.py:165"
+  ],
+  "test_assign_axes_residual_preserves_registry_order": [
+    "tests/test_parameter_grid.py:174"
+  ],
+  "test_assign_axes_rejects_duplicate_param": [
+    "tests/test_parameter_grid.py:182"
+  ],
+  "test_assign_axes_rejects_bad_axis_count": [
+    "tests/test_parameter_grid.py:189"
+  ],
+  "test_assign_axes_rejects_unknown_param": [
+    "tests/test_parameter_grid.py:196"
+  ],
+  "test_assign_axes_rejects_too_few_params": [
+    "tests/test_parameter_grid.py:201"
+  ],
+  "test_default_axis_names_picks_registry_prefix": [
+    "tests/test_parameter_grid.py:207"
+  ],
+  "test_default_axis_names_rejects_bad_count": [
+    "tests/test_parameter_grid.py:215"
+  ],
+  "test_assign_axes_rejects_too_few_params_for_three_axes": [
+    "tests/test_parameter_grid.py:222"
+  ],
+  "test_value_to_norm_degenerate_span_returns_zero": [
+    "tests/test_parameter_grid.py:243"
+  ],
+  "test_snap_to_step_zero_step_clamps_without_raising": [
+    "tests/test_parameter_grid.py:251"
+  ],
+  "test_scene_to_norm_zero_length_returns_zero": [
+    "tests/test_parameter_grid.py:259"
+  ],
+  "test_tick_helpers_guard_zero_step": [
+    "tests/test_parameter_grid.py:266"
+  ],
+  "test_format_value_precision_keyed_to_step": [
+    "tests/test_parameter_grid.py:283"
+  ],
+  "test_plane_axes_2d_always_zero_one": [
+    "tests/test_parameter_grid.py:298"
+  ],
+  "test_plane_axes_3d_mapping": [
+    "tests/test_parameter_grid.py:304"
+  ],
+  "test_plane_axes_3d_rejects_unknown_plane": [
+    "tests/test_parameter_grid.py:311"
+  ],
+  "test_held_axis": [
+    "tests/test_parameter_grid.py:316"
+  ],
+  "_enriques_double_pass": [
+    ".claude/scripts/enriques-taubin-spike.py:42"
+  ],
+  "measure_runs": [
+    ".claude/scripts/enriques-taubin-spike.py:95"
+  ],
+  "field_numpy": [
+    ".claude/notes/roadmaps/realtime-variety-render/spike-numba-test.py:65"
+  ],
+  "_field_njit": [
+    ".claude/notes/roadmaps/realtime-variety-render/spike-numba-test.py:74"
+  ],
+  "_field_njit_parallel": [
+    ".claude/notes/roadmaps/realtime-variety-render/spike-numba-test.py:89"
+  ],
+  "_run": [
+    ".claude/notes/roadmaps/realtime-variety-render/spike-numba-test.py:103"
+  ],
+  "_p": [
+    ".claude/notes/roadmaps/realtime-variety-render/spike-thread-test.py:37"
+  ],
+  "_fail": [
+    ".claude/notes/roadmaps/realtime-variety-render/spike-thread-test.py:129"
+  ],
+  "_pass": [
+    ".claude/notes/roadmaps/realtime-variety-render/spike-thread-test.py:135"
+  ],
+  "run_variant_a": [
+    ".claude/notes/roadmaps/realtime-variety-render/spike-thread-test.py:145"
+  ],
+  "run_variant_b": [
+    ".claude/notes/roadmaps/realtime-variety-render/spike-thread-test.py:201"
+  ],
+  "run_variant_c": [
+    ".claude/notes/roadmaps/realtime-variety-render/spike-thread-test.py:279"
+  ],
+  "cache_dir": [
+    ".claude/scripts/repository-architect/audit-tree.py:42"
+  ],
+  "write_tree": [
+    ".claude/scripts/repository-architect/audit-tree.py:46"
+  ],
+  "write_loc": [
+    ".claude/scripts/repository-architect/audit-tree.py:64"
+  ],
+  "write_imports": [
+    ".claude/scripts/repository-architect/audit-tree.py:90"
+  ],
+  "write_ai_invariants": [
+    ".claude/scripts/repository-architect/audit-tree.py:115"
+  ],
+  "venv_python": [
+    ".claude/scripts/repository-architect/validate-shims.py:36",
+    ".claude/scripts/repository-architect/snapshot-baseline.py:38"
+  ],
+  "_state_path": [
+    ".claude/scripts/repository-architect/checkpoint.py:57",
+    ".claude/scripts/repository-architect/validate-state.py:87",
+    ".claude/scripts/capability-scout/checkpoint.py:58",
+    ".claude/scripts/frontend-uplift/checkpoint.py:59",
+    ".claude/scripts/milestone-pipeline/checkpoint.py:57",
+    ".claude/scripts/milestone-pipeline/validate-state.py:78"
+  ],
+  "_load": [
+    ".claude/scripts/repository-architect/checkpoint.py:62",
+    ".claude/scripts/capability-scout/checkpoint.py:65",
+    ".claude/scripts/frontend-uplift/checkpoint.py:66",
+    ".claude/scripts/milestone-pipeline/checkpoint.py:64",
+    ".claude/scripts/milestone-pipeline/validate-state.py:83"
+  ],
+  "_save_atomic": [
+    ".claude/scripts/repository-architect/checkpoint.py:68",
+    ".claude/scripts/capability-scout/checkpoint.py:71",
+    ".claude/scripts/frontend-uplift/checkpoint.py:72",
+    ".claude/scripts/milestone-pipeline/checkpoint.py:70"
+  ],
+  "_now": [
+    ".claude/scripts/repository-architect/checkpoint.py:74",
+    ".claude/scripts/capability-scout/checkpoint.py:77",
+    ".claude/scripts/frontend-uplift/checkpoint.py:78",
+    ".claude/scripts/milestone-pipeline/checkpoint.py:76"
+  ],
+  "advance": [
+    ".claude/scripts/repository-architect/checkpoint.py:78",
+    ".claude/scripts/capability-scout/checkpoint.py:81",
+    ".claude/scripts/frontend-uplift/checkpoint.py:82",
+    ".claude/scripts/milestone-pipeline/checkpoint.py:80"
+  ],
+  "get_field": [
+    ".claude/scripts/repository-architect/checkpoint.py:98",
+    ".claude/scripts/capability-scout/checkpoint.py:101",
+    ".claude/scripts/frontend-uplift/checkpoint.py:102",
+    ".claude/scripts/milestone-pipeline/checkpoint.py:100"
+  ],
+  "set_field": [
+    ".claude/scripts/repository-architect/checkpoint.py:112",
+    ".claude/scripts/capability-scout/checkpoint.py:114",
+    ".claude/scripts/frontend-uplift/checkpoint.py:115",
+    ".claude/scripts/milestone-pipeline/checkpoint.py:124"
+  ],
+  "append_field": [
+    ".claude/scripts/repository-architect/checkpoint.py:131",
+    ".claude/scripts/capability-scout/checkpoint.py:133",
+    ".claude/scripts/frontend-uplift/checkpoint.py:134",
+    ".claude/scripts/milestone-pipeline/checkpoint.py:143"
+  ],
+  "_dotted_to_attribute": [
+    ".claude/scripts/repository-architect/rewrite-imports.py:55"
+  ],
+  "_attribute_dotted_path": [
+    ".claude/scripts/repository-architect/rewrite-imports.py:64"
+  ],
+  "_build_transformer": [
+    ".claude/scripts/repository-architect/rewrite-imports.py:81"
+  ],
+  "validate": [
+    ".claude/scripts/repository-architect/validate-state.py:92"
+  ],
+  "run_capture": [
+    ".claude/scripts/repository-architect/snapshot-baseline.py:48"
+  ],
+  "capture_star_imports": [
+    ".claude/scripts/repository-architect/snapshot-baseline.py:70"
+  ],
+  "capture_symbols": [
+    ".claude/scripts/repository-architect/snapshot-baseline.py:91"
+  ],
+  "exists": [
+    ".claude/scripts/repository-architect/evaluate-checklist.py:30"
+  ],
+  "count_root_files": [
+    ".claude/scripts/repository-architect/evaluate-checklist.py:34"
+  ],
+  "_is_out_of_scope": [
+    ".claude/scripts/repository-architect/evaluate-checklist.py:41"
+  ],
+  "find_utils_files_over": [
+    ".claude/scripts/repository-architect/evaluate-checklist.py:51"
+  ],
+  "find_files_over": [
+    ".claude/scripts/repository-architect/evaluate-checklist.py:67"
+  ],
+  "has_star_imports": [
+    ".claude/scripts/repository-architect/evaluate-checklist.py:82"
+  ],
+  "max_depth_under": [
+    ".claude/scripts/repository-architect/evaluate-checklist.py:99"
+  ],
+  "has_capitalized_dir": [
+    ".claude/scripts/repository-architect/evaluate-checklist.py:123"
+  ],
+  "has_no_dirs_named": [
+    ".claude/scripts/repository-architect/evaluate-checklist.py:135"
+  ],
+  "check": [
+    ".claude/scripts/repository-architect/evaluate-checklist.py:148"
+  ],
+  "register": [
+    ".claude/scripts/repository-architect/evaluate-checklist.py:158"
+  ],
+  "c1": [
+    ".claude/scripts/repository-architect/evaluate-checklist.py:169"
+  ],
+  "c2": [
+    ".claude/scripts/repository-architect/evaluate-checklist.py:174"
+  ],
+  "c3": [
+    ".claude/scripts/repository-architect/evaluate-checklist.py:180"
+  ],
+  "c4": [
+    ".claude/scripts/repository-architect/evaluate-checklist.py:185"
+  ],
+  "c5": [
+    ".claude/scripts/repository-architect/evaluate-checklist.py:190"
+  ],
+  "c6": [
+    ".claude/scripts/repository-architect/evaluate-checklist.py:195"
+  ],
+  "c7": [
+    ".claude/scripts/repository-architect/evaluate-checklist.py:200"
+  ],
+  "c8": [
+    ".claude/scripts/repository-architect/evaluate-checklist.py:205"
+  ],
+  "c9": [
+    ".claude/scripts/repository-architect/evaluate-checklist.py:210"
+  ],
+  "c10": [
+    ".claude/scripts/repository-architect/evaluate-checklist.py:215"
+  ],
+  "c11": [
+    ".claude/scripts/repository-architect/evaluate-checklist.py:223"
+  ],
+  "c12": [
+    ".claude/scripts/repository-architect/evaluate-checklist.py:249"
+  ],
+  "c13": [
+    ".claude/scripts/repository-architect/evaluate-checklist.py:257"
+  ],
+  "c14": [
+    ".claude/scripts/repository-architect/evaluate-checklist.py:263"
+  ],
+  "c15": [
+    ".claude/scripts/repository-architect/evaluate-checklist.py:276"
+  ],
+  "c16": [
+    ".claude/scripts/repository-architect/evaluate-checklist.py:288"
+  ],
+  "c17": [
+    ".claude/scripts/repository-architect/evaluate-checklist.py:294"
+  ],
+  "c18": [
+    ".claude/scripts/repository-architect/evaluate-checklist.py:304"
+  ],
+  "c19": [
+    ".claude/scripts/repository-architect/evaluate-checklist.py:309"
+  ],
+  "c20": [
+    ".claude/scripts/repository-architect/evaluate-checklist.py:314"
+  ],
+  "c21": [
+    ".claude/scripts/repository-architect/evaluate-checklist.py:321"
+  ],
+  "c22": [
+    ".claude/scripts/repository-architect/evaluate-checklist.py:333"
+  ],
+  "c23": [
+    ".claude/scripts/repository-architect/evaluate-checklist.py:342"
+  ],
+  "c24": [
+    ".claude/scripts/repository-architect/evaluate-checklist.py:348"
+  ],
+  "c25": [
+    ".claude/scripts/repository-architect/evaluate-checklist.py:358"
+  ],
+  "c26": [
+    ".claude/scripts/repository-architect/evaluate-checklist.py:370"
+  ],
+  "c27": [
+    ".claude/scripts/repository-architect/evaluate-checklist.py:375"
+  ],
+  "c28": [
+    ".claude/scripts/repository-architect/evaluate-checklist.py:382"
+  ],
+  "is_acceptable_match": [
+    ".claude/scripts/repository-architect/verify-anchors.py:42"
+  ],
+  "grep_path": [
+    ".claude/scripts/repository-architect/verify-anchors.py:69"
+  ],
+  "read_text": [
+    ".claude/scripts/repository-architect/diff-baselines.py:33"
+  ],
+  "read_json": [
+    ".claude/scripts/repository-architect/diff-baselines.py:40"
+  ],
+  "collection_diff": [
+    ".claude/scripts/repository-architect/diff-baselines.py:50"
+  ],
+  "coverage_total": [
+    ".claude/scripts/repository-architect/diff-baselines.py:64"
+  ],
+  "coverage_diff": [
+    ".claude/scripts/repository-architect/diff-baselines.py:78"
+  ],
+  "importtime_total": [
+    ".claude/scripts/repository-architect/diff-baselines.py:94"
+  ],
+  "importtime_diff": [
+    ".claude/scripts/repository-architect/diff-baselines.py:113"
+  ],
+  "find_repo_root": [
+    ".claude/scripts/roadmap/score-rice.py:54",
+    ".claude/scripts/roadmap/validate-roadmap.py:62",
+    ".claude/scripts/roadmap/score-moscow.py:44"
+  ],
+  "parse_rice_rows": [
+    ".claude/scripts/roadmap/score-rice.py:77"
+  ],
+  "parse_tsv": [
+    ".claude/scripts/roadmap/score-rice.py:110",
+    ".claude/scripts/roadmap/score-moscow.py:87"
+  ],
+  "rank": [
+    ".claude/scripts/roadmap/score-rice.py:156"
+  ],
+  "render": [
+    ".claude/scripts/roadmap/score-rice.py:163"
+  ],
+  "example": [
+    ".claude/scripts/roadmap/score-rice.py:185"
+  ],
+  "section_bodies": [
+    ".claude/scripts/roadmap/validate-roadmap.py:85"
+  ],
+  "check_s001_sections": [
+    ".claude/scripts/roadmap/validate-roadmap.py:96"
+  ],
+  "check_s002_placeholders": [
+    ".claude/scripts/roadmap/validate-roadmap.py:101"
+  ],
+  "check_s003_must_assumptions": [
+    ".claude/scripts/roadmap/validate-roadmap.py:106"
+  ],
+  "check_s004_story_acceptance": [
+    ".claude/scripts/roadmap/validate-roadmap.py:124"
+  ],
+  "check_s005_epic_ids": [
+    ".claude/scripts/roadmap/validate-roadmap.py:138"
+  ],
+  "check_s006_must_cap": [
+    ".claude/scripts/roadmap/validate-roadmap.py:153"
+  ],
+  "check_s007_dag": [
+    ".claude/scripts/roadmap/validate-roadmap.py:165"
+  ],
+  "report_first_unpopulated": [
+    ".claude/scripts/roadmap/validate-roadmap.py:214"
+  ],
+  "parse_rows": [
+    ".claude/scripts/roadmap/score-moscow.py:67"
+  ],
+  "evaluate": [
+    ".claude/scripts/roadmap/score-moscow.py:103"
+  ],
+  "example_ok": [
+    ".claude/scripts/roadmap/score-moscow.py:133"
+  ],
+  "example_fail": [
+    ".claude/scripts/roadmap/score-moscow.py:144"
+  ],
+  "_usage": [
+    ".claude/scripts/frontend-uplift/render-panel-chrome.py:87"
+  ],
+  "_err": [
+    ".claude/scripts/frontend-uplift/render-panel-chrome.py:94"
+  ],
+  "_validate_schema": [
+    ".claude/scripts/milestone-pipeline/validate-state.py:94"
+  ],
+  "_summary": [
+    ".claude/scripts/milestone-pipeline/validate-state.py:109"
+  ],
+  "parse_findings": [
+    ".claude/scripts/milestone-pipeline/dedupe-findings.py:56"
+  ],
+  "cluster": [
+    ".claude/scripts/milestone-pipeline/dedupe-findings.py:92"
+  ]
+}
