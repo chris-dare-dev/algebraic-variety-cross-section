@@ -236,3 +236,108 @@ def test_app_restore_is_guarded_against_first_launch() -> None:
         "`if saved_variety in VARIETIES:` — protects against a saved "
         "variety that was later removed from the registry."
     )
+
+
+# ---------------------------------------------------------------------------
+# rect Phase 4 regression guards
+# ---------------------------------------------------------------------------
+
+
+def test_close_event_wraps_save_settings_in_try_except() -> None:
+    """rect HIGH (frontend critic) regression guard: ``_save_settings()``
+    in ``closeEvent`` MUST be wrapped in a ``try`` / ``except`` so an
+    ``OSError`` from ``QSettings.sync()`` (disk full, sandbox deny,
+    Windows registry ACL) does NOT abort the rest of the teardown
+    chain — specifically the system-theme signal disconnect and the
+    ``_render_pool.waitForDone(30000)`` call which is the cross-thread
+    teardown guard documented in CONTEXT.md §4.4.
+    """
+    close_event_pos = _APP_SRC.find("def closeEvent(")
+    assert close_event_pos != -1
+    next_def_pos = _APP_SRC.find("\n    def ", close_event_pos + 1)
+    if next_def_pos == -1:
+        next_def_pos = _APP_SRC.find("\ndef ", close_event_pos + 1)
+    body = _APP_SRC[close_event_pos:next_def_pos]
+
+    # Anchor on syntactic forms (with leading whitespace) so the test
+    # doesn't match the word "except" inside an explanatory comment.
+    try_pos = body.find("        try:")
+    save_pos = body.find("self._save_settings()")
+    except_pos = body.find("        except OSError:")
+    assert try_pos != -1, (
+        "closeEvent must wrap self._save_settings() in a try/except — "
+        "rect HIGH (frontend critic): an OSError from QSettings.sync() "
+        "would otherwise abort the cross-thread teardown chain."
+    )
+    assert save_pos != -1 and except_pos != -1, (
+        "closeEvent must contain both self._save_settings() and an "
+        "`except OSError:` clause (not bare `except:` — narrow to OSError "
+        "so other exceptions still propagate)."
+    )
+    # try must precede _save_settings, which must precede except.
+    assert try_pos < save_pos < except_pos, (
+        "closeEvent try/except must wrap self._save_settings() — order "
+        "must be: try -> self._save_settings() -> except OSError."
+    )
+
+
+def test_live_write_back_calls_sync_for_sigkill_safety() -> None:
+    """rect MEDIUM (adversary critic) regression guard: the live
+    write-back of ``LastSession/variety`` and ``LastSession/subtype``
+    MUST call ``QSettings.sync()`` after ``setValue`` to flush the in-
+    memory cache to the per-OS backing store.  Without ``sync()`` the
+    "survives SIGKILL / crash" claim in the inline comment is false —
+    Qt's deferred-sync behavior keeps writes in the cache.
+    """
+    # Both variety and subtype write-backs must have a paired sync call.
+    # Count: should be >= 2 setValue calls with "LastSession/" key AND
+    # >= 2 sync() calls nearby.
+    variety_pos = _APP_SRC.find('"LastSession/variety"')
+    subtype_pos = _APP_SRC.find('"LastSession/subtype"')
+    assert variety_pos != -1 and subtype_pos != -1
+
+    # Within ~200 chars after each setValue, a .sync() call should appear.
+    # This anchors the "atomic flush" claim of the live write-back.
+    variety_window = _APP_SRC[variety_pos:variety_pos + 400]
+    subtype_window = _APP_SRC[subtype_pos:subtype_pos + 400]
+    assert ".sync()" in variety_window, (
+        "_on_variety_changed live write-back must call QSettings.sync() "
+        "within ~400 chars of the setValue(\"LastSession/variety\", ...) "
+        "call to guarantee the SIGKILL-safety claim in the comment."
+    )
+    assert ".sync()" in subtype_window, (
+        "_on_subtype_changed live write-back must call QSettings.sync() "
+        "within ~400 chars of the setValue(\"LastSession/subtype\", ...) "
+        "call to guarantee the SIGKILL-safety claim in the comment."
+    )
+
+
+def test_restore_surfaces_stale_variety_to_user() -> None:
+    """rect MEDIUM-2 (frontend critic) regression guard: when a saved
+    variety is no longer in the VARIETIES registry (e.g. pruned in a
+    later release), the restore must surface a status-bar message
+    rather than silently falling back to first-launch state.  Empty
+    saved_variety (the genuine first-launch case) stays silent — only
+    the stale-saved-variety branch fires the message.
+    """
+    restore_def_pos = _APP_SRC.find("def _restore_settings(")
+    assert restore_def_pos != -1
+    next_def_pos = _APP_SRC.find("\n    def ", restore_def_pos + 1)
+    body = _APP_SRC[restore_def_pos:next_def_pos]
+
+    # The elif branch on `saved_variety` (truthy but not in VARIETIES)
+    # must call showMessage with a user-facing string.
+    assert "elif saved_variety" in body, (
+        "_restore_settings must have an `elif saved_variety:` branch "
+        "to handle the saved-but-stale case (variety pruned from the "
+        "registry).  Silent fallback would confuse the user."
+    )
+    # The message text "no longer available" may be split across
+    # adjacent string literals at the source level (e.g. "is no " +
+    # "longer available."), so search for the unambiguous substring
+    # "longer available" instead.
+    assert "longer available" in body, (
+        "The elif branch must include a user-facing status-bar message "
+        "with the phrase 'longer available' (or equivalent) so the "
+        "user understands their saved selection wasn't restored."
+    )

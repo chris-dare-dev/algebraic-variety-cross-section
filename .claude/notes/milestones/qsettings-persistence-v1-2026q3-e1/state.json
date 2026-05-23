@@ -1,8 +1,8 @@
 {
   "id": "qsettings-persistence-v1-2026q3-e1",
   "created_at": "2026-05-23T04:30:25Z",
-  "updated_at": "2026-05-23T04:37:51Z",
-  "phase": "implement-running",
+  "updated_at": "2026-05-23T04:56:38Z",
+  "phase": "rectify-running",
   "phase_history": [
     {
       "phase": "init",
@@ -19,6 +19,22 @@
     {
       "phase": "implement-running",
       "at": "2026-05-23T04:37:25Z"
+    },
+    {
+      "phase": "implement-complete",
+      "at": "2026-05-23T04:42:38Z"
+    },
+    {
+      "phase": "critique-running",
+      "at": "2026-05-23T04:42:52Z"
+    },
+    {
+      "phase": "critique-complete",
+      "at": "2026-05-23T04:56:38Z"
+    },
+    {
+      "phase": "rectify-running",
+      "at": "2026-05-23T04:56:38Z"
     }
   ],
   "milestone_brief": "Lift CONTEXT.md \u00a79 non-goal \"No state persistence\" for V1 scope only: save+restore window geometry (size+position), dock layout, last-used variety, and last-used subtype across launches via QSettings. Per-subtype slider values, surface/bg colors, theme preference, display toggles, camera pose, and clip state are EXPLICITLY OUT-OF-SCOPE (V2/V3 follow-ons). V0 \u2192 V1 jump only. Implementation: QMainWindow.saveGeometry()/saveState() into a QSettings(\"AVC\", \"algebraic-variety-cross-section\") store at closeEvent; restoreGeometry/restoreState in __init__ AFTER widget construction (Qt convention \u2014 must restore after addDockWidget/setStatusBar/etc.). For last variety+subtype: on _on_variety_changed and _on_subtype_changed, write settings.setValue(\"LastSession/variety\", name) + setValue(\"LastSession/subtype\", name); on __init__ end (after panels built), read both and call self.variety_combo.setCurrentText(saved_variety) if saved_variety in VARIETIES. The setCurrentText fires _on_variety_changed which builds the subtype list; then setCurrentText on subtype_combo restores the subtype. AI-9: closeEvent is the safest persist point (deterministic, no signal storms). AI-2: tests are pure source-text greps asserting QSettings is used, the org+app name match, and the key names match the documented schema \u2014 no QApplication construction. AI-15: zero math claim involved. Cross-platform note: QSettings backing store is INI on Linux, plist on macOS, registry on Windows \u2014 user-invisible.",
@@ -31,10 +47,12 @@
   "implementation_path": "inline",
   "implementation_plan": ".claude/notes/milestones/qsettings-persistence-v1-2026q3-e1/artifacts/implementation-plan.md",
   "implementation_base": "4b9e5923dcacdf4f2f5420ec15bee7c7a476e712",
-  "implementation_commit_range": null,
-  "implementation_commits": [],
+  "implementation_commit_range": "4b9e592..HEAD",
+  "implementation_commits": [
+    "aa79dcadedc24d8235338d5b1154343953d7089c"
+  ],
   "implementation_branch": null,
-  "critique_path": null,
+  "critique_path": ".claude/notes/milestones/qsettings-persistence-v1-2026q3-e1/artifacts/adversary-critique.md",
   "critics_run": [],
   "critique_finding_counts": {
     "critical": 0,

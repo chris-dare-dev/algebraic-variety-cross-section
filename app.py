@@ -365,6 +365,17 @@ class MainWindow(QMainWindow):
         # restored state can interact with shortcut-bound actions.
         # First-launch (no saved state): guarded by schema_version check
         # inside _restore_settings; method returns a no-op.
+        #
+        # rect MEDIUM-1 (frontend critic): MUST remain in __init__ (NOT
+        # showEvent).  The intermediate status-bar messages fired by
+        # setCurrentText during restore ("Variety: K3. Now choose a
+        # model.", "Computing Fermat quartic…") are INVISIBLE here
+        # because win.show() in main() hasn't been called yet — the
+        # window isn't yet on screen, so no paint events fire for the
+        # status bar.  Moving _restore_settings to showEvent would make
+        # those messages flash visibly on every second launch, which is
+        # the classic Qt persistence-flash UX bug pythonguis.com warns
+        # about.
         self._restore_settings()
 
     # --- keyboard shortcuts ------------------------------------------------
@@ -398,7 +409,18 @@ class MainWindow(QMainWindow):
             # the last choice survives a process kill that bypasses
             # closeEvent (SIGKILL, crash).  Synchronous; no signal
             # re-emission; AI-9 safe (no _render_current re-entry).
-            QSettings().setValue("LastSession/variety", name)
+            #
+            # rect MEDIUM (adversary critic): explicit sync() flushes
+            # the in-memory cache to the per-OS backing store.  Without
+            # it, Qt's deferred-sync behavior leaves the value in the
+            # cache only — a SIGKILL/crash before the next implicit
+            # sync window would lose the write, contradicting the
+            # SIGKILL-safety claim above.  Cost is small (single small-
+            # key write to ~/.config or registry); fires only on user
+            # action (variety swap), not in a hot loop.
+            _settings = QSettings()
+            _settings.setValue("LastSession/variety", name)
+            _settings.sync()
             subtypes = list(VARIETIES[name].keys())
             self.subtype_combo.addItems(subtypes)
             # Attach per-subtype tooltips
@@ -559,7 +581,12 @@ class MainWindow(QMainWindow):
         # AFTER the parameters_panel.set_specs so a slot triggered by
         # set_specs that errors would NOT leave the saved subtype out-
         # of-sync with what's actually selected.
-        QSettings().setValue("LastSession/subtype", name)
+        #
+        # rect MEDIUM (adversary critic): explicit sync() — see the
+        # mirror block in _on_variety_changed for the full rationale.
+        _settings = QSettings()
+        _settings.setValue("LastSession/subtype", name)
+        _settings.sync()
         self._render_current(reset_camera=True)
 
     def _on_params_changed(self, _values: dict) -> None:
@@ -1216,7 +1243,7 @@ class MainWindow(QMainWindow):
 
     # qsettings-persistence-v1-2026q3-e1 (UPL-25 partial — CONTEXT.md §9 V1
     # lift): save+restore window geometry, dock layout, and last-used
-    # variety+subtype across launches.  See CONTEXT.md §4.5 for the full key
+    # variety+subtype across launches.  See CONTEXT.md §4.4a for the full key
     # schema and save/restore timing contract.  V2/V3 scope (per-subtype
     # slider values, theme preference, surface/bg colors, camera pose,
     # clip state) is explicitly OUT-OF-SCOPE for this V1 milestone and
@@ -1290,13 +1317,45 @@ class MainWindow(QMainWindow):
                 # (no worker in flight); dispatch is queued via the
                 # existing MeshWorker path; no re-entrancy.
                 self.subtype_combo.setCurrentText(saved_subtype)
+        elif saved_variety:
+            # rect MEDIUM-2 (frontend critic): explicit user feedback
+            # when a previously-saved variety has been pruned from the
+            # registry (e.g. an experimental variety removed in a later
+            # release).  Silent fallback to the first-launch state would
+            # leave the user wondering whether their settings were lost.
+            # The message is fired here (NOT via showMessage with a
+            # timeout) so it persists until the user selects a variety.
+            # Empty saved_variety (the genuine first-launch case) stays
+            # silent — only the "saved-but-stale" branch surfaces a
+            # message.
+            self.statusBar().showMessage(
+                f"Last session: variety ‘{saved_variety}’ is no "
+                "longer available. Please choose a variety."
+            )
 
     def closeEvent(self, event):
         # qsettings-persistence-v1-2026q3-e1: persist FIRST — must run
         # while GUI is still live (saveGeometry/saveState read current
         # window state) and before _render_pool.waitForDone potentially
         # blocks for up to 30 s.
-        self._save_settings()
+        #
+        # rect HIGH (frontend critic): wrap in try/except.  QSettings.sync()
+        # can raise OSError / PermissionError on disk-full, read-only FS
+        # mount, macOS sandbox deny, or Windows registry ACL.  An unguarded
+        # raise here would skip the system-theme signal disconnect AND
+        # _render_pool.waitForDone(30000) below — the latter is the
+        # cross-thread teardown guard documented in CONTEXT.md §4.4 (a
+        # MeshWorker still building a pv.PolyData while plotter.close()
+        # tears down the VTK context is exactly the hazard the e3 spike
+        # flagged).  Save is best-effort: the live write-back in
+        # _on_variety_changed / _on_subtype_changed (with explicit sync())
+        # already covers the SIGKILL-safety claim for LastSession/*; the
+        # closeEvent save is the geometry/dock-layout flush only, and
+        # losing those degrades to the same UX as a fresh first launch.
+        try:
+            self._save_settings()
+        except OSError:
+            pass  # Backing-store write failed — proceed with teardown.
         # dark-mode-2026q2-e1 rect L2: disconnect the follow-system signal
         # if active.  Harmless in the current single-window main() pattern
         # (process exits after app.exec()), but the lambda captures `self` —
@@ -1340,7 +1399,7 @@ def main() -> int:
     #   Linux: ~/.config/AVC/AlgebraicVarietyCrossSection.ini
     #   macOS: ~/Library/Preferences/AVC.AlgebraicVarietyCrossSection.plist
     #   Windows: HKCU\\Software\\AVC\\AlgebraicVarietyCrossSection
-    # See CONTEXT.md §4.5 for the key schema and save/restore timing.
+    # See CONTEXT.md §4.4a for the key schema and save/restore timing.
     QApplication.setOrganizationName("AVC")
     QApplication.setApplicationName("AlgebraicVarietyCrossSection")
     app = QApplication(sys.argv)
