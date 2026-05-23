@@ -1,8 +1,8 @@
 {
   "id": "restructure-full-audit-2026q2-r1",
   "created_at": "2026-05-23T17:23:26Z",
-  "updated_at": "2026-05-23T20:30:13Z",
-  "phase": "rectify-running",
+  "updated_at": "2026-05-23T20:31:57Z",
+  "phase": "complete",
   "phase_history": [
     {
       "phase": "init",
@@ -43,6 +43,10 @@
     {
       "phase": "rectify-running",
       "at": "2026-05-23T20:20:41Z"
+    },
+    {
+      "phase": "complete",
+      "at": "2026-05-23T20:31:57Z"
     }
   ],
   "restructure_brief": "Broad cleanup audit of the AVC repo. Surface and address structural improvements: monolith hotspots (app.py 1893 LOC, surfaces.py 1808 LOC), the dual parameter_panel implementations (parameters_panel.py vs parameter_grid_panel.py), missing top-level files (LICENSE, CHANGELOG, AGENTS.md, pyproject.toml), the src-vs-flat layout question for an 11-file flat app, the four panel files at root that could group into panels/, and any AI-navigability gaps. The current layout is flat: 11 .py files at root, tests/ directory, .claude/ and .github/ standard tool folders. AI-1..AI-15 invariants from .claude/references/app-invariants.md are inviolable. Conservative bias: prefer low-risk wins (panels/ subpackage, AGENTS.md symlink, dead-code consolidation if parameter_grid_panel.py supersedes parameters_panel.py) over speculative reorganizations (src/avcs/ migration only if scouts surface strong evidence). Author all batches in low-risk-first order so high-risk Extract Class operations are gated behind successful low-risk batches.",
@@ -115,7 +119,7 @@
     "medium": 1,
     "low": 5
   },
-  "rectification_commit": null,
+  "rectification_commit": "0e8067570e9ae47308e5202c3a9694a57400136e",
   "fixed_findings": [],
   "deferred_findings": [
     "M1",
