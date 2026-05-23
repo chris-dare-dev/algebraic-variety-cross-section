@@ -36,8 +36,8 @@ from PySide6.QtWidgets import (
 from pyvistaqt import QtInteractor
 
 import icons
-from appearance_panel import AppearancePanel
-from parameters_panel import ParametersPanel
+from panels.appearance import AppearancePanel
+from panels.parameters import ParametersPanel
 from render_worker import MeshResult, MeshWorker, is_stale_result
 from styles import (
     APP_STYLESHEET,
@@ -61,7 +61,7 @@ from surfaces import (
     enriques_figure_1,
     enriques_figure_2,
 )
-from view_panel import ViewPanel
+from panels.view import ViewPanel
 
 _PLACEHOLDER = "— Select —"
 

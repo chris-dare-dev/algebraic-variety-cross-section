@@ -131,11 +131,11 @@ def test_no_raw_hex_in_pyvista_color_kwargs_at_appearance_panel() -> None:
     """Same guard for appearance_panel.py — the other PyVista call surface."""
     import pathlib
     repo_root = pathlib.Path(__file__).resolve().parents[1]
-    source = (repo_root / "appearance_panel.py").read_text(encoding="utf-8")
+    source = (repo_root / "panels" / "appearance.py").read_text(encoding="utf-8")
     raw_color_re = re.compile(r'color\s*=\s*"#[0-9a-fA-F]{3,6}"')
     leaks = raw_color_re.findall(source)
     assert not leaks, (
-        f"appearance_panel.py contains raw hex literals in color= kwargs: "
+        f"panels/appearance.py contains raw hex literals in color= kwargs: "
         f"{leaks}. Route all PyVista color args through PALETTE_LIGHT tokens."
     )
 
@@ -240,7 +240,7 @@ def test_set_default_color_updates_surface_color() -> None:
     """
     from unittest.mock import MagicMock, patch
     from PySide6.QtGui import QColor
-    import appearance_panel
+    import panels.appearance
 
     # Lightweight shim that mimics the AppearancePanel attributes
     # set_default_color reads/writes — no full panel construction needed.
@@ -255,8 +255,8 @@ def test_set_default_color_updates_surface_color() -> None:
             self._active_theme = "dark"
 
     shim = _Shim()
-    with patch.object(appearance_panel, "_apply_swatch_color") as mock_apply:
-        appearance_panel.AppearancePanel.set_default_color(shim, "#8e9ed4")
+    with patch.object(panels.appearance, "_apply_swatch_color") as mock_apply:
+        panels.appearance.AppearancePanel.set_default_color(shim, "#8e9ed4")
 
     assert shim._surface_color.name() == "#8e9ed4", (
         "_surface_color should be updated to the new hex"
@@ -277,14 +277,14 @@ def test_set_culling_stores_back_value() -> None:
     breaking the variety-routing logic at app.py:_on_variety_changed
     without touching the test suite.
     """
-    import appearance_panel
+    import panels.appearance
 
     class _Shim:
         def __init__(self) -> None:
             self._culling = None
 
     shim = _Shim()
-    appearance_panel.AppearancePanel.set_culling(shim, "back")
+    panels.appearance.AppearancePanel.set_culling(shim, "back")
     assert shim._culling == "back", (
         f"set_culling('back') should store 'back', got {shim._culling!r}"
     )
@@ -298,14 +298,14 @@ def test_set_culling_clears_to_none() -> None:
     render).  A regression that left _culling stuck at 'back' would
     cause AI-7 conflicts the next time a Hanson surface renders.
     """
-    import appearance_panel
+    import panels.appearance
 
     class _Shim:
         def __init__(self) -> None:
             self._culling = "back"  # simulate prior Enriques state
 
     shim = _Shim()
-    appearance_panel.AppearancePanel.set_culling(shim, None)
+    panels.appearance.AppearancePanel.set_culling(shim, None)
     assert shim._culling is None, (
         f"set_culling(None) should clear to None, got {shim._culling!r}"
     )
@@ -317,7 +317,7 @@ def test_set_default_color_ignores_invalid_hex() -> None:
     """
     from unittest.mock import MagicMock, patch
     from PySide6.QtGui import QColor
-    import appearance_panel
+    import panels.appearance
 
     class _Shim:
         def __init__(self) -> None:
@@ -327,8 +327,8 @@ def test_set_default_color_ignores_invalid_hex() -> None:
     shim = _Shim()
     prior_name = shim._surface_color.name()
 
-    with patch.object(appearance_panel, "_apply_swatch_color") as mock_apply:
-        appearance_panel.AppearancePanel.set_default_color(shim, "not-a-hex")
+    with patch.object(panels.appearance, "_apply_swatch_color") as mock_apply:
+        panels.appearance.AppearancePanel.set_default_color(shim, "not-a-hex")
 
     assert shim._surface_color.name() == prior_name, (
         "Invalid hex should leave _surface_color unchanged"
@@ -643,10 +643,10 @@ def test_no_inline_color_styles_in_panel_files() -> None:
     )
     repo_root = Path(__file__).resolve().parent.parent
     panel_files = (
-        "appearance_panel.py",
-        "view_panel.py",
-        "parameters_panel.py",
-        "parameter_grid_panel.py",
+        "panels/appearance.py",
+        "panels/view.py",
+        "panels/parameters.py",
+        "panels/parameter_grid_panel.py",
     )
     for panel_name in panel_files:
         panel_path = repo_root / panel_name
@@ -813,7 +813,7 @@ def test_appearance_panel_colors_buttons_have_colors_button_role() -> None:
     """
     import pathlib
     src = (
-        pathlib.Path(__file__).resolve().parent.parent / "appearance_panel.py"
+        pathlib.Path(__file__).resolve().parent.parent / "panels" / "appearance.py"
     ).read_text(encoding="utf-8")
 
     # Must see exactly 2 occurrences — one for surf_btn, one for bg_btn.
@@ -866,7 +866,7 @@ def test_appearance_panel_display_and_quality_group_header() -> None:
     """
     import pathlib
     src = (
-        pathlib.Path(__file__).resolve().parent.parent / "appearance_panel.py"
+        pathlib.Path(__file__).resolve().parent.parent / "panels" / "appearance.py"
     ).read_text(encoding="utf-8")
 
     # Positive: the new header is present.
@@ -918,7 +918,7 @@ def test_appearance_panel_display_toggles_are_qpushbutton_not_qcheckbox() -> Non
     """
     import pathlib
     src = (
-        pathlib.Path(__file__).resolve().parent.parent / "appearance_panel.py"
+        pathlib.Path(__file__).resolve().parent.parent / "panels" / "appearance.py"
     ).read_text(encoding="utf-8")
 
     # Negative assertions: no QCheckBox construction for these two
@@ -1111,9 +1111,9 @@ def test_border_swatch_dark_export_wired_through_appearance_panel() -> None:
         "BORDER_SWATCH_DARK export must match PALETTE_DARK[\"BORDER_SWATCH\"]."
     )
 
-    # appearance_panel.py imports it.
+    # panels/appearance.py imports it.
     panel_src = (
-        pathlib.Path(__file__).resolve().parent.parent / "appearance_panel.py"
+        pathlib.Path(__file__).resolve().parent.parent / "panels" / "appearance.py"
     ).read_text(encoding="utf-8")
     assert "BORDER_SWATCH_DARK" in panel_src, (
         "appearance_panel.py must import BORDER_SWATCH_DARK from styles."
