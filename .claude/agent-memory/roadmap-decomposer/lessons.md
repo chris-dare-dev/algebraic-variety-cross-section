@@ -15,3 +15,11 @@ Accumulates 2-5-bullet lessons per roadmap run.  Appended via heredoc, never ove
 - **Specialist hint patterns:** AI-9 (re-entrancy) appeared in e1 (CAND-5 queue-latest) and e4 (worker replaces `processEvents` workaround) — every epic touching `_render_current` or the `_computing` guard needs it. AI-15 (math honesty / disclaimer) appeared in e4 (coarse-preview badge timing) and e5 (Numba transcription risk) — the AI-15 concern bifurcates across the LOD and JIT epics in this domain. AI-6 (implicit vs parametric pipeline) appeared in e2 (Hanson fast-path must not enable coarse-LOD), e4 (coarse-path guard for Hanson), and e6 (Flying Edges retains post-step normals) — three separate epics touching the implicit/parametric split.
 - **ENABLER ratio:** 1/6 = 17% ENABLER (e3 spike). Acceptable; e3's downstream value epics (e4, e5) are named in its body and its specialist hints cross-reference the spike artifacts.
 - **Dependency graph shape:** The DAG has two parallel tracks after e1 — e2 (Hanson fast-path, S, independent of the spike) and e3→e4→e5 (architectural arc). e6 (Flying Edges) hangs off e1 as a fully independent S track. This "two parallel tracks + one independent" shape is the natural output when a roadmap has both a quick-win "free" variety-family path and a mandatory spike-gated architectural path; name both tracks explicitly in the DAG table rather than serialising everything.
+
+## CORRECTION 2026-05-23 (restructure-full-audit-2026q2-r1 batch 4)
+Panel file locations changed. Lessons referencing code-layer boundaries by old file names:
+- `appearance_panel.py` (root) → `panels/appearance.py`; module `appearance_panel` → `panels.appearance`
+- `view_panel.py` (root) → `panels/view.py`; module `view_panel` → `panels.view`
+- `parameters_panel.py` (root) → `panels/parameters.py`; module `parameters_panel` → `panels.parameters`
+- `parameter_grid_panel.py` (root) → `panels/parameter_grid_panel.py`; module `parameter_grid_panel` → `panels.parameter_grid_panel`
+All four panel files are now under the `panels/` subpackage. Root-level shims remain (DeprecationWarning). See MOVES.md.

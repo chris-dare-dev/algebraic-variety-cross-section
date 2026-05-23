@@ -21,19 +21,24 @@ Deep-dive: CONTEXT.md §1 (Purpose), §2 (Architecture), §3 (Data flow)
 ## 2. Where things live
 
 ```
-app.py                   Entry point and main window (~1900 LOC — God Object, do not Extract Class here)
-surfaces.py              Surface registry + mesh generators (~1811 LOC)
-appearance_panel.py      Appearance controls panel
-parameter_grid_panel.py  Parameter-grid interactive panel
-parameters_panel.py      Surface-parameter sliders panel
-view_panel.py            3-D viewport + clip controls
-render_worker.py         QThread worker for off-thread mesh computation
-parameter_grid.py        Draggable-dot grid widget
-styles.py                QSS stylesheets (light + dark modes, WCAG AA palette)
-icons.py                 qtawesome icon helpers
-ui_helpers.py            Misc Qt helpers
-tests/                   Flat test layout — 499 tests, all Qt-free
-requirements.txt         Runtime + restructure-tooling pins
+app.py                         Entry point and main window (~1900 LOC — God Object, do not Extract Class here)
+surfaces.py                    Surface registry + mesh generators (~1811 LOC)
+panels/                        UI panel subpackage (moved from root in restructure-full-audit-2026q2-r1 batch 4)
+  panels/appearance.py         Appearance controls panel (AppearancePanel)
+  panels/parameter_grid_panel.py  Parameter-grid interactive panel (ParameterGridPanel)
+  panels/parameters.py         Surface-parameter sliders panel (ParametersPanel)
+  panels/view.py               3-D viewport + clip controls (ViewPanel)
+render_worker.py               QThread worker for off-thread mesh computation
+parameter_grid.py              Draggable-dot grid widget
+styles.py                      QSS stylesheets (light + dark modes, WCAG AA palette)
+icons.py                       qtawesome icon helpers
+ui_helpers.py                  Misc Qt helpers
+tests/                         Flat test layout — 499 tests, all Qt-free
+requirements.txt               Runtime + restructure-tooling pins
+
+Note: Root-level shims (appearance_panel.py, parameter_grid_panel.py, parameters_panel.py,
+view_panel.py) still exist at the old paths for backward compat (emit DeprecationWarning).
+Removal milestone: M+1. See MOVES.md for the full rosetta stone.
 ```
 
 Deep-dive: CONTEXT.md §4 (Module map), §5 (Panel inventory)

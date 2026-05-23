@@ -144,7 +144,7 @@ A window titled **"Algebraic Variety Viewer"** should open at 1200×800. The sta
 
 ```bash
 # Verify imports
-python -c "import app, surfaces, view_panel, parameters_panel, appearance_panel; print('OK')"
+python -c "import app, surfaces; from panels.appearance import AppearancePanel; from panels.view import ViewPanel; from panels.parameters import ParametersPanel; print('OK')"
 
 # Run the test suite (~7 seconds, 499 tests, no Qt window required)
 pytest tests/ -v

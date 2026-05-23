@@ -93,3 +93,12 @@
 
 ### Single-source-of-truth for tooltip strings
 - `_LOD_NOTE_*` constants in `surfaces.py` serve SUBTYPE_TOOLTIPS. `VARIETY_TOOLTIPS` uses independent prose with the same semantic intent. A future wording fix requires two edits. Pattern: when a milestone adds module-level string constants as tooltip suffix templates, check whether existing free-prose in related dicts duplicates the semantic — if yes, wire to the same constant or flag as MEDIUM.
+
+## CORRECTION 2026-05-23 (restructure-full-audit-2026q2-r1 batch 4)
+Panel file locations changed. The "panel scope check" git diff command should use new paths:
+- `appearance_panel.py` (root) → `panels/appearance.py`; module `appearance_panel` → `panels.appearance`
+- `view_panel.py` (root) → `panels/view.py`; module `view_panel` → `panels.view`
+- `parameters_panel.py` (root) → `panels/parameters.py`; module `parameters_panel` → `panels.parameters`
+- `parameter_grid_panel.py` (root) → `panels/parameter_grid_panel.py`; module `parameter_grid_panel` → `panels.parameter_grid_panel`
+Update git diff --stat patterns: use `-- panels/appearance.py panels/view.py panels/parameters.py styles.py`
+Root-level shims remain (DeprecationWarning). See MOVES.md.

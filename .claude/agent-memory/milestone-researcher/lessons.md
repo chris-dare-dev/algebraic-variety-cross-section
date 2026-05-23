@@ -250,3 +250,13 @@
 - **WCAG 1.4.11 swatch chip: boundary color must clear 3:1 vs BOTH adjacent surfaces.** The swatch chip's existing #888888 border cleared 3.11:1 vs BG_PANEL but only 1.35-1.67:1 vs the variety fill colors (FAIL on the "body fill" side). The 3:1 requirement is met only when the boundary indicator achieves the ratio against the component interior AND the background. Upgrade to TEXT_VALUE (#333333) for the light-theme BORDER_SWATCH token — passes both sides (11.09:1 vs bg_panel, 4.81-5.94:1 vs variety fills).
 - **VARIETY_TOOLTIPS vs SUBTYPE_TOOLTIPS: the e4b rect added LOD note to VARIETY (family-level) but not SUBTYPE.** For item 3 (M7), verify both dicts. The M-front-2 rectification note in e4b says "added to VARIETY_TOOLTIPS" — users who hover an individual subtype combo item see SUBTYPE_TOOLTIPS, not VARIETY_TOOLTIPS. Check BOTH before declaring a tooltip finding closed.
 - **Icon rebind site count for QTimer/Spin comment: THREE sites in app.py** (init in `_build_ui` ~line 390, `_on_theme_changed` ~line 1615, `_apply_system_theme` ~line 1663). All three need the comment; the init site can use a shorter cross-reference to the theme-changed site where the full rationale appears.
+
+## CORRECTION 2026-05-23 (restructure-full-audit-2026q2-r1 batch 4)
+Panel file locations changed. Old path → new path:
+- `appearance_panel.py` (root) → `panels/appearance.py`; module `appearance_panel` → `panels.appearance`
+- `view_panel.py` (root) → `panels/view.py`; module `view_panel` → `panels.view`
+- `parameters_panel.py` (root) → `panels/parameters.py`; module `parameters_panel` → `panels.parameters`
+- `parameter_grid_panel.py` (root) → `panels/parameter_grid_panel.py`; module `parameter_grid_panel` → `panels.parameter_grid_panel`
+Lessons that cite `appearance_panel.py:48`, `appearance_panel.py:614`, etc.: line-number references should be
+re-verified against `panels/appearance.py` (line numbers may differ slightly if any edits landed during the move).
+Symbol names (AppearancePanel, ParametersPanel, etc.) are unchanged. Root-level shims remain (DeprecationWarning).

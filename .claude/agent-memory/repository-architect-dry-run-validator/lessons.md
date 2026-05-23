@@ -12,3 +12,12 @@
 - **Test guard weakening pattern (non-blocking):** Tests that read source files by absolute path (e.g. `repo_root / "appearance_panel.py"`) become guards on the SHIM rather than the moved content after a module-level move. These tests will still PASS (shims are clean), but they no longer cover the new location. Flag this as a Phase 5 test-suggester item rather than a dry-run failure. It is a test-quality observation, not a correctness regression.
 
 - **Star-import baseline.starimports.txt false positives:** The baseline starimports grep can match the `.claude/scripts/` files (which contain `import *` in grep command strings and comments). Always exclude `.claude/` when scanning for star-imports in production code. The correct production star-import count for AVC is zero.
+
+## CORRECTION 2026-05-23 (restructure-full-audit-2026q2-r1 batch 4)
+Panel file locations changed. Old path → new path:
+- `appearance_panel.py` (root) → `panels/appearance.py`; module `appearance_panel` → `panels.appearance`
+- `view_panel.py` (root) → `panels/view.py`; module `view_panel` → `panels.view`
+- `parameters_panel.py` (root) → `panels/parameters.py`; module `parameters_panel` → `panels.parameters`
+- `parameter_grid_panel.py` (root) → `panels/parameter_grid_panel.py`; module `parameter_grid_panel` → `panels.parameter_grid_panel`
+The "test guard weakening" lesson from dry-run: the fix was applied — tests now read `panels/appearance.py` etc.
+Root-level shims contain only 18-line __getattr__ forwarders. See MOVES.md.

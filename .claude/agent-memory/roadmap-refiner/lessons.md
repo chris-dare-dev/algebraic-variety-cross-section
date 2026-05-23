@@ -15,3 +15,12 @@ Accumulates 2-5-bullet lessons per roadmap run.  Appended via heredoc, never ove
 - **MUST assumption for Numba on Apple Silicon:** Treat Numba `parallel=True` arm64 availability as [MUST] even when PyPI wheels are confirmed — the threading layer (workqueue vs TBB) interaction with VTK SMP needs a separate validation. Do not downgrade to [SHOULD] based on wheel availability alone.
 - **Won't list for performance roadmaps:** The three most tempting no-gos are parameter-space mesh interpolation (AI-15 prohibition — mathematically fraudulent), GPU isosurfacing (AI-1/AI-3 — rasterized image, not PolyData), and pytest-qt worker tests (AI-2 — macOS segfault). These three appear in the capability-scout tension analysis and should be pre-checked for any latency/interactivity roadmap in this repo.
 - **Prior-art grep for performance roadmaps:** Check CONTEXT.md §4.4 (re-entrancy guard), §8.5 (processEvents re-entrancy bug), §9 (explicit not-done list), and synthesis.md §6 (what's already in flight) before writing the prior-art section — these four locations together cover all relevant prior attempts and explicit deferrals.
+
+## CORRECTION 2026-05-23 (restructure-full-audit-2026q2-r1 batch 4)
+Panel file locations changed. Lessons referencing grep patterns for `appearance_panel.py`:
+- `appearance_panel.py` (root) → `panels/appearance.py`; module `appearance_panel` → `panels.appearance`
+- `view_panel.py` (root) → `panels/view.py`; module `view_panel` → `panels.view`
+- `parameters_panel.py` (root) → `panels/parameters.py`; module `parameters_panel` → `panels.parameters`
+- `parameter_grid_panel.py` (root) → `panels/parameter_grid_panel.py`; module `parameter_grid_panel` → `panels.parameter_grid_panel`
+Update any grep patterns: e.g. "grep CONTEXT.md for `appearance_panel.py`" → use `panels/appearance.py`.
+Root-level shims remain at old paths. See MOVES.md.

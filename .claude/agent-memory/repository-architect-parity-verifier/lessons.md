@@ -17,3 +17,17 @@
 - Coverage tool quirk: same as batches 1+2 — pyvistaqt internal-path blocks coverage.xml. Treat as INFORMATIONAL/SKIPPED perpetually until pyvistaqt is resolved upstream.
 - Collection diff exit code: `diff` exits 1 when only the wall-clock timing line changes (e.g. "499 tests collected in 2.67s" → "499 tests collected in 1.40s"). This is NOT a test-ID regression. Always inspect the diff lines — if the only delta is the timing suffix, mark PASS.
 - Pydeps: identical empty-graph error on all batches; repo name with hyphens is permanently incompatible. Skip with INFORMATIONAL/SKIPPED on every batch.
+
+## Lesson from restructure-full-audit-2026q2-r1 batch 4 (2026-05-23)
+- False alarm pattern: validate-shims.py reports 4 FAILs for __getattr__-style (Template 2) shims when symbol-map entries have kind=module and symbol=null. The script runs `import <module>` which exits 0 with no warning — but __getattr__ only fires on attribute access. Not a real regression: all 4 pytest shim tests pass. Fix direction: for kind=module + null symbol, validator should probe via `from <mod> import <Symbol>` not bare import.
+- Shim integrity note: Template 2 (__getattr__) shims are functionally correct but invisible to the validate-shims.py bare-import probe. Always run the actual pytest shim test suite (`pytest tests/test_panels_shims.py -v`) as the authoritative shim check when validate-shims.py reports FAILs for __getattr__-style shims. If pytest passes, mark shim check DEGRADED (tool gap) not FAIL (regression).
+- Import-time variance: -7.9% improvement batch4 (752.9ms → 693.7ms warm cache). Consistent with prior batches — warm cache from same-day runs gives slightly better performance. Within ±20%.
+- Panels/ naming: batch description said "names unchanged" but 3/4 files had _panel suffix stripped on move (appearance_panel→appearance, view_panel→view, parameters_panel→parameters). parameter_grid_panel.py retained name. Discrepancy in batch description only — implementation, MOVES.md and symbol-map.json are internally consistent.
+
+## CORRECTION 2026-05-23 (restructure-full-audit-2026q2-r1 batch 4)
+Panel file locations changed. Old path → new path:
+- `appearance_panel.py` (root) → `panels/appearance.py`; module `appearance_panel` → `panels.appearance`
+- `view_panel.py` (root) → `panels/view.py`; module `view_panel` → `panels.view`
+- `parameters_panel.py` (root) → `panels/parameters.py`; module `parameters_panel` → `panels.parameters`
+- `parameter_grid_panel.py` (root) → `panels/parameter_grid_panel.py`; module `parameter_grid_panel` → `panels.parameter_grid_panel`
+Root-level shim files remain at old paths (emit DeprecationWarning). See MOVES.md for canonical rosetta stone.

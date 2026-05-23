@@ -6,3 +6,11 @@
 - AVC-specific: The seed brief at scout-c-safe-refactor.md is high-quality and can be used directly as starting cache for future runs on this repo. The per-restructure brief at the BRIEF_PATH incorporates AVC-specific LOC data from the cache directory and the evaluator report. Always pull loc.csv and evaluator-report.md from the cache at the start of a run to ground the brief in actual measurements.
 - AVC-specific: AI-2 invariant means no pytest-qt and no Qt event-loop tests. All characterization tests must use pv.OFF_SCREEN = True (AI-3). This is a hard constraint on Section 7 and Section 6.3 of any refactor-pattern brief for AVC.
 - AVC-specific: The four panel files (appearance_panel.py, parameter_grid_panel.py, view_panel.py, parameters_panel.py) are the lowest-risk first batch for a panels/ subpackage introduction. The dual-panel question (parameters_panel vs parameter_grid_panel) must be resolved explicitly in PLAN.md before any move commits — do not leave it as a TBD.
+
+## CORRECTION 2026-05-23 (restructure-full-audit-2026q2-r1 batch 4)
+Panel file locations changed. The "four panel files at root" have been moved:
+- `appearance_panel.py` (root) → `panels/appearance.py`; module `appearance_panel` → `panels.appearance`
+- `view_panel.py` (root) → `panels/view.py`; module `view_panel` → `panels.view`
+- `parameters_panel.py` (root) → `panels/parameters.py`; module `parameters_panel` → `panels.parameters`
+- `parameter_grid_panel.py` (root) → `panels/parameter_grid_panel.py`; module `parameter_grid_panel` → `panels.parameter_grid_panel`
+Root-level shims remain at old paths (emit DeprecationWarning; removal milestone M+1). See MOVES.md.

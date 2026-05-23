@@ -189,3 +189,12 @@
 - **`qta.Spin.stop()` is a real method (animation.py:44) but requires holding the Spin object reference.** When a comment suggests calling `stop()` on the prior Spin, it must also note that the factory must be changed to return the Spin object (or a stop callable) — otherwise the suggestion is unactionable. The stop/start pattern is in the qtawesome Spin API; it's just hidden behind the factory abstraction.
 - **Batch-cleanup milestone scope check is fast.** The 8-item deferred list + confirmed 3 already-closed = 5 actual changes across 4 files. Zero scope creep. Deferred items are clean when none of their IDs appear in the production diff outside `# ... milestone name ...` cross-reference comments. Single grep: `grep -rn "L_macos_native\|adv_L1\|front_L3" app.py styles.py surfaces.py`.
 - **Severity calibration for batch-cleanup milestones:** a ~330-LOC functional delta cleaning 5 deferred findings produced 0 CRITICALs, 1 HIGH (real code regression from the very fix), 2 MEDIUMs (documentation drift + test gap), 2 LOWs. The HIGH emerged from the "frozen export" anti-pattern above — resist over-inflating other findings when one genuine HIGH exists.
+
+## CORRECTION 2026-05-23 (restructure-full-audit-2026q2-r1 batch 4)
+Panel file locations changed. Lessons referencing file:line anchors like `appearance_panel.py:...`:
+- `appearance_panel.py` (root) → `panels/appearance.py`; module `appearance_panel` → `panels.appearance`
+- `view_panel.py` (root) → `panels/view.py`; module `view_panel` → `panels.view`
+- `parameters_panel.py` (root) → `panels/parameters.py`; module `parameters_panel` → `panels.parameters`
+- `parameter_grid_panel.py` (root) → `panels/parameter_grid_panel.py`; module `parameter_grid_panel` → `panels.parameter_grid_panel`
+File:line references to old paths should be re-verified against panels/ equivalents. Symbol names unchanged.
+Root-level shims remain (DeprecationWarning). See MOVES.md.
