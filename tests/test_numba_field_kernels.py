@@ -25,11 +25,19 @@ permutations of (x, y, z) — a value-comparison test therefore CANNOT detect
 an ``(i, j, k) -> (g[k], g[j], g[i])`` axis-transposition bug for those
 kernels.  This is not a coverage hole: a transposed evaluation of a symmetric
 field contours to the exact same isosurface, so the bug is harmless by
-construction.  The asymmetric kernels — ``_klein_cubic_field_kernel`` (Klein
-cubic threefold slice, ``x + x²y + y²z + z₀z² + z₀²``) and
-``_sextic_double_solid_field_kernel`` (where ``Z²`` plays a different role
-than ``X⁶``/``Y⁶``) — *would* surface an axis-swap bug under their
-parametrize blocks, providing implicit coverage for the whole family.
+construction.  The two asymmetric kernels carry the axis-swap coverage for
+the whole family:
+
+- ``_klein_cubic_field_kernel`` (Klein cubic threefold slice,
+  ``x + x²y + y²z + z₀z² + z₀²``) is asymmetric in *all three* axis pairs at
+  every ``z₀``, so its parametrize block detects any of the six possible
+  index permutations.
+- ``_sextic_double_solid_field_kernel`` distinguishes ``z`` from ``x``/``y``
+  (``Z²`` vs ``X⁶``/``Y⁶``), so a ``(k<->i)`` or ``(k<->j)`` transposition is
+  detectable.  A pure ``(i<->j)`` swap is invisible at ANY parameter value
+  because every term — ``X⁶+Y⁶`` and ``α·X²Y²·(X²+Y²)`` — is symmetric in
+  ``x,y``; that case is fully covered by Klein cubic's parametrize block
+  above, which is asymmetric in all three coordinate pairs.
 """
 
 from __future__ import annotations
@@ -315,12 +323,20 @@ def _enriques_fig4_ref(g, tau):
 
 
 def _dwork_ref(g, psi):
-    """Pre-e5b NumPy field expression from ``calabi_yau_dwork``."""
+    """Pre-e5b NumPy field expression from ``calabi_yau_dwork``.
+
+    Uses NumPy's ``X ** 5`` operator form verbatim from the pre-JIT generator
+    body (NOT the explicit ``x4 = x2*x2; x5 = x4*x`` chain the kernel uses).
+    The operator form is the independent oracle: if the kernel's explicit
+    multiply chain ever regresses to a different IEEE-754 op order (e.g.
+    ``x2 * x4`` instead of ``x4 * x``), the equivalence test would catch the
+    drift against this operator-form reference, not against another copy of
+    the kernel's strategy.  The ``atol=1e-9`` tolerance is wide enough to
+    absorb the ULP gap between ``X**5`` and ``X4*X`` for typical float64
+    values (~3.5e-15 at |x|=1.8).
+    """
     X, Y, Z = np.meshgrid(g, g, g, indexing="ij")
-    X2, Y2, Z2 = X * X, Y * Y, Z * Z
-    X4, Y4, Z4 = X2 * X2, Y2 * Y2, Z2 * Z2
-    X5, Y5, Z5 = X4 * X, Y4 * Y, Z4 * Z
-    F = X5 + Y5 + Z5 + 2.0 - 5.0 * psi * X * Y * Z
+    F = X ** 5 + Y ** 5 + Z ** 5 + 2.0 - 5.0 * psi * X * Y * Z
     return np.clip(F, -100.0, 100.0)
 
 
@@ -333,16 +349,15 @@ def _klein_cubic_ref(g, z0):
 
 
 def _segre_cubic_ref(g, a, b):
-    """Pre-e5b NumPy field expression from ``fano_segre_cubic``."""
+    """Pre-e5b NumPy field expression from ``fano_segre_cubic``.
+
+    Uses NumPy's ``X ** 3`` operator form verbatim from the pre-JIT generator
+    body (NOT the explicit ``x*x*x`` chain the kernel uses).  Rationale is
+    identical to ``_dwork_ref``: the operator form is the independent oracle.
+    """
     X, Y, Z = np.meshgrid(g, g, g, indexing="ij")
-    X3 = X * X * X
-    Y3 = Y * Y * Y
-    Z3 = Z * Z * Z
-    a3 = a * a * a
-    b3 = b * b * b
     s = X + Y + Z + a + b
-    s3 = s * s * s
-    F = X3 + Y3 + Z3 + a3 + b3 - s3
+    F = X ** 3 + Y ** 3 + Z ** 3 + a ** 3 + b ** 3 - s ** 3
     return np.clip(F, -1000.0, 1000.0)
 
 

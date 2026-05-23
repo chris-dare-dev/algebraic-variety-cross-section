@@ -463,7 +463,9 @@ def _enriques_fig3_field_kernel(g, k_coef, out):
     Transcribes ``enriques_figure_3``'s NumPy expression term-for-term:
     ``s = X+Y+Z+XY+XZ+YZ;  F = s² − k·X·Y·Z``, then ``np.clip(F, ±50)``.
     Loop variable ``k`` shadows the conventional name; the kernel param is
-    named ``k_coef`` to avoid the collision.
+    named ``k_coef`` to avoid the collision.  Callers (the generator)
+    forward their own float ``k`` positionally and are unaffected by the
+    rename — the param-name divergence is kernel-internal only.
     """
     n = g.shape[0]
     for i in prange(n):
@@ -521,10 +523,10 @@ def _dwork_field_kernel(g, psi, out):
     Transcribes ``calabi_yau_dwork``'s NumPy expression: ``X⁵ + Y⁵ + Z⁵ + 2
     − 5ψ·XYZ``, then ``np.clip(F, ±100)``.  Powers of 5 are written as
     explicit multiplies via the ``x2 → x4 → x5`` chain to keep per-voxel
-    IEEE-754 op order reproducible against the NumPy reference (the only
-    new kernel in v1 that uses a power not exercised by the e5 v0
-    templates).  The ψ ≈ 1 conifold ``RuntimeWarning`` fires in the
-    generator BEFORE this kernel runs — AI-14 preserved.
+    IEEE-754 op order reproducible against the NumPy reference.  This is
+    the only new kernel in v1 that uses a 5th power — a width the e5 v0
+    templates never exercised.  The ψ ≈ 1 conifold ``RuntimeWarning`` fires
+    in the generator BEFORE this kernel runs — AI-14 preserved.
     """
     n = g.shape[0]
     for i in prange(n):
