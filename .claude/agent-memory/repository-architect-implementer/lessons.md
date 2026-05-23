@@ -41,3 +41,9 @@ Panel file locations changed. Old path → new path:
 Any lesson referencing `parent.parent / "appearance_panel.py"` etc. as a file path: those test fixtures were
 updated to `panels/appearance.py` etc. in the batch 4 LibCST rewrite. Root-level shims remain but contain
 only the 18-line __getattr__ forwarder — source grep tests must use the panels/ paths. See MOVES.md.
+
+## Lesson from restructure-full-audit-2026q2-r1 Batch 4 rectify (2026-05-23)
+
+**Bisect-redness from delayed LibCST rewrite.**  When introducing a subpackage via 4 sequential `git mv` commits followed by a LibCST import rewrite (Batch 4 of the full-audit-r1 restructure, commits ffd358a..0e51719), the 4 intermediate commits are bisect-red because the moved modules still exist at old paths but `app.py` references the NEW package-qualified paths only after the rewrite lands.  Tests like `tests/test_clip_cache.py` that import via `from app import ...` would fail with `ModuleNotFoundError` if `git bisect` landed on one of those 4 SHAs.
+
+**Lesson for future restructures:** the LibCST rewrite should land in the SAME commit as the corresponding `git mv` (one rewrite per move, four total), OR all 5 ops should be a SINGLE commit if rename detection survives (verify with `git diff --find-renames` before committing).  The "one Fowler op per commit" rule from phase-4-execute.md does NOT mean "one mechanical action per commit" — it means "one user-visible refactor unit per commit."  A `git mv` without its accompanying import rewrite is not a complete unit.
