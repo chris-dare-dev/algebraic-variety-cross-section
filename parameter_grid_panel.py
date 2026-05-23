@@ -34,7 +34,6 @@ from PySide6.QtWidgets import (
 
 import parameter_grid as pg
 from styles import (
-    BG_GRID_SCENE,
     GRID_AXIS_LABEL,
     GRID_AXIS_LINE,
     GRID_BOX_WIRE,
@@ -229,7 +228,14 @@ class ParameterGridPanel(QWidget):
         # Antialias the gridlines and the dot edge — without this the dot
         # renders visibly jagged at typical screen densities.
         self._view.setRenderHint(QPainter.RenderHint.Antialiasing, True)
-        self._view.setStyleSheet(f"background: {BG_GRID_SCENE}; border: none;")
+        # Theme-aware background via QSS role cascade.
+        # restructure-full-audit-2026q2-r1 batch 3 (AI-12 fix): replaced
+        # setStyleSheet(f"background: {BG_GRID_SCENE}; border: none;") which
+        # hardcoded the PALETTE_LIGHT value and kept the grid background
+        # light in Dark theme.  The QSS rule QGraphicsView[role="grid-scene"]
+        # in _render_stylesheet() handles both background and border: none
+        # for light and dark palettes via palette["BG_GRID_SCENE"].
+        self._view.setProperty("role", "grid-scene")
         self._view.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self._view.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self._view.setFixedHeight(int(_GRID_SIZE + 2 * _MARGIN))

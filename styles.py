@@ -463,6 +463,22 @@ QLabel[role="range-label"] {{
     color: {palette["TEXT_MUTED"]};
 }}
 
+/* --- Grid-scene QGraphicsView ---------------------------------------- */
+/* restructure-full-audit-2026q2-r1 batch 3 (AI-12 fix): the parameter-grid
+   drawing surface previously used setStyleSheet(f"background: {{BG_GRID_SCENE}};
+   border: none;") which hardcoded the PALETTE_LIGHT value and kept the grid
+   background light in Dark theme (near-invisible dark dot on near-white
+   surface).  Switching to setProperty("role", "grid-scene") lets the QSS
+   cascade drive the background from the active palette, so light↔dark
+   switching tracks correctly.  Both border: none (no frame around the
+   grid canvas) and a fixed border-radius are preserved from the original
+   rule.
+   AI-12: BG_GRID_SCENE vs GRID_DOT_FILL ≥ 4.5:1 in both palettes. */
+QGraphicsView[role="grid-scene"] {{
+    background: {palette["BG_GRID_SCENE"]};
+    border: none;
+}}
+
 /* --- Dock widget title bars ------------------------------------------ */
 QDockWidget {{
     font-size: 12px;
