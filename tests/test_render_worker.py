@@ -188,3 +188,49 @@ def test_compute_captures_error_type_on_empty_message():
     assert r.ok is False
     assert r.error_message == ""
     assert r.error_type == "MemoryError"
+
+
+# ---------------------------------------------------------------------------
+# MeshResult.is_coarse — realtime-variety-render-e4b (CAND-3) round-trip
+# ---------------------------------------------------------------------------
+
+def test_mesh_result_is_coarse_default_false():
+    """MeshResult.is_coarse defaults to False — the safe default for any
+    pre-e4b caller that hasn't been updated (full-res render)."""
+    r = MeshResult(generation=1, ok=True, mesh=object())
+    assert r.is_coarse is False
+
+
+def test_compute_tags_result_with_is_coarse_true():
+    """A MeshWorker constructed with is_coarse=True tags its successful
+    result accordingly — the worker is mode-agnostic in behavior but carries
+    the flag verbatim through to MeshResult."""
+    sentinel = object()
+    w = MeshWorker(lambda: sentinel, {}, generation=1, is_coarse=True)
+    r = w._compute()
+    assert r.ok is True
+    assert r.is_coarse is True
+
+
+def test_compute_tags_result_with_is_coarse_false():
+    """A MeshWorker constructed with is_coarse=False (the default) tags the
+    result False — full-res render path."""
+    sentinel = object()
+    w = MeshWorker(lambda: sentinel, {}, generation=1)  # default is_coarse=False
+    r = w._compute()
+    assert r.is_coarse is False
+
+
+def test_compute_tags_failure_with_is_coarse():
+    """The is_coarse tag survives the failure path — a coarse worker that
+    raises ValueError still emits is_coarse=True so the slot's badge-state
+    machine can branch correctly even on error (the Preview prefix is
+    *replaced* by the error message, but the slot needs to know which path
+    it was on)."""
+    def gen():
+        raise ValueError("No real zero set in the sampling box")
+    w = MeshWorker(gen, {}, generation=1, is_coarse=True)
+    r = w._compute()
+    assert r.ok is False
+    assert r.is_coarse is True
+    assert r.error_is_value_error is True

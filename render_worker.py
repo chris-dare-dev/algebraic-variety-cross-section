@@ -92,6 +92,22 @@ class MeshResult:
                           (``_on_mesh_ready`` additionally substring-matches
                           ``error_message`` for ``"No real zero set"`` — see
                           that slot for the worker↔slot text contract.)
+      is_coarse         — ``True`` when this result is a coarse-preview LOD
+                          render (realtime-variety-render-e4b / CAND-3): the
+                          worker was dispatched with ``params["n"] =
+                          surface.coarse_n``. The slot uses this flag to
+                          switch the status-bar message to the AI-15
+                          ``"Preview — {label}{hq_label} — NNN ms"`` badge
+                          (with ``{hq_label}`` interpolated as ``" [HQ]"``
+                          when applicable, and an optional ``"⚠ {warning}  |  "``
+                          prefix for RuntimeWarning surfaces such as the
+                          Dwork conifold) and skip the verts/faces/bbox
+                          readout — those numbers would be misleadingly
+                          precise on a transient low-resolution mesh. The
+                          worker stays mode-agnostic — it carries the tag
+                          verbatim from ``MeshWorker.__init__``. The
+                          authoritative badge contract lives in CONTEXT.md
+                          §8.19; this docstring mirrors it.
     """
 
     generation: int
@@ -102,6 +118,7 @@ class MeshResult:
     error_message: str = ""
     error_type: str = ""
     error_is_value_error: bool = False
+    is_coarse: bool = False
 
 
 class WorkerSignals(QObject):
@@ -131,11 +148,19 @@ class MeshWorker(QRunnable):
         generate: Callable[..., pv.PolyData],
         params: dict[str, float],
         generation: int,
+        is_coarse: bool = False,
     ) -> None:
         super().__init__()
         self._generate = generate
         self._params = params
         self._generation = generation
+        # realtime-variety-render-e4b (CAND-3): the coarse-vs-full mode tag.
+        # The worker is mode-agnostic — it does NOT lower `n` itself; the
+        # dispatcher (`app.py:_render_current`) injects `params["n"] =
+        # surface.coarse_n` before constructing the worker.  This flag just
+        # round-trips back to the slot inside `MeshResult.is_coarse` so the
+        # AI-15 Preview-badge state machine can branch on it.
+        self._is_coarse = is_coarse
         self.signals = WorkerSignals()
         # VTK #18782: an explicit Python ref to the output mesh, retained from
         # just before the signal is emitted until this worker object itself is
@@ -191,8 +216,10 @@ class MeshWorker(QRunnable):
                 gen_ms=gen_ms, warning_text=warning_text,
                 error_message=error_message, error_type=error_type,
                 error_is_value_error=error_is_value_error,
+                is_coarse=self._is_coarse,
             )
         return MeshResult(
             generation=gen, ok=True, mesh=mesh,
             gen_ms=gen_ms, warning_text=warning_text,
+            is_coarse=self._is_coarse,
         )
