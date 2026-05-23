@@ -1,8 +1,8 @@
 {
   "id": "appearance-panel-render-mode-split-2026q3-e3",
   "created_at": "2026-05-23T02:09:43Z",
-  "updated_at": "2026-05-23T02:23:52Z",
-  "phase": "rectify-running",
+  "updated_at": "2026-05-23T02:25:14Z",
+  "phase": "complete",
   "phase_history": [
     {
       "phase": "init",
@@ -35,6 +35,10 @@
     {
       "phase": "rectify-running",
       "at": "2026-05-23T02:23:52Z"
+    },
+    {
+      "phase": "complete",
+      "at": "2026-05-23T02:25:14Z"
     }
   ],
   "milestone_brief": "Close deferred F-M2 from appearance-panel-layout-pass-2026q3-e2: rename the Appearance dock's \"Render Mode\" QGroupBox header to \"Display & Quality\". The original F-M2 finding called this Path (a) \u2014 V0-adequate, single-group-stays approach. The semantic issue: \"Render Mode\" misclassifies the Double-pass smooth toggle (which triggers a mesh regeneration, not just an actor display change like Wireframe / Show edges). Path (a) acknowledges both axes (display + quality) in the label without rearranging the buttons. Internal symbol names (_build_toggles_group, the \"display-toggle\" role property on all 3 buttons) STAY \u2014 they describe the technical pattern, not the user-facing semantic axis. Scope: appearance_panel.py:208 QGroupBox header rename + nearby comments; CONTEXT.md \u00a74.3a + \u00a78.16 doc references; tests/test_styles_palette.py + tests/test_enriques_hq_smoothing.py source-text assertions; the test_appearance_panel_render_mode_group_header test from the prior milestone must be updated (positive + negative regression guards on the new label). AI-15 honesty: \"Display & Quality\" is technically accurate \u2014 Wireframe / Show edges are display-pipeline toggles; Double-pass smooth is a quality toggle (it changes mesh fidelity). Peer cite: ParaView's \"Display\" tab follows the same single-group-multiple-axes pattern.",
@@ -63,9 +67,15 @@
     "medium": 1,
     "low": 2
   },
-  "rectification_commit": null,
-  "fixed_findings": [],
-  "deferred_findings": [],
+  "rectification_commit": "3cf09df46c0e830273925597cc34b636752ae7cb",
+  "fixed_findings": [
+    "adversary_LOW"
+  ],
+  "deferred_findings": [
+    "HIGH_process",
+    "MEDIUM-1",
+    "LOW-1"
+  ],
   "invalidated_findings": [],
   "regression_tests_added": []
 }
