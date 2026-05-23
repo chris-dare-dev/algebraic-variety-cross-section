@@ -1,0 +1,251 @@
+{
+  "ui_helpers.py": [
+    "PySide6",
+    "__future__",
+    "parameter_grid",
+    "styles",
+    "surfaces",
+    "typing"
+  ],
+  "parameter_grid.py": [
+    "__future__",
+    "dataclasses",
+    "surfaces"
+  ],
+  "render_worker.py": [
+    "PySide6",
+    "__future__",
+    "dataclasses",
+    "pyvista",
+    "time",
+    "typing",
+    "warnings"
+  ],
+  "surfaces.py": [
+    "__future__",
+    "dataclasses",
+    "numba",
+    "numpy",
+    "pyvista",
+    "typing",
+    "warnings"
+  ],
+  "icons.py": [
+    "PySide6",
+    "__future__",
+    "qtawesome",
+    "styles"
+  ],
+  "view_panel.py": [
+    "PySide6",
+    "__future__",
+    "icons",
+    "logging",
+    "numpy",
+    "pyvista"
+  ],
+  "parameters_panel.py": [
+    "PySide6",
+    "__future__",
+    "icons",
+    "parameter_grid",
+    "parameter_grid_panel",
+    "surfaces",
+    "typing",
+    "ui_helpers"
+  ],
+  "parameter_grid_panel.py": [
+    "PySide6",
+    "__future__",
+    "parameter_grid",
+    "styles",
+    "surfaces",
+    "ui_helpers"
+  ],
+  "appearance_panel.py": [
+    "PySide6",
+    "__future__",
+    "icons",
+    "styles",
+    "typing"
+  ],
+  "styles.py": [
+    "styles"
+  ],
+  "app.py": [
+    "PySide6",
+    "__future__",
+    "appearance_panel",
+    "icons",
+    "os",
+    "parameters_panel",
+    "pyvistaqt",
+    "re",
+    "render_worker",
+    "styles",
+    "surfaces",
+    "sys",
+    "unicodedata",
+    "view_panel"
+  ],
+  "tests/test_enriques_hq_smoothing.py": [
+    "__future__",
+    "importlib",
+    "inspect",
+    "numpy",
+    "pathlib",
+    "surfaces"
+  ],
+  "tests/test_mesh_generators.py": [
+    "__future__",
+    "inspect",
+    "math",
+    "numpy",
+    "os",
+    "pytest",
+    "surfaces",
+    "sys"
+  ],
+  "tests/test_render_worker.py": [
+    "__future__",
+    "os",
+    "pytest",
+    "render_worker",
+    "sys",
+    "warnings"
+  ],
+  "tests/test_status_bar_bbox.py": [
+    "__future__",
+    "math",
+    "pytest",
+    "re",
+    "surfaces"
+  ],
+  "tests/test_mesh_export.py": [
+    "__future__",
+    "pathlib"
+  ],
+  "tests/test_render_busy_spinner.py": [
+    "__future__",
+    "icons",
+    "pathlib"
+  ],
+  "tests/test_clip_domain.py": [
+    "PySide6",
+    "__future__",
+    "numpy",
+    "os",
+    "pytest",
+    "pyvista",
+    "sys",
+    "types",
+    "view_panel"
+  ],
+  "tests/test_clip_cache.py": [
+    "__future__",
+    "app",
+    "os",
+    "sys"
+  ],
+  "tests/__init__.py": [],
+  "tests/test_hq_disable_toast.py": [
+    "__future__",
+    "pathlib"
+  ],
+  "tests/test_numba_field_kernels.py": [
+    "__future__",
+    "numpy",
+    "os",
+    "pytest",
+    "surfaces",
+    "sys"
+  ],
+  "tests/test_typical_ms.py": [
+    "__future__",
+    "dataclasses",
+    "os",
+    "surfaces",
+    "sys"
+  ],
+  "tests/test_styles_palette.py": [
+    "PySide6",
+    "__future__",
+    "appearance_panel",
+    "pathlib",
+    "re",
+    "styles",
+    "surfaces",
+    "unittest"
+  ],
+  "tests/test_grid_helpers.py": [
+    "__future__",
+    "numpy",
+    "os",
+    "pytest",
+    "pyvista",
+    "surfaces",
+    "sys"
+  ],
+  "tests/test_debounce.py": [
+    "PySide6",
+    "__future__",
+    "os",
+    "pytest",
+    "sys",
+    "ui_helpers"
+  ],
+  "tests/test_parameters_panel.py": [
+    "__future__",
+    "math",
+    "os",
+    "pytest",
+    "surfaces",
+    "sys"
+  ],
+  "tests/test_qsettings_persistence.py": [
+    "__future__",
+    "pathlib"
+  ],
+  "tests/test_render_queue_latest.py": [
+    "__future__",
+    "os",
+    "sys"
+  ],
+  "tests/test_icons.py": [
+    "PySide6",
+    "__future__",
+    "icons",
+    "importlib",
+    "os",
+    "pytest",
+    "re",
+    "styles",
+    "sys",
+    "unittest"
+  ],
+  "tests/test_marching_cubes_empty.py": [
+    "__future__",
+    "numpy",
+    "os",
+    "pytest",
+    "surfaces",
+    "sys"
+  ],
+  "tests/test_coarse_n.py": [
+    "__future__",
+    "numpy",
+    "os",
+    "pathlib",
+    "pytest",
+    "surfaces",
+    "sys"
+  ],
+  "tests/test_parameter_grid.py": [
+    "__future__",
+    "os",
+    "parameter_grid",
+    "pytest",
+    "surfaces",
+    "sys"
+  ]
+}

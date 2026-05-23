@@ -1,0 +1,60 @@
+{
+  "id": "restructure-full-audit-2026q2-r1",
+  "created_at": "2026-05-23T17:23:26Z",
+  "updated_at": "2026-05-23T17:33:07Z",
+  "phase": "audit-complete",
+  "phase_history": [
+    {
+      "phase": "init",
+      "at": "2026-05-23T17:23:26Z"
+    },
+    {
+      "phase": "audit-running",
+      "at": "2026-05-23T17:23:35Z"
+    },
+    {
+      "phase": "audit-complete",
+      "at": "2026-05-23T17:33:07Z"
+    }
+  ],
+  "restructure_brief": "Broad cleanup audit of the AVC repo. Surface and address structural improvements: monolith hotspots (app.py 1893 LOC, surfaces.py 1808 LOC), the dual parameter_panel implementations (parameters_panel.py vs parameter_grid_panel.py), missing top-level files (LICENSE, CHANGELOG, AGENTS.md, pyproject.toml), the src-vs-flat layout question for an 11-file flat app, the four panel files at root that could group into panels/, and any AI-navigability gaps. The current layout is flat: 11 .py files at root, tests/ directory, .claude/ and .github/ standard tool folders. AI-1..AI-15 invariants from .claude/references/app-invariants.md are inviolable. Conservative bias: prefer low-risk wins (panels/ subpackage, AGENTS.md symlink, dead-code consolidation if parameter_grid_panel.py supersedes parameters_panel.py) over speculative reorganizations (src/avcs/ migration only if scouts surface strong evidence). Author all batches in low-risk-first order so high-risk Extract Class operations are gated behind successful low-risk batches.",
+  "stop_after_phase": null,
+  "audit_briefs": [
+    ".claude/notes/repository-architect/restructure-full-audit-2026q2-r1/audit/current-state-brief.md",
+    ".claude/notes/repository-architect/restructure-full-audit-2026q2-r1/audit/best-practices-brief.md",
+    ".claude/notes/repository-architect/restructure-full-audit-2026q2-r1/audit/refactor-pattern-brief.md"
+  ],
+  "evaluator_report": ".claude/notes/repository-architect/restructure-full-audit-2026q2-r1/audit/evaluator-report.md",
+  "plan_path": null,
+  "symbol_map_path": null,
+  "design_adversary_path": null,
+  "design_adversary_finding_counts": {
+    "critical": 0,
+    "high": 0,
+    "medium": 0,
+    "low": 0
+  },
+  "restructure_base": null,
+  "baseline_dir": null,
+  "dry_run_report_path": null,
+  "dry_run_verdict": null,
+  "execute_batches_planned": 0,
+  "execute_batches_landed": 0,
+  "execute_commit_range": null,
+  "execute_commits": [],
+  "parity_verifier_reports": [],
+  "anchor_updater_reports": [],
+  "execution_critic_path": null,
+  "test_suggester_path": null,
+  "critique_finding_counts": {
+    "critical": 0,
+    "high": 0,
+    "medium": 0,
+    "low": 0
+  },
+  "rectification_commit": null,
+  "fixed_findings": [],
+  "deferred_findings": [],
+  "invalidated_findings": [],
+  "user_gate_history": []
+}
