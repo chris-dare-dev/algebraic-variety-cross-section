@@ -374,6 +374,313 @@ def _enriques_fig1_field_kernel(g, c, out):
                 out[i, j, k] = val
 
 
+# ---------------------------------------------------------------------------
+# realtime-variety-render-e5b (CAND-2 v1) — Numba field kernels for the 9
+# remaining implicit generators.  Mechanical extension of the e5 v0 pattern
+# above (_fermat_field_kernel / _enriques_fig1_field_kernel): same
+# @njit(parallel=True, cache=True), same prange-outer-i / range j/k loop
+# structure, term-by-term operator-order-identical transcription of the
+# generator's former NumPy expression, np.clip folded as scalar if/elif.
+# Powers ≥3 are written as explicit multiplies (x*x*x, x2 = x*x; x4 = x2*x2;
+# x5 = x4*x, x2*x2*x2) to keep per-voxel IEEE-754 op order reproducible
+# against the NumPy reference at rtol=atol=1e-9 (e5 spike § R1, R2).
+# Every ValueError / RuntimeWarning these kernels' callers rely on fires in
+# the generator BEFORE the kernel call — AI-14 preserved.
+# ---------------------------------------------------------------------------
+
+
+@njit(parallel=True, cache=True)
+def _kummer_field_kernel(g, mu_squared, lam, sqrt2, out):
+    """Fill *out* with the Kummer-quartic scalar field on the ``g`` grid.
+
+    Transcribes ``kummer_surface``'s NumPy expression term-for-term:
+    ``(X² + Y² + Z² − μ²)² − λ · p · q · r · s`` with
+    ``p,q,r,s = 1∓Z∓√2X, 1±Z±√2Y``, then ``np.clip(F, ±50)``.
+    ``λ`` and ``√2`` are scalar pre-computes that stay in the generator.
+    """
+    n = g.shape[0]
+    for i in prange(n):
+        x = g[i]
+        x2 = x * x
+        sqrt2_x = sqrt2 * x
+        for j in range(n):
+            y = g[j]
+            y2 = y * y
+            sqrt2_y = sqrt2 * y
+            for k in range(n):
+                z = g[k]
+                z2 = z * z
+                p_ = 1.0 - z - sqrt2_x
+                q_ = 1.0 - z + sqrt2_x
+                r_ = 1.0 + z + sqrt2_y
+                s_ = 1.0 + z - sqrt2_y
+                base = x2 + y2 + z2 - mu_squared
+                val = base * base - lam * p_ * q_ * r_ * s_
+                if val < -50.0:
+                    val = -50.0
+                elif val > 50.0:
+                    val = 50.0
+                out[i, j, k] = val
+
+
+@njit(parallel=True, cache=True)
+def _enriques_fig2_field_kernel(g, lam0, lam3, c, out):
+    """Fill *out* with the Enriques fig 2 (Dolgachev λ-family) field.
+
+    Transcribes ``enriques_figure_2``'s NumPy expression term-for-term:
+    ``λ₀·X²Y²Z² + 1·Y²Z² + 1·X²Z² + λ₃·X²Y² + c·(XYZ)·(1+X²+Y²+Z²)``,
+    then ``np.clip(F, ±10)``.  The literal ``1.0 *`` factors on the middle
+    two terms are preserved verbatim for IEEE-754 op-order parity.
+    """
+    n = g.shape[0]
+    for i in prange(n):
+        x = g[i]
+        x2 = x * x
+        for j in range(n):
+            y = g[j]
+            y2 = y * y
+            for k in range(n):
+                z = g[k]
+                z2 = z * z
+                val = (
+                    lam0 * x2 * y2 * z2
+                    + 1.0 * y2 * z2
+                    + 1.0 * x2 * z2
+                    + lam3 * x2 * y2
+                    + c * (x * y * z) * (1.0 + x2 + y2 + z2)
+                )
+                if val < -10.0:
+                    val = -10.0
+                elif val > 10.0:
+                    val = 10.0
+                out[i, j, k] = val
+
+
+@njit(parallel=True, cache=True)
+def _enriques_fig3_field_kernel(g, k_coef, out):
+    """Fill *out* with the Cayley quartic symmetroid field (Enriques fig 3).
+
+    Transcribes ``enriques_figure_3``'s NumPy expression term-for-term:
+    ``s = X+Y+Z+XY+XZ+YZ;  F = s² − k·X·Y·Z``, then ``np.clip(F, ±50)``.
+    Loop variable ``k`` shadows the conventional name; the kernel param is
+    named ``k_coef`` to avoid the collision.
+    """
+    n = g.shape[0]
+    for i in prange(n):
+        x = g[i]
+        for j in range(n):
+            y = g[j]
+            for k in range(n):
+                z = g[k]
+                s = x + y + z + x * y + x * z + y * z
+                val = s * s - k_coef * x * y * z
+                if val < -50.0:
+                    val = -50.0
+                elif val > 50.0:
+                    val = 50.0
+                out[i, j, k] = val
+
+
+@njit(parallel=True, cache=True)
+def _enriques_fig4_field_kernel(g, tau, phi2, one_plus_2phi, out):
+    """Fill *out* with the Endrass-icosahedral sextic field (Enriques fig 4).
+
+    Transcribes ``enriques_figure_4``'s NumPy expression term-for-term:
+    ``P = 4·(φ²X² − Y²)(φ²Y² − Z²)(φ²Z² − X²);  Q = (1+2φ)·(X²+Y²+Z²−1)²;
+    F = P − τ·Q``, then ``np.clip(F, ±20)``.  Scalar constants ``φ²`` and
+    ``1+2φ`` are pre-computed in the generator and passed in.
+    """
+    n = g.shape[0]
+    for i in prange(n):
+        x = g[i]
+        x2 = x * x
+        for j in range(n):
+            y = g[j]
+            y2 = y * y
+            for k in range(n):
+                z = g[k]
+                z2 = z * z
+                t0 = phi2 * x2 - y2
+                t1 = phi2 * y2 - z2
+                t2 = phi2 * z2 - x2
+                P = 4.0 * t0 * t1 * t2
+                inner = x2 + y2 + z2 - 1.0
+                Q = one_plus_2phi * inner * inner
+                val = P - tau * Q
+                if val < -20.0:
+                    val = -20.0
+                elif val > 20.0:
+                    val = 20.0
+                out[i, j, k] = val
+
+
+@njit(parallel=True, cache=True)
+def _dwork_field_kernel(g, psi, out):
+    """Fill *out* with the Dwork-pencil quintic real-affine-slice field.
+
+    Transcribes ``calabi_yau_dwork``'s NumPy expression: ``X⁵ + Y⁵ + Z⁵ + 2
+    − 5ψ·XYZ``, then ``np.clip(F, ±100)``.  Powers of 5 are written as
+    explicit multiplies via the ``x2 → x4 → x5`` chain to keep per-voxel
+    IEEE-754 op order reproducible against the NumPy reference (the only
+    new kernel in v1 that uses a power not exercised by the e5 v0
+    templates).  The ψ ≈ 1 conifold ``RuntimeWarning`` fires in the
+    generator BEFORE this kernel runs — AI-14 preserved.
+    """
+    n = g.shape[0]
+    for i in prange(n):
+        x = g[i]
+        x2 = x * x
+        x4 = x2 * x2
+        x5 = x4 * x
+        for j in range(n):
+            y = g[j]
+            y2 = y * y
+            y4 = y2 * y2
+            y5 = y4 * y
+            for k in range(n):
+                z = g[k]
+                z2 = z * z
+                z4 = z2 * z2
+                z5 = z4 * z
+                val = x5 + y5 + z5 + 2.0 - 5.0 * psi * x * y * z
+                if val < -100.0:
+                    val = -100.0
+                elif val > 100.0:
+                    val = 100.0
+                out[i, j, k] = val
+
+
+@njit(parallel=True, cache=True)
+def _klein_cubic_field_kernel(g, z0, out):
+    """Fill *out* with the Klein cubic threefold slice field (Fano fig 1).
+
+    Transcribes ``fano_klein_cubic``'s NumPy expression term-for-term:
+    ``X + X²Y + Y²Z + z₀·Z² + z₀²``, then ``np.clip(F, ±50)``.  This is the
+    one v1 kernel whose field is asymmetric in (x,y,z) — an axis-transpose
+    bug would be detected by the equivalence test.
+    """
+    n = g.shape[0]
+    for i in prange(n):
+        x = g[i]
+        x2 = x * x
+        for j in range(n):
+            y = g[j]
+            y2 = y * y
+            for k in range(n):
+                z = g[k]
+                val = x + x2 * y + y2 * z + z0 * z * z + z0 * z0
+                if val < -50.0:
+                    val = -50.0
+                elif val > 50.0:
+                    val = 50.0
+                out[i, j, k] = val
+
+
+@njit(parallel=True, cache=True)
+def _segre_cubic_field_kernel(g, a, b, out):
+    """Fill *out* with the Segre cubic slice field (Fano fig 2).
+
+    Transcribes ``fano_segre_cubic``'s NumPy expression term-for-term:
+    ``s = X+Y+Z+a+b;  F = X³ + Y³ + Z³ + a³ + b³ − s³``, then
+    ``np.clip(F, ±1000)``.  Cubes are written as explicit multiplies.
+    The ``s`` left-to-right add order ``x + y + z + a + b`` matches NumPy
+    elementwise evaluation exactly.
+    """
+    a3 = a * a * a
+    b3 = b * b * b
+    n = g.shape[0]
+    for i in prange(n):
+        x = g[i]
+        x3 = x * x * x
+        for j in range(n):
+            y = g[j]
+            y3 = y * y * y
+            for k in range(n):
+                z = g[k]
+                z3 = z * z * z
+                s = x + y + z + a + b
+                s3 = s * s * s
+                val = x3 + y3 + z3 + a3 + b3 - s3
+                if val < -1000.0:
+                    val = -1000.0
+                elif val > 1000.0:
+                    val = 1000.0
+                out[i, j, k] = val
+
+
+@njit(parallel=True, cache=True)
+def _two_quadrics_field_kernel(g, p, q, mu, eps,
+                               lam0, lam1, lam2, lam3, lam4, out):
+    """Fill *out* with the two-quadrics ε-tube field (Fano fig 3).
+
+    Transcribes ``fano_two_quadrics``'s NumPy expression term-for-term:
+    ``Q₁ = X² + Y² + Z² + p² + q² − 1;  Q₂ = λ₀X² + λ₁Y² + λ₂Z² + λ₃p² +
+    λ₄q² − μ;  F = Q₁² + Q₂² − ε²``, then ``np.clip(F, ±200)``.  The 5 λ
+    coefficients are the hard-coded ``(-0.5, 0.0, 0.5, 1.0, 1.5)`` tuple
+    from the generator; passed in as scalar args for parameterization.
+    The ε < 0.08 ``RuntimeWarning`` fires in the generator BEFORE this
+    kernel runs — AI-14 preserved.
+    """
+    p2 = p * p
+    q2 = q * q
+    eps2 = eps * eps
+    n = g.shape[0]
+    for i in prange(n):
+        x = g[i]
+        x2 = x * x
+        for j in range(n):
+            y = g[j]
+            y2 = y * y
+            for k in range(n):
+                z = g[k]
+                z2 = z * z
+                Q1 = x2 + y2 + z2 + p2 + q2 - 1.0
+                Q2 = (lam0 * x2 + lam1 * y2 + lam2 * z2
+                      + lam3 * p2 + lam4 * q2 - mu)
+                val = Q1 * Q1 + Q2 * Q2 - eps2
+                if val < -200.0:
+                    val = -200.0
+                elif val > 200.0:
+                    val = 200.0
+                out[i, j, k] = val
+
+
+@njit(parallel=True, cache=True)
+def _sextic_double_solid_field_kernel(g, alpha, r6, out):
+    """Fill *out* with the sextic double solid two-sheet branch field
+    (Fano fig 4).
+
+    Transcribes ``fano_sextic_double_solid``'s NumPy expression
+    term-for-term: ``Z² + X⁶ + Y⁶ + α·X²Y²·(X²+Y²) − R⁶``, then
+    ``np.clip(F, ±200)``.  Sixth powers are written as ``x²·x²·x²``
+    (matches the NumPy reference's literal ``X2*X2*X2``).  ``R⁶`` is a
+    scalar pre-compute that stays in the generator.
+    """
+    n = g.shape[0]
+    for i in prange(n):
+        x = g[i]
+        x2 = x * x
+        x6 = x2 * x2 * x2
+        for j in range(n):
+            y = g[j]
+            y2 = y * y
+            y6 = y2 * y2 * y2
+            for k in range(n):
+                z = g[k]
+                val = (
+                    z * z
+                    + x6
+                    + y6
+                    + alpha * x2 * y2 * (x2 + y2)
+                    - r6
+                )
+                if val < -200.0:
+                    val = -200.0
+                elif val > 200.0:
+                    val = 200.0
+                out[i, j, k] = val
+
+
 def _grid_to_polydata(X: np.ndarray, Y: np.ndarray, Z: np.ndarray) -> pv.PolyData:
     """Build a triangulated PolyData from a 2D grid of (X, Y, Z) values.
 
@@ -555,16 +862,17 @@ def kummer_surface(mu_squared: float = 1.3, n: int = 240) -> pv.PolyData:
     bounds = max(2.6, 2.6 + 2.0 * (mu_squared - 1.0))
     bounds = min(bounds, 6.0)
 
+    # realtime-variety-render-e5b (CAND-2 v1): field evaluated by the Numba
+    # JIT kernel `_kummer_field_kernel` (see the e5b kernel block in the
+    # Helpers section).  λ and √2 are scalar pre-computes that stay here in
+    # the generator -- the kernel only sees the float `g` axis + float
+    # scalars.  Pole and no-zero-set ValueErrors above fire BEFORE the
+    # kernel runs (AI-14 preserved).
+    n = int(round(n))
     g = np.linspace(-bounds, bounds, n)
-    X, Y, Z = np.meshgrid(g, g, g, indexing="ij")
-    s2 = np.sqrt(2.0)
-    p_ = 1.0 - Z - s2 * X
-    q_ = 1.0 - Z + s2 * X
-    r_ = 1.0 + Z + s2 * Y
-    s_ = 1.0 + Z - s2 * Y
-
-    F = (X * X + Y * Y + Z * Z - mu_squared) ** 2 - lam * p_ * q_ * r_ * s_
-    F = np.clip(F, -50.0, 50.0)
+    sqrt2 = np.sqrt(2.0)
+    F = np.empty((n, n, n), dtype=np.float64)
+    _kummer_field_kernel(g, mu_squared, lam, sqrt2, F)
     return _marching_cubes_to_polydata(F, bounds)
 
 
@@ -653,18 +961,14 @@ def enriques_figure_2(
     Reference: Dolgachev, *A Brief Introduction to Enriques Surfaces*,
     Kyoto 2013 lecture notes (arXiv:1412.7744), §3 "λ-family".
     """
+    # realtime-variety-render-e5b (CAND-2 v1): field evaluated by the Numba
+    # JIT kernel `_enriques_fig2_field_kernel`.  HQ-smoothing pass-through
+    # stays at the generator level (kernel only fills F).  AI-8: defensive
+    # int(round(n)) coercion (mirrors enriques_figure_1).
+    n = int(round(n))
     g = np.linspace(-bounds, bounds, n)
-    X, Y, Z = np.meshgrid(g, g, g, indexing="ij")
-    X2, Y2, Z2 = X * X, Y * Y, Z * Z
-
-    F = (
-        lam0 * X2 * Y2 * Z2
-        + 1.0 * Y2 * Z2          # λ₁ = 1
-        + 1.0 * X2 * Z2          # λ₂ = 1
-        + lam3 * X2 * Y2
-        + c * (X * Y * Z) * (1.0 + X2 + Y2 + Z2)
-    )
-    F = np.clip(F, -10.0, 10.0)
+    F = np.empty((n, n, n), dtype=np.float64)
+    _enriques_fig2_field_kernel(g, lam0, lam3, c, F)
     # enriques-hq-smoothing-2026q3-e1: see enriques_figure_1 for the rationale.
     return _marching_cubes_to_polydata(
         F, bounds, second_smooth_iter=40 if hq_smoothing else 0
@@ -703,12 +1007,13 @@ def enriques_figure_3(
     References: Cossec, "Reye Congruences," Trans. AMS 280 (1983);
     Dolgachev–Keum, Trans. AMS 354 (2002).
     """
+    # realtime-variety-render-e5b (CAND-2 v1): field evaluated by the Numba
+    # JIT kernel `_enriques_fig3_field_kernel` (Cayley quartic symmetroid).
+    # AI-8: defensive int(round(n)) coercion.
+    n = int(round(n))
     g = np.linspace(-bounds, bounds, n)
-    X, Y, Z = np.meshgrid(g, g, g, indexing="ij")
-
-    s = X + Y + Z + X * Y + X * Z + Y * Z
-    F = s * s - k * X * Y * Z
-    F = np.clip(F, -50.0, 50.0)
+    F = np.empty((n, n, n), dtype=np.float64)
+    _enriques_fig3_field_kernel(g, k, F)
     return _marching_cubes_to_polydata(F, bounds)
 
 
@@ -745,18 +1050,18 @@ def enriques_figure_4(
     References: Barth, *J. Algebraic Geom.* 5 (1996); Endrass,
     *J. reine angew. Math.* 485 (1997).
     """
+    # realtime-variety-render-e5b (CAND-2 v1): field evaluated by the Numba
+    # JIT kernel `_enriques_fig4_field_kernel`.  φ² and 1+2φ are scalar
+    # pre-computes that stay here in the generator and pass into the kernel.
+    # AI-8: defensive int(round(n)) coercion.
     phi = (1.0 + np.sqrt(5.0)) / 2.0
     phi2 = phi * phi
     one_plus_2phi = 1.0 + 2.0 * phi
 
+    n = int(round(n))
     g = np.linspace(-bounds, bounds, n)
-    X, Y, Z = np.meshgrid(g, g, g, indexing="ij")
-    X2, Y2, Z2 = X * X, Y * Y, Z * Z
-
-    P = 4.0 * (phi2 * X2 - Y2) * (phi2 * Y2 - Z2) * (phi2 * Z2 - X2)
-    Q = one_plus_2phi * (X2 + Y2 + Z2 - 1.0) ** 2
-    F = P - tau * Q
-    F = np.clip(F, -20.0, 20.0)
+    F = np.empty((n, n, n), dtype=np.float64)
+    _enriques_fig4_field_kernel(g, tau, phi2, one_plus_2phi, F)
     return _marching_cubes_to_polydata(F, bounds)
 
 
@@ -988,10 +1293,16 @@ def calabi_yau_dwork(
             "displayed mesh is the smooth complement.",
             category=RuntimeWarning,
         )
+    # realtime-variety-render-e5b (CAND-2 v1): field evaluated by the Numba
+    # JIT kernel `_dwork_field_kernel` -- the only v1 kernel with **5 (the
+    # explicit x2 -> x4 -> x5 multiply chain preserves IEEE-754 op-order
+    # parity with the NumPy reference at rtol=atol=1e-9).  The conifold
+    # RuntimeWarning above fires BEFORE this kernel runs -- AI-14
+    # preserved.  AI-8: defensive int(round(n)).
+    n = int(round(n))
     g = np.linspace(-bounds, bounds, n)
-    X, Y, Z = np.meshgrid(g, g, g, indexing="ij")
-    F = X**5 + Y**5 + Z**5 + 2.0 - 5.0 * psi * X * Y * Z
-    F = np.clip(F, -100.0, 100.0)
+    F = np.empty((n, n, n), dtype=np.float64)
+    _dwork_field_kernel(g, psi, F)
     return _marching_cubes_to_polydata(F, bounds)
 
 
@@ -1039,11 +1350,13 @@ def fano_klein_cubic(
     - Adler, "On the automorphism group of a certain cubic threefold,"
       arXiv:math/0102079.
     """
+    # realtime-variety-render-e5b (CAND-2 v1): field evaluated by the Numba
+    # JIT kernel `_klein_cubic_field_kernel`.  AI-8: defensive int(round(n)).
     bounds = 2.0
+    n = int(round(n))
     g = np.linspace(-bounds, bounds, n)
-    X, Y, Z = np.meshgrid(g, g, g, indexing="ij")
-    F = X + X * X * Y + Y * Y * Z + z0 * Z * Z + z0 * z0
-    F = np.clip(F, -50.0, 50.0)
+    F = np.empty((n, n, n), dtype=np.float64)
+    _klein_cubic_field_kernel(g, z0, F)
     return _marching_cubes_to_polydata(F, bounds)
 
 
@@ -1080,15 +1393,16 @@ def fano_segre_cubic(
     - Wikipedia, "Segre cubic."
     - Hunt, "The Geometry of Some Special Arithmetic Quotients," LNM 1637.
     """
+    # realtime-variety-render-e5b (CAND-2 v1): field evaluated by the Numba
+    # JIT kernel `_segre_cubic_field_kernel`.  Cubes are explicit multiplies.
+    # AI-8: defensive int(round(n)).
     # bounds=2.5 (vs 2.0 elsewhere): the Segre cubic real zero set reaches r ≈ 2.1 from
     # the origin at default (a, b); a 2.0 box clips the outer lobes.
     bounds = 2.5
+    n = int(round(n))
     g = np.linspace(-bounds, bounds, n)
-    X, Y, Z = np.meshgrid(g, g, g, indexing="ij")
-    s = X + Y + Z + a + b
-    F = X**3 + Y**3 + Z**3 + a**3 + b**3 - s**3
-    # cubic field grows as ~(2a+2b+5)³ ≈ 800 at slider extremes; ±1000 covers all reachable corners.
-    F = np.clip(F, -1000.0, 1000.0)
+    F = np.empty((n, n, n), dtype=np.float64)
+    _segre_cubic_field_kernel(g, a, b, F)
     return _marching_cubes_to_polydata(F, bounds)
 
 
@@ -1144,13 +1458,19 @@ def fano_two_quadrics(
     # lam[1]=0: Q₂ has no Y² term, so Q₂=0 is a cylinder in (X,Z) extended in Y;
     # the tube wraps a Y-symmetric band rather than an isolated curve.
     lam = (-0.5, 0.0, 0.5, 1.0, 1.5)
+    # realtime-variety-render-e5b (CAND-2 v1): field evaluated by the Numba
+    # JIT kernel `_two_quadrics_field_kernel`.  The 5 λ coefficients pass
+    # in as scalar args (matches the e5 template's "only scalar params"
+    # style; Numba supports typed tuples but scalars are simpler).  The
+    # ε < 0.08 RuntimeWarning above fires BEFORE this kernel runs (AI-14).
+    # AI-8: defensive int(round(n)).
+    n = int(round(n))
     g = np.linspace(-bounds, bounds, n)
-    X, Y, Z = np.meshgrid(g, g, g, indexing="ij")
-    Q1 = X * X + Y * Y + Z * Z + p * p + q * q - 1.0
-    Q2 = (lam[0] * X * X + lam[1] * Y * Y + lam[2] * Z * Z
-          + lam[3] * p * p + lam[4] * q * q - mu)
-    F = Q1 * Q1 + Q2 * Q2 - eps * eps
-    F = np.clip(F, -200.0, 200.0)
+    F = np.empty((n, n, n), dtype=np.float64)
+    _two_quadrics_field_kernel(
+        g, p, q, mu, eps,
+        lam[0], lam[1], lam[2], lam[3], lam[4], F,
+    )
     return _marching_cubes_to_polydata(F, bounds)
 
 
@@ -1203,18 +1523,17 @@ def fano_sextic_double_solid(
     - Iskovskikh & Prokhorov, *Fano Varieties*, Encyclopaedia of Math. Sci. 47.
     - Fanography, family 1-1 (sextic double solid).
     """
+    # realtime-variety-render-e5b (CAND-2 v1): field evaluated by the Numba
+    # JIT kernel `_sextic_double_solid_field_kernel`.  R⁶ is a scalar
+    # pre-compute that stays here in the generator.  AI-8: defensive
+    # int(round(n)).
     bounds = 2.0
+    n = int(round(n))
     g = np.linspace(-bounds, bounds, n)
-    X, Y, Z = np.meshgrid(g, g, g, indexing="ij")
-    X2, Y2 = X * X, Y * Y
-    F = (
-        Z * Z
-        + X2 * X2 * X2
-        + Y2 * Y2 * Y2
-        + alpha * X2 * Y2 * (X2 + Y2)
-        - R**6
-    )
-    F = np.clip(F, -200.0, 200.0)
+    r2 = R * R
+    r6 = r2 * r2 * r2
+    F = np.empty((n, n, n), dtype=np.float64)
+    _sextic_double_solid_field_kernel(g, alpha, r6, F)
     return _marching_cubes_to_polydata(F, bounds)
 
 
