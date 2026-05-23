@@ -1,8 +1,8 @@
 {
   "id": "hq-smoothing-label-rename-2026q3-e1",
   "created_at": "2026-05-22T23:47:14Z",
-  "updated_at": "2026-05-23T00:04:40Z",
-  "phase": "rectify-running",
+  "updated_at": "2026-05-23T00:06:13Z",
+  "phase": "complete",
   "phase_history": [
     {
       "phase": "init",
@@ -35,6 +35,10 @@
     {
       "phase": "rectify-running",
       "at": "2026-05-23T00:04:40Z"
+    },
+    {
+      "phase": "complete",
+      "at": "2026-05-23T00:06:13Z"
     }
   ],
   "milestone_brief": "Close F-L1 from enriques-hq-smoothing-2026q3-e1 (deferred). Rename the user-facing \"HQ smoothing\" label to \"Double-pass smooth\". The frontend-ux critic flagged \"HQ\" as marketing-tone / opaque; \"Double-pass smooth\" is descriptive (the feature applies a second Taubin smoothing pass after the first). Scope: appearance_panel.py button label + tooltip + nearby comments; app.py status-bar template variables that interpolate \"[HQ]\" or \"HQ\"; tests/test_enriques_hq_smoothing.py + tests/test_styles_palette.py source-text assertions that grep for \"HQ smoothing\"; CONTEXT.md \u00a74.3a + \u00a78.16 doc references. AI-15 honesty check: \"Double-pass smooth\" is technically accurate \u2014 the implementation runs exactly two Taubin passes (n_iter=20+40). Internal symbol names (hq_smoothing, _hq_smoothing_cb, set_hq_smoothing_eligible, hq_smoothing_changed, HQ_SMOOTHING_ICON_NAME, _HQ_SMOOTHING_ELIGIBLE_SUBTYPES) can stay as-is to avoid blast-radius churn \u2014 only USER-VISIBLE strings rename. Test for both the new label appearing and the old label not appearing (regression guard).",
@@ -63,9 +67,19 @@
     "medium": 3,
     "low": 4
   },
-  "rectification_commit": null,
-  "fixed_findings": [],
-  "deferred_findings": [],
+  "rectification_commit": "44d8f7b93b3b6912fbf0f8c43c6b78d792596c26",
+  "fixed_findings": [
+    "M1_frontend",
+    "L1_adversary"
+  ],
+  "deferred_findings": [
+    "H1_process",
+    "M2_frontend",
+    "M3_frontend",
+    "L1_frontend",
+    "L2_frontend",
+    "L3_frontend"
+  ],
   "invalidated_findings": [],
   "regression_tests_added": []
 }
