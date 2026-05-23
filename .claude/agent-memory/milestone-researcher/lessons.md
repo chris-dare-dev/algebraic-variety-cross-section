@@ -223,3 +223,14 @@
 - `closeEvent` save ordering: `_save_settings()` FIRST, then signal disconnect, then `waitForDone(30000)`, then `plotter.close()`, then `super().closeEvent(event)`.
 - AI-2 compliant tests: pure source-text greps; `QSettings()` is never constructed in tests. Pattern: `_APP_SRC.find("...")` for positional checks, `assert "..." in _APP_SRC` for presence.
 - AI-9 audit note: `setCurrentText()` fires handlers that call `_render_current` (correct), and also write-back `setValue()` (safe no-op). The write-back does NOT call `processEvents` and does NOT re-enter `_on_variety_changed`.
+
+## mesh-export-stl-obj-ply-2026q3-e1 (2026-05-23)
+- "Lift §9 non-goal" pattern confirmed: the §9 deferral text itself contains the implementation recipe ("one line: mesh.save(...)") — quote it in the brief to anchor the authorization.
+- `_clear_actor()` does NOT reset `_raw_mesh`. When the user reverts to "-- Select --" placeholder, `_clear_actor()` is called but `_raw_mesh` remains non-None. Any feature guarded on `_raw_mesh is not None` needs an additional explicit disable in the `_on_variety_changed` else branch (line 524) to match user expectation.
+- `mesh.save()` raises: `ValueError` for unsupported extension, `PermissionError` for denied I/O, `FileNotFoundError` for missing parent dir. The `OSError` precedent from qsettings closeEvent is too narrow here — use broad `except Exception` for export handlers that call `mesh.save`.
+- macOS and Linux QFileDialog.getSaveFileName does NOT auto-append extensions from the selected filter when the user types a name manually. Pre-validate the extension in the handler before calling save.
+- PyVista PLY preserves the `Normals` point array through round-trip save/reload (verified 0.48.0). STL and OBJ recompute face normals at save time (`recompute_normals=True` default).
+- Export action lifecycle: disable at construction (in `_build_file_menu`), enable in `_on_mesh_ready` success, disable in `_on_mesh_ready` error, disable in `_on_variety_changed` else branch. Four sites total.
+- `QAction` is already imported in app.py (line 14); only `QFileDialog` needs adding to the PySide6.QtWidgets import block.
+- File menu position: calling `_build_file_menu()` BEFORE `_build_theme_menu()` in `__init__` automatically places File left of Theme (Qt addMenu order = left-to-right).
+- Diff size for a simple File menu + handler + tests: ~141 LOC, 3 files. Inline (no new module). The 8 tests are all source-text greps (AI-2 compliant).

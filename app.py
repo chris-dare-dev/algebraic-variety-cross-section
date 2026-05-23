@@ -21,6 +21,7 @@ from PySide6.QtWidgets import (
     QApplication,
     QComboBox,
     QDockWidget,
+    QFileDialog,
     QHBoxLayout,
     QLabel,
     QMainWindow,
@@ -278,6 +279,11 @@ class MainWindow(QMainWindow):
         # `dark` because the VTK viewport is always `#2f2f2f` — dark chrome
         # is the coherent baseline, not the optional variant.
         self._active_theme: str = "dark"
+        # mesh-export-stl-obj-ply-2026q3-e1 (CONTEXT.md §9 lift): File
+        # menu is constructed BEFORE Theme so it lands leftmost in the
+        # menu bar per Qt / macOS / Windows convention.  Menu order
+        # follows addMenu() call order.
+        self._build_file_menu()
         self._build_theme_menu()
 
         # --- View dock (left) ------------------------------------------------
@@ -543,6 +549,15 @@ class MainWindow(QMainWindow):
         else:
             self._set_subtype_enabled(False)
             self._clear_actor()
+            # mesh-export-stl-obj-ply-2026q3-e1: explicit disable here
+            # because _clear_actor does NOT reset self._raw_mesh — the
+            # placeholder branch leaves the prior mesh in place but the
+            # user-visible actor is gone, so exporting at this point
+            # would silently save the stale prior surface (a confusing
+            # "I exported the empty viewport but got an Enriques mesh"
+            # behavior).  Mirror of the disable in _on_mesh_ready's
+            # error path.
+            self._export_mesh_action.setEnabled(False)
             self.statusBar().showMessage("Choose a variety to begin.")
             self.parameters_panel.set_context_hint("")
         self.subtype_combo.blockSignals(False)
@@ -919,6 +934,11 @@ class MainWindow(QMainWindow):
             if not result.ok:
                 self._raw_mesh = None  # don't let a stale mesh be domain-clipped
                 self._invalidate_clipped_mesh()
+                # mesh-export-stl-obj-ply-2026q3-e1: re-disable the export
+                # action so the user can't save a stale prior mesh after a
+                # failed regenerate.  Paired with the setEnabled(True) in
+                # the success path below.
+                self._export_mesh_action.setEnabled(False)
                 # Fall back to the exception type name so the status bar is
                 # never the content-free "Error: " (a bare MemoryError, an
                 # arg-less exception, etc. give an empty str(exc)).
@@ -948,6 +968,10 @@ class MainWindow(QMainWindow):
             # the raw mesh has changed.
             self._raw_mesh = mesh
             self._invalidate_clipped_mesh()
+            # mesh-export-stl-obj-ply-2026q3-e1: the export action becomes
+            # available the moment a valid raw mesh exists.  Synchronous
+            # setEnabled — no signal storms, AI-9 safe.
+            self._export_mesh_action.setEnabled(True)
             # CAND-12: one stdout log line per completed generate().
             print(f"[render] {surface.label}: {result.gen_ms:.0f} ms")
 
@@ -1221,6 +1245,123 @@ class MainWindow(QMainWindow):
         if spec.step >= 0.1:
             return f"{value:.2f}"
         return f"{value:.3f}"
+
+    # --- file menu / mesh export -------------------------------------------
+
+    def _build_file_menu(self) -> None:
+        """Construct the menu bar's File menu (leftmost, before Theme).
+
+        Single action today: "Export Mesh…" (Ctrl+E).  The ``…`` U+2026
+        ellipsis follows Apple HIG / Qt convention indicating a dialog
+        follows.  The action is disabled at construction and re-enabled
+        only after a successful mesh render via ``_on_mesh_ready`` (see
+        the setEnabled(True) call there).  Disabled again on the error
+        path and on the variety-clear branch in ``_on_variety_changed``
+        because ``_clear_actor`` does NOT reset ``self._raw_mesh`` —
+        the variety-clear path leaves the previous mesh in place but
+        the user-visible actor is gone, so exporting at that point
+        would write the stale prior surface.  Explicit disable in that
+        branch keeps the menu state honest.
+
+        AI-9 safe: ``QAction.setEnabled`` is synchronous, no
+        ``processEvents``.  ``QFileDialog.getSaveFileName`` runs its own
+        modal event loop but returns before any ``_render_current``
+        re-entry can happen (the user can't drag a slider while the
+        save dialog is up).
+
+        mesh-export-stl-obj-ply-2026q3-e1 (CONTEXT.md §9 lift).
+        """
+        file_menu = self.menuBar().addMenu("&File")
+        self._export_mesh_action = QAction("Export Mesh…", self)
+        self._export_mesh_action.setShortcut(QKeySequence("Ctrl+E"))
+        self._export_mesh_action.setEnabled(False)
+        self._export_mesh_action.setToolTip(
+            "Save the current surface mesh to a file.\n"
+            "Supported formats: STL, OBJ, PLY (PyVista routes by extension).\n"
+            "The exported mesh is the full unclipped surface — the domain "
+            "clip is a viewing convention, not applied to the export.\n"
+            "AI-15: the mathematical caveats of the active variety "
+            "(real shadow, birational model, parametric cross-section) "
+            "carry through to the exported file — see the variety "
+            "tooltip for the specifics."
+        )
+        self._export_mesh_action.triggered.connect(self._on_export_mesh)
+        file_menu.addAction(self._export_mesh_action)
+
+    def _on_export_mesh(self) -> None:
+        """Save ``self._raw_mesh`` to STL / OBJ / PLY via PyVista.
+
+        Triggered by File → Export Mesh… (Ctrl+E).  The exported mesh is
+        ``self._raw_mesh`` — the unclipped marching-cubes / Flying-Edges +
+        Taubin output (or, for the Hanson parametric family, the
+        ``StructuredGrid``→``PolyData``-extracted parametric mesh) — NOT
+        the domain-clipped mesh.  The clip is a *viewing* convention;
+        downstream analysis tools should receive the canonical algebraic-
+        variety surface.
+
+        AI-9: ``mesh.save()`` is synchronous on the GUI thread.  For the
+        ~100k-vertex meshes this app produces at default grid resolution
+        (n=240), measured save time is <50 ms — imperceptible.  If a
+        future variety or higher grid resolution produces >1M vertices
+        and the save crosses ~500 ms, consider offloading to a
+        ``MeshExportWorker`` modeled on ``render_worker.MeshWorker`` and
+        flipping the existing render-busy spinner on for the duration.
+
+        AI-15: existing per-variety tooltips already cover the
+        shadow/birational/parametric-slice caveats — the exported file
+        inherits them; no new claims are made by the export itself.
+        """
+        if self._raw_mesh is None:
+            # Defensive: the action is disabled-when-_raw_mesh-is-None at
+            # construction time and gated by the lifecycle in
+            # _on_mesh_ready / _on_variety_changed, but a future keyboard-
+            # shortcut firing path or stale-action programmatic trigger
+            # should not crash.
+            return
+        surface = self._current_surface
+        if surface is not None:
+            # Build a discoverable default filename from the surface label,
+            # sanitised for filesystem use (spaces → underscores, slashes
+            # → dashes, brackets stripped) and defaulting to .stl as the
+            # widest-compat format.
+            sanitised = (
+                surface.label.replace(" ", "_")
+                .replace("/", "-")
+                .replace("[", "")
+                .replace("]", "")
+            )
+            default_name = f"{sanitised}.stl"
+        else:
+            default_name = "mesh.stl"
+        path, _selected_filter = QFileDialog.getSaveFileName(
+            self,
+            "Export Mesh",
+            default_name,
+            "STL files (*.stl);;OBJ files (*.obj);;PLY files (*.ply)",
+        )
+        if not path:
+            return  # user cancelled the dialog
+        # Extension validation — Qt does NOT auto-append on macOS or
+        # Linux when the user types a name without one, and PyVista
+        # raises ValueError on unsupported extensions.  Pre-validate
+        # so the user gets a friendlier message than the VTK stderr.
+        lower = path.lower()
+        if not (
+            lower.endswith(".stl")
+            or lower.endswith(".obj")
+            or lower.endswith(".ply")
+        ):
+            self.statusBar().showMessage(
+                "Export cancelled — please include a .stl, .obj, or "
+                ".ply extension."
+            )
+            return
+        try:
+            self._raw_mesh.save(path)
+        except Exception as exc:  # noqa: BLE001 — PermissionError, FileNotFoundError, ValueError, VTK IOError
+            self.statusBar().showMessage(f"Export failed: {exc}")
+            return
+        self.statusBar().showMessage(f"Mesh exported: {path}")
 
     # --- theme system ------------------------------------------------------
 

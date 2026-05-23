@@ -1,7 +1,7 @@
 {
   "id": "mesh-export-stl-obj-ply-2026q3-e1",
   "created_at": "2026-05-23T05:03:36Z",
-  "updated_at": "2026-05-23T05:10:44Z",
+  "updated_at": "2026-05-23T05:17:18Z",
   "phase": "implement-running",
   "phase_history": [
     {
@@ -29,7 +29,7 @@
   ],
   "research_synthesis": "File \u2192 Export Mesh\u2026 (Ctrl+E) action via QFileDialog \u2192 mesh.save. Filter: STL/OBJ/PLY. Save target: self._raw_mesh (unclipped). Disabled at construction; enabled on _on_mesh_ready success; re-disabled on error AND on _on_variety_changed placeholder branch (load-bearing \u2014 _clear_actor does NOT reset _raw_mesh). Pre-validate extension (Linux/macOS don't auto-append). Broad except Exception (PyVista raises ValueError on bad ext, PermissionError, FileNotFoundError). AI-9: sync save ~10-50ms; AI-15: existing per-variety tooltips carry the shadow/birational caveats \u2014 no new claims. 3 files, ~141 LOC.",
   "implementation_path": "inline",
-  "implementation_plan": null,
+  "implementation_plan": ".claude/notes/milestones/mesh-export-stl-obj-ply-2026q3-e1/artifacts/implementation-plan.md",
   "implementation_base": "b06391dcf2e8e3f67cbbab84f857837fba0cf62c",
   "implementation_commit_range": null,
   "implementation_commits": [],
