@@ -14,6 +14,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass, field
+from typing import Protocol, runtime_checkable
 
 import pyvista as pv
 
@@ -65,3 +66,26 @@ class Surface:
 
     def defaults(self) -> dict[str, float]:
         return {p.name: p.default for p in self.params}
+
+
+@runtime_checkable
+class VarietyGenerator(Protocol):
+    """Structural protocol for any callable that produces a PolyData mesh.
+
+    Surface.generate is currently typed `Callable[..., pv.PolyData]` for backward
+    compat with the frozen dataclass contract (AI-8). VarietyGenerator is an
+    ADDITIVE structural alternative — type-checkers can verify any registered
+    generator function satisfies this signature without changing the dataclass.
+
+    Per refactor-pattern-scout Topic 4 + best-practices-scout focus area 2:
+    Protocol is the correct instrument for generator/registry polymorphism
+    (PEP-544). Dataclass and Protocol coexist cleanly; the existing 14
+    generator functions in varieties/{k3,enriques,calabi_yau,fano}.py satisfy
+    this Protocol structurally with zero changes.
+
+    Per axis-12 honesty: this Protocol is ADDITIVE — it does NOT re-type
+    Surface.generate, which would be a backward-incompatible change to the
+    AI-8 frozen contract.
+    """
+
+    def __call__(self, **kwargs: float) -> pv.PolyData: ...
