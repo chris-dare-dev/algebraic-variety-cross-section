@@ -309,11 +309,14 @@ The tests cover:
 
 **Adding a new model to an existing variety** is straightforward:
 
-1. Write a generator function in `surfaces.py` that returns a `pv.PolyData`. Implicit generators sample a scalar field on a cubic grid and call `_marching_cubes_to_polydata(field, bounds)`. Parametric generators build `(X, Y, Z)` 2D arrays and call `_grid_to_polydata(X, Y, Z)`.
-2. Define a `<NAME>_PARAMS` list of `ParamSpec(name, label, minimum, maximum, default, step, suffix, description)` — one per slider.
-3. Add `Surface(label, generator, params)` to the appropriate inner dict of `VARIETIES`. Use a `[Fig. N]` suffix in the dropdown key for consistency.
-4. Add tooltip entries to `SUBTYPE_TOOLTIPS` (and `VARIETY_TOOLTIPS` if introducing a new family).
-5. Add at least a smoke test in [tests/test_mesh_generators.py](tests/test_mesh_generators.py) and a parameter-range entry in [tests/test_parameters_panel.py](tests/test_parameters_panel.py).
+1. Write a generator function in the appropriate family module under `varieties/` (e.g. `varieties/k3.py` for K3 surfaces, `varieties/enriques.py`, `varieties/calabi_yau.py`, `varieties/fano.py`). The generator returns a `pv.PolyData`. Implicit generators sample a scalar field on a cubic grid and call `_marching_cubes_to_polydata(field, bounds)` (imported from `varieties._marching`). Parametric generators build `(X, Y, Z)` 2D arrays and call `_grid_to_polydata(X, Y, Z)` (also from `varieties._marching`).
+2. If your generator needs a Numba-accelerated field kernel, add an `@njit` function to `varieties/_kernels.py`.
+3. Define a `<NAME>_PARAMS` list in the same family module: `ParamSpec(name, label, minimum, maximum, default, step, suffix, description)` — one per slider. Import `ParamSpec` from `varieties.types`.
+4. Add `Surface(label, generator, params)` to the appropriate inner dict of `VARIETIES` in `varieties/registry.py`. Use a `[Fig. N]` suffix in the dropdown key for consistency.
+5. Add tooltip entries to `SUBTYPE_TOOLTIPS` in `varieties/tooltips.py` (and `VARIETY_TOOLTIPS` if introducing a new family).
+6. Add at least a smoke test in [tests/test_mesh_generators.py](tests/test_mesh_generators.py) and a parameter-range entry in [tests/test_parameters_panel.py](tests/test_parameters_panel.py). Test imports can use either the canonical path (`from varieties.k3 import fermat_quartic`) OR the legacy `from surfaces import fermat_quartic` (re-exported via the surfaces hub; will emit `DeprecationWarning` when the surfaces shim is fully retired).
+
+**Backward-compatibility note (post r2-restructure):** the historical `surfaces.py` module is now a hub re-export. Existing imports like `from surfaces import VARIETIES` continue to work; the canonical path is `from varieties.registry import VARIETIES`. See `MOVES.md` for the full r2 rosetta stone.
 
 **Adding a whole new variety family** is a larger effort — see Section 6 of [CONTEXT.md](CONTEXT.md) for the 5-phase pipeline (math research → implementation → adversarial review → remediation → UX pass) used for the existing four families.
 

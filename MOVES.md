@@ -181,4 +181,63 @@ Move commit: 45fd9b8. Tag refactor-r2-batch5-end.
 
 Updating these to canonical paths is deferred to a future cleanup milestone (would require coordinated changes to all 5 sites for cosmetic gain only — the re-exports work transparently).
 
+---
+
+## 2026-05-24 — restructure-feature-subpackages-2026q2-r2 batch 6: varieties/_kernels + _marching
+
+11 Numba @njit kernels + 4 pipeline helpers extracted from surfaces.py.
+
+- `surfaces._fermat_field_kernel` (and 10 sibling kernels) → `varieties._kernels.*` (re-exported via `from surfaces import _fermat_field_kernel`)
+- `surfaces._marching_cubes_to_polydata` → `varieties._marching.*` (re-exported)
+- `surfaces._grid_to_polydata` → `varieties._marching.*`
+- `surfaces._concat_polydata` → `varieties._marching.*`
+- `surfaces._hanson_cross_section` → `varieties._marching.*`
+
+Move commit: 2c353e8. Tag refactor-r2-batch6-end.
+
+CRITICAL invariant: `varieties/_kernels.py` places `numba.config.THREADING_LAYER = "workqueue"` at the TOP, before `from numba import njit`. surfaces.py imports `varieties._kernels` eagerly so the threading-layer side effect fires before any generator uses an @njit function.
+
+---
+
+## 2026-05-24 — restructure-feature-subpackages-2026q2-r2 batch 7: 4 generator family modules
+
+14 variety generators + 14 PARAMS constants split into 4 family modules.
+
+- 2 K3 generators (fermat_quartic, kummer_surface) + 2 PARAMS → `varieties.k3`
+- 4 Enriques figures + 4 PARAMS → `varieties.enriques`
+- 4 CY3 generators + 4 PARAMS → `varieties.calabi_yau`
+- 4 Fano 3-folds + 4 PARAMS → `varieties.fano`
+
+All 28 symbols re-exported from surfaces.py for back-compat. Move commit: cb4b57f. Tag refactor-r2-batch7-end.
+
+---
+
+## 2026-05-24 — restructure-feature-subpackages-2026q2-r2 batch 8: varieties/registry + tooltips
+
+- `surfaces.VARIETIES` → `varieties.registry.VARIETIES` (AI-8 stable surface)
+- `surfaces.VARIETY_TOOLTIPS` → `varieties.tooltips.VARIETY_TOOLTIPS`
+- `surfaces.SUBTYPE_TOOLTIPS` → `varieties.tooltips.SUBTYPE_TOOLTIPS`
+- 3 `_LOD_NOTE_*` constants → `varieties.tooltips` (AI-15 honesty discipline)
+
+surfaces.py terminal state: 123 LOC of re-exports (down from 1811 LOC pre-r2, a 93% reduction).
+
+Move commit: efc3cc4. Tag refactor-r2-batch8-end.
+
+---
+
+## 2026-05-24 — restructure-feature-subpackages-2026q2-r2 batch 9: docs + tests/test_r2_shims.py
+
+- `tests/test_r2_shims.py` ADDED: 7 tests covering each new shim type (render_worker, icons, styles, ui_helpers, panels hub, surfaces public symbol, surfaces private kernel)
+- README.md "Extending the app" rewritten to reference the new `varieties/*.py` and `varieties.registry` / `varieties.tooltips` paths (with a backward-compat note pointing at MOVES.md)
+- MOVES.md (this file): batches 6-9 documented
+
+Tag refactor-r2-batch9-end.
+
+### r2 final state
+
+Total: 4 new subpackages (`render/`, `_qt/`, `cross_section/`, `varieties/`); 9 batches; ~36 commits; 506 tests passing (499 baseline + 7 new shim tests).
+
+surfaces.py decomposition: 1811 → 123 LOC (93% reduction). All historical imports continue to work via re-exports + shims (M+1 deprecation cycle in effect).
+
+
 
