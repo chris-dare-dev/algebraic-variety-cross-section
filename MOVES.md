@@ -51,3 +51,15 @@ Tests or scripts that read panel source files by path must use the new locations
 | `"view_panel.py"` | `"panels/view.py"` |
 | `"parameters_panel.py"` | `"panels/parameters.py"` |
 | `"parameter_grid_panel.py"` | `"panels/parameter_grid_panel.py"` |
+
+---
+
+## 2026-05-23 — restructure-feature-subpackages-2026q2-r2 batch 1: r1 panel shim cleanup (M+1)
+
+- Removed: `appearance_panel.py` (r1 shim, 18 LOC) — canonical path is `panels.appearance`
+- Removed: `view_panel.py` (r1 shim, 18 LOC) — canonical path is `panels.view`
+- Removed: `parameters_panel.py` (r1 shim, 18 LOC) — canonical path is `panels.parameters`
+- Removed: `parameter_grid_panel.py` (r1 shim, 18 LOC) — canonical path is `panels.parameter_grid_panel`
+- Removed: `tests/test_panels_shims.py` (97 LOC; 4 vacuous tests after shim deletion — the shim tests were the only consumers of the 4 root shim files)
+- M+1 deprecation cycle from restructure-full-audit-2026q2-r1 batch 4 now closed.
+- Tag: `refactor-r2-batch1-end` at 16b251b

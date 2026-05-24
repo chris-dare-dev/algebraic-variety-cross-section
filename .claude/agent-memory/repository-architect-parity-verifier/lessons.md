@@ -31,3 +31,19 @@ Panel file locations changed. Old path → new path:
 - `parameters_panel.py` (root) → `panels/parameters.py`; module `parameters_panel` → `panels.parameters`
 - `parameter_grid_panel.py` (root) → `panels/parameter_grid_panel.py`; module `parameter_grid_panel` → `panels.parameter_grid_panel`
 Root-level shim files remain at old paths (emit DeprecationWarning). See MOVES.md for canonical rosetta stone.
+
+## Lesson from restructure-feature-subpackages-2026q2-r2 batch 1 (2026-05-23)
+- False alarm pattern: star-import diff exit 1 caused by grep-output line ordering change (same entry at different line number). Sorted diff confirmed zero new star imports. Always sort both sides before calling a star-import delta real.
+- Collection count: baseline=503, post=499 (-4) is a deliberate regression-free removal — tests/test_panels_shims.py was deleted alongside the 4 r1 panel shim files it was testing. Expected delta must be verified against the batch plan, not flagged as a regression.
+- Shim validation on a shim-delete batch: validate-shims.py correctly exits 0 with "no symbol-map entries for batch N -- nothing to validate". This is the correct behaviour for any batch that only removes shims (rather than creating new ones).
+- Import time variance: +6.0% observed post-batch with zero import-path changes. Normal OS cache fluctuation; matches batch 1 of r1 (+6.6%). Well within ±20%.
+
+## CORRECTION 2026-05-23 (restructure-feature-subpackages-2026q2-r2 batch 1)
+The 4 root-level r1 panel shim files and their test file have been deleted (M+1 cycle closed):
+- `appearance_panel.py` (root shim) → DELETED. Canonical: `panels/appearance.py`
+- `view_panel.py` (root shim) → DELETED. Canonical: `panels/view.py`
+- `parameters_panel.py` (root shim) → DELETED. Canonical: `panels/parameters.py`
+- `parameter_grid_panel.py` (root shim) → DELETED. Canonical: `panels/parameter_grid_panel.py`
+- `tests/test_panels_shims.py` → DELETED (was 97 LOC; vacuous after shim removal).
+Lesson correction: "Always run `pytest tests/test_panels_shims.py -v` as authoritative shim check" is now obsolete — that file no longer exists. The shims it tested are gone. For r2 shim verification (Batch 9), use `pytest tests/test_r2_shims.py -v` instead.
+Also: the prior CORRECTION block's final line "Root-level shim files remain at old paths (emit DeprecationWarning)" is now false — they do NOT remain.

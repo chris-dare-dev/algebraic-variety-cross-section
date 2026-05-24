@@ -37,8 +37,9 @@ tests/                         Flat test layout — 499 tests, all Qt-free
 requirements.txt               Runtime + restructure-tooling pins
 
 Note: Root-level shims (appearance_panel.py, parameter_grid_panel.py, parameters_panel.py,
-view_panel.py) still exist at the old paths for backward compat (emit DeprecationWarning).
-Removal milestone: M+1. See MOVES.md for the full rosetta stone.
+view_panel.py) were removed in restructure-feature-subpackages-2026q2-r2 batch 1 (M+1 cycle closed).
+The canonical paths are panels/appearance.py, panels/view.py, panels/parameters.py,
+panels/parameter_grid_panel.py. See MOVES.md for the full rosetta stone.
 ```
 
 Deep-dive: CONTEXT.md §4 (Module map), §5 (Panel inventory)

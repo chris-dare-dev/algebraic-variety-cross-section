@@ -47,3 +47,20 @@ only the 18-line __getattr__ forwarder — source grep tests must use the panels
 **Bisect-redness from delayed LibCST rewrite.**  When introducing a subpackage via 4 sequential `git mv` commits followed by a LibCST import rewrite (Batch 4 of the full-audit-r1 restructure, commits ffd358a..0e51719), the 4 intermediate commits are bisect-red because the moved modules still exist at old paths but `app.py` references the NEW package-qualified paths only after the rewrite lands.  Tests like `tests/test_clip_cache.py` that import via `from app import ...` would fail with `ModuleNotFoundError` if `git bisect` landed on one of those 4 SHAs.
 
 **Lesson for future restructures:** the LibCST rewrite should land in the SAME commit as the corresponding `git mv` (one rewrite per move, four total), OR all 5 ops should be a SINGLE commit if rename detection survives (verify with `git diff --find-renames` before committing).  The "one Fowler op per commit" rule from phase-4-execute.md does NOT mean "one mechanical action per commit" — it means "one user-visible refactor unit per commit."  A `git mv` without its accompanying import rewrite is not a complete unit.
+
+## Lesson from restructure-feature-subpackages-2026q2-r2 batch 1 (2026-05-23)
+- Shim quirk: Batch 1 has zero shims (deletion-only batch) — skip shim template lookup entirely
+- AVC-specific gotcha: `refactor-batch1-end` tag already existed from r1 restructure; for r2 use `refactor-r2-batch{N}-end` naming convention to avoid tag collision across restructure generations
+- Deletion sequence: ALWAYS delete the test file that imports the shims FIRST (before deleting the shims themselves). If shims are deleted first, the test file fails to collect (ModuleNotFoundError) → bisect-red intermediate commits. Test-file-first keeps every commit bisect-green.
+- LOC estimate accuracy: test_panels_shims.py was 97 LOC (actual), not ~40 LOC as PLAN.md estimated — the _reload_shim helper + full docstrings add ~57 LOC overhead. Plan estimates for test file sizes should add 2-3x multiplier over "N tests × avg test body".
+- Tests-per-commit wall-clock: ~7-8 s for 499 tests on macOS Apple Silicon (consistent with r1; slightly slower than r1 batch 1's 6.6 s probably due to test suite warmup variance)
+
+## CORRECTION 2026-05-23 (restructure-feature-subpackages-2026q2-r2 batch 1)
+The 4 root-level r1 panel shim files and their test file have been deleted (M+1 cycle closed):
+- `appearance_panel.py` (root shim) → DELETED. Canonical: `panels/appearance.py`
+- `view_panel.py` (root shim) → DELETED. Canonical: `panels/view.py`
+- `parameters_panel.py` (root shim) → DELETED. Canonical: `panels/parameters.py`
+- `parameter_grid_panel.py` (root shim) → DELETED. Canonical: `panels/parameter_grid_panel.py`
+- `tests/test_panels_shims.py` → DELETED (97 LOC; vacuous after shim removal).
+Prior CORRECTION block statement "Root-level shims remain but contain only the 18-line __getattr__ forwarder" is now false — root shims do NOT remain. Source grep tests continue using panels/ paths; no shim fallback.
+Tag: `refactor-r2-batch1-end` at 16b251b.

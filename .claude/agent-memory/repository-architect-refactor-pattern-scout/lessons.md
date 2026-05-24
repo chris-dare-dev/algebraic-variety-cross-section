@@ -22,3 +22,13 @@ Panel file locations changed. The "four panel files at root" have been moved:
 - `parameters_panel.py` (root) → `panels/parameters.py`; module `parameters_panel` → `panels.parameters`
 - `parameter_grid_panel.py` (root) → `panels/parameter_grid_panel.py`; module `parameter_grid_panel` → `panels.parameter_grid_panel`
 Root-level shims remain at old paths (emit DeprecationWarning; removal milestone M+1). See MOVES.md.
+
+## CORRECTION 2026-05-23 (restructure-feature-subpackages-2026q2-r2 batch 1)
+The 4 root-level r1 panel shim files have been deleted (M+1 cycle closed):
+- `appearance_panel.py` (root shim) → DELETED.
+- `view_panel.py` (root shim) → DELETED.
+- `parameters_panel.py` (root shim) → DELETED.
+- `parameter_grid_panel.py` (root shim) → DELETED.
+Lesson correction for Batch 3 implementers: "Recursive shim chains are a r2-specific trap — the 4 r1 shims must be updated in the SAME commit as `git mv panels/ _qt/panels/`" is OBSOLETE. The 4 r1 shims are already deleted before Batch 3 begins. Batch 3 DOES NOT need to update them. The trap no longer exists.
+Prior CORRECTION block statement "Root-level shims remain at old paths (emit DeprecationWarning; removal milestone M+1)" is now false.
+Tag: `refactor-r2-batch1-end` at 16b251b.
