@@ -18,7 +18,7 @@ import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from ui_helpers import DEBOUNCE_INTERVAL_MS, DebounceCounter
+from _qt.ui_helpers import DEBOUNCE_INTERVAL_MS, DebounceCounter
 
 
 # ---------------------------------------------------------------------------
@@ -115,7 +115,7 @@ def test_real_debouncer_coalesces_rapid_requests():
 
     app = QCoreApplication.instance() or QCoreApplication([])
 
-    from ui_helpers import Debouncer
+    from _qt.ui_helpers import Debouncer
 
     calls = {"n": 0}
     deb = Debouncer(lambda: calls.__setitem__("n", calls["n"] + 1),
@@ -140,7 +140,7 @@ def test_real_debouncer_flush_fires_immediately_and_cancels():
 
     app = QCoreApplication.instance() or QCoreApplication([])
 
-    from ui_helpers import Debouncer
+    from _qt.ui_helpers import Debouncer
 
     calls = {"n": 0}
     deb = Debouncer(lambda: calls.__setitem__("n", calls["n"] + 1),

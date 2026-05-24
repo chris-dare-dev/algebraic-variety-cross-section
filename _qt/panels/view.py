@@ -392,16 +392,16 @@ class ViewPanel(QWidget):
         """
         # Lazy import — keeps `from view_panel import ViewPanel` cheap if
         # the caller never invokes refresh_icons (e.g. headless tests).
-        import icons
+        import _qt.icons
         from PySide6.QtCore import QSize
 
         _ICON_SIZE = QSize(16, 16)
 
         # v0 (qtawesome-icons-2026q2-e1): Reset Camera + Screenshot
         self._reset_camera_btn.setIconSize(_ICON_SIZE)
-        self._reset_camera_btn.setIcon(icons.reset_camera_icon(theme))
+        self._reset_camera_btn.setIcon(_qt.icons.reset_camera_icon(theme))
         self._shot_btn.setIconSize(_ICON_SIZE)
-        self._shot_btn.setIcon(icons.screenshot_icon(theme))
+        self._shot_btn.setIcon(_qt.icons.screenshot_icon(theme))
 
         # v1 (qtawesome-icons-2026q2-e2): 6 ortho preset buttons +
         # isometric.  Map button label → factory function so the wiring
@@ -415,19 +415,19 @@ class ViewPanel(QWidget):
         # no-op that would hide the drift).  Axis-10 scope discipline
         # per CONTEXT.md §12: trust internal code.
         _PRESET_ICON_FACTORIES = {
-            "+X": icons.preset_plus_x_icon,
-            "-X": icons.preset_minus_x_icon,
-            "+Y": icons.preset_plus_y_icon,
-            "-Y": icons.preset_minus_y_icon,
-            "+Z": icons.preset_plus_z_icon,
-            "-Z": icons.preset_minus_z_icon,
+            "+X": _qt.icons.preset_plus_x_icon,
+            "-X": _qt.icons.preset_minus_x_icon,
+            "+Y": _qt.icons.preset_plus_y_icon,
+            "-Y": _qt.icons.preset_minus_y_icon,
+            "+Z": _qt.icons.preset_plus_z_icon,
+            "-Z": _qt.icons.preset_minus_z_icon,
         }
         for label, icon_fn in _PRESET_ICON_FACTORIES.items():
             btn = self._preset_btns[label]
             btn.setIconSize(_ICON_SIZE)
             btn.setIcon(icon_fn(theme))
         self._iso_btn.setIconSize(_ICON_SIZE)
-        self._iso_btn.setIcon(icons.preset_isometric_icon(theme))
+        self._iso_btn.setIcon(_qt.icons.preset_isometric_icon(theme))
 
     # ------------------------------------------------------------------
     # Public API — domain clipping

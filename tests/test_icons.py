@@ -29,7 +29,9 @@ import sys
 
 import pytest
 
-import styles
+import _qt  # for '_qt.styles.X' references that LibCST partially rewrote in B3
+import _qt.icons as icons  # for bare 'icons.X' references AND _qt.icons.X chained refs
+import _qt.styles as styles  # for bare 'styles.X' references LibCST left unrewritten
 
 
 HEX6 = re.compile(r"^#[0-9a-fA-F]{6}$")
@@ -54,25 +56,25 @@ def test_icons_module_does_not_import_qtawesome_at_module_load() -> None:
 def test_icon_color_for_theme_routes_to_correct_palette_token() -> None:
     """``_icon_color`` resolves the right palette's TEXT_VALUE per theme.
     Both values must be 6-digit hex (AI-13) and theme-distinct."""
-    import icons
+    import _qt.icons
 
-    assert icons._icon_color("dark") == styles.PALETTE_DARK["TEXT_VALUE"], (
+    assert _qt.icons._icon_color("dark") == _qt.styles.PALETTE_DARK["TEXT_VALUE"], (
         "icons._icon_color('dark') must read from PALETTE_DARK"
     )
-    assert icons._icon_color("light") == styles.PALETTE_LIGHT["TEXT_VALUE"], (
+    assert _qt.icons._icon_color("light") == _qt.styles.PALETTE_LIGHT["TEXT_VALUE"], (
         "icons._icon_color('light') must read from PALETTE_LIGHT"
     )
     # 6-digit hex guard (AI-13)
-    assert HEX6.match(icons._icon_color("dark"))
-    assert HEX6.match(icons._icon_color("light"))
+    assert HEX6.match(_qt.icons._icon_color("dark"))
+    assert HEX6.match(_qt.icons._icon_color("light"))
     # The two themes must use different colors (light/dark distinction is the
     # whole point of theme-aware icon coloring).
-    assert icons._icon_color("dark") != icons._icon_color("light"), (
+    assert _qt.icons._icon_color("dark") != _qt.icons._icon_color("light"), (
         "Dark and light themes must use different icon colors"
     )
     # Unknown theme names fall through to dark (matches the launch default
     # established in dark-mode-2026q2-e1).
-    assert icons._icon_color("unknown-future-theme") == icons._icon_color("dark")
+    assert _qt.icons._icon_color("unknown-future-theme") == _qt.icons._icon_color("dark")
 
 
 def test_icon_functions_call_qta_icon_with_correct_args() -> None:
@@ -91,7 +93,7 @@ def test_icon_functions_call_qta_icon_with_correct_args() -> None:
     frontend-ux M1).  This test asserts that distinction explicitly.
     """
     from unittest.mock import MagicMock, patch
-    import icons
+    import _qt.icons
 
     mock_qta = MagicMock()
     mock_qta.icon.return_value = MagicMock(name="QIcon")
@@ -101,26 +103,26 @@ def test_icon_functions_call_qta_icon_with_correct_args() -> None:
         # Reset Camera — mdi6.fit-to-screen — TEXT_VALUE color, both themes
         for theme in ("dark", "light"):
             mock_qta.icon.reset_mock()
-            icons.reset_camera_icon(theme)
+            _qt.icons.reset_camera_icon(theme)
             mock_qta.icon.assert_called_with(
                 "mdi6.fit-to-screen",
                 color=(
-                    styles.PALETTE_DARK["TEXT_VALUE"]
+                    _qt.styles.PALETTE_DARK["TEXT_VALUE"]
                     if theme == "dark"
-                    else styles.PALETTE_LIGHT["TEXT_VALUE"]
+                    else _qt.styles.PALETTE_LIGHT["TEXT_VALUE"]
                 ),
             )
 
         # Screenshot — mdi6.camera — TEXT_VALUE color, both themes
         for theme in ("dark", "light"):
             mock_qta.icon.reset_mock()
-            icons.screenshot_icon(theme)
+            _qt.icons.screenshot_icon(theme)
             mock_qta.icon.assert_called_with(
                 "mdi6.camera",
                 color=(
-                    styles.PALETTE_DARK["TEXT_VALUE"]
+                    _qt.styles.PALETTE_DARK["TEXT_VALUE"]
                     if theme == "dark"
-                    else styles.PALETTE_LIGHT["TEXT_VALUE"]
+                    else _qt.styles.PALETTE_LIGHT["TEXT_VALUE"]
                 ),
             )
 
@@ -128,13 +130,13 @@ def test_icon_functions_call_qta_icon_with_correct_args() -> None:
         # NOT TEXT_VALUE — see _reset_defaults_icon_color rationale).
         for theme in ("dark", "light"):
             mock_qta.icon.reset_mock()
-            icons.reset_defaults_icon(theme)
+            _qt.icons.reset_defaults_icon(theme)
             mock_qta.icon.assert_called_with(
                 "mdi6.restore",
                 color=(
-                    styles.PALETTE_DARK["TEXT_RESET_BTN"]
+                    _qt.styles.PALETTE_DARK["TEXT_RESET_BTN"]
                     if theme == "dark"
-                    else styles.PALETTE_LIGHT["TEXT_RESET_BTN"]
+                    else _qt.styles.PALETTE_LIGHT["TEXT_RESET_BTN"]
                 ),
             )
 
@@ -168,26 +170,26 @@ def test_icons_return_valid_qicons_with_qapplication() -> None:
 
     # Fresh import so the _qta sentinel test above doesn't dirty this one.
     sys.modules.pop("icons", None)
-    import icons
+    import _qt.icons
 
     targets = (
-        (icons.reset_camera_icon, "reset_camera_icon"),
-        (icons.screenshot_icon, "screenshot_icon"),
-        (icons.reset_defaults_icon, "reset_defaults_icon"),
+        (_qt.icons.reset_camera_icon, "reset_camera_icon"),
+        (_qt.icons.screenshot_icon, "screenshot_icon"),
+        (_qt.icons.reset_defaults_icon, "reset_defaults_icon"),
         # qtawesome-icons-2026q2-e2 (UPL-4 v1) — camera presets
-        (icons.preset_plus_x_icon, "preset_plus_x_icon"),
-        (icons.preset_minus_x_icon, "preset_minus_x_icon"),
-        (icons.preset_plus_y_icon, "preset_plus_y_icon"),
-        (icons.preset_minus_y_icon, "preset_minus_y_icon"),
-        (icons.preset_plus_z_icon, "preset_plus_z_icon"),
-        (icons.preset_minus_z_icon, "preset_minus_z_icon"),
-        (icons.preset_isometric_icon, "preset_isometric_icon"),
+        (_qt.icons.preset_plus_x_icon, "preset_plus_x_icon"),
+        (_qt.icons.preset_minus_x_icon, "preset_minus_x_icon"),
+        (_qt.icons.preset_plus_y_icon, "preset_plus_y_icon"),
+        (_qt.icons.preset_minus_y_icon, "preset_minus_y_icon"),
+        (_qt.icons.preset_plus_z_icon, "preset_plus_z_icon"),
+        (_qt.icons.preset_minus_z_icon, "preset_minus_z_icon"),
+        (_qt.icons.preset_isometric_icon, "preset_isometric_icon"),
         # qtawesome-icons-2026q2-e2 (UPL-4 v1) — display toggles
-        (icons.wireframe_icon, "wireframe_icon"),
-        (icons.show_edges_icon, "show_edges_icon"),
+        (_qt.icons.wireframe_icon, "wireframe_icon"),
+        (_qt.icons.show_edges_icon, "show_edges_icon"),
         # enriques-hq-smoothing-2026q3-e1 (UPL-18-followup) — opt-in
         # second-Taubin display-toggle icon.
-        (icons.hq_smoothing_icon, "hq_smoothing_icon"),
+        (_qt.icons.hq_smoothing_icon, "hq_smoothing_icon"),
     )
     for fn, name in targets:
         for theme in ("dark", "light"):
@@ -215,16 +217,16 @@ def test_v0_icons_still_bind_correctly() -> None:
     Mocked at the qta boundary (AI-2 compliant).
     """
     from unittest.mock import MagicMock, patch
-    import icons
+    import _qt.icons
 
     mock_qta = MagicMock()
     mock_qta.icon.return_value = MagicMock(name="QIcon")
 
     v0_bindings = (
         # (factory, expected mdi6 name, expected color helper)
-        (icons.reset_camera_icon, "mdi6.fit-to-screen", "_icon_color"),
-        (icons.screenshot_icon, "mdi6.camera", "_icon_color"),
-        (icons.reset_defaults_icon, "mdi6.restore", "_reset_defaults_icon_color"),
+        (_qt.icons.reset_camera_icon, "mdi6.fit-to-screen", "_icon_color"),
+        (_qt.icons.screenshot_icon, "mdi6.camera", "_icon_color"),
+        (_qt.icons.reset_defaults_icon, "mdi6.restore", "_reset_defaults_icon_color"),
     )
 
     with patch.object(icons, "_qta", mock_qta):
@@ -245,20 +247,20 @@ def test_camera_preset_icons_correct_names_and_colors() -> None:
     Mocked (AI-2 compliant).
     """
     from unittest.mock import MagicMock, patch
-    import icons
+    import _qt.icons
 
     mock_qta = MagicMock()
     mock_qta.icon.return_value = MagicMock(name="QIcon")
 
     # (factory, expected mdi6 name, expected rotated kwarg or None)
     preset_bindings = (
-        (icons.preset_plus_x_icon,    "mdi6.axis-x-arrow", None),
-        (icons.preset_minus_x_icon,   "mdi6.axis-x-arrow", 180),
-        (icons.preset_plus_y_icon,    "mdi6.axis-y-arrow", None),
-        (icons.preset_minus_y_icon,   "mdi6.axis-y-arrow", 180),
-        (icons.preset_plus_z_icon,    "mdi6.axis-z-arrow", None),
-        (icons.preset_minus_z_icon,   "mdi6.axis-z-arrow", 180),
-        (icons.preset_isometric_icon, "mdi6.axis-arrow",   None),
+        (_qt.icons.preset_plus_x_icon,    "mdi6.axis-x-arrow", None),
+        (_qt.icons.preset_minus_x_icon,   "mdi6.axis-x-arrow", 180),
+        (_qt.icons.preset_plus_y_icon,    "mdi6.axis-y-arrow", None),
+        (_qt.icons.preset_minus_y_icon,   "mdi6.axis-y-arrow", 180),
+        (_qt.icons.preset_plus_z_icon,    "mdi6.axis-z-arrow", None),
+        (_qt.icons.preset_minus_z_icon,   "mdi6.axis-z-arrow", 180),
+        (_qt.icons.preset_isometric_icon, "mdi6.axis-arrow",   None),
     )
 
     with patch.object(icons, "_qta", mock_qta):
@@ -266,7 +268,7 @@ def test_camera_preset_icons_correct_names_and_colors() -> None:
             for theme in ("dark", "light"):
                 mock_qta.icon.reset_mock()
                 factory(theme)
-                expected_color = icons._icon_color(theme)
+                expected_color = _qt.icons._icon_color(theme)
                 if expected_rotated is None:
                     mock_qta.icon.assert_called_with(expected_name, color=expected_color)
                 else:
@@ -284,15 +286,15 @@ def test_display_toggle_icons_correct_names_and_colors() -> None:
     Mocked (AI-2 compliant).
     """
     from unittest.mock import MagicMock, patch
-    import icons
+    import _qt.icons
 
     mock_qta = MagicMock()
     mock_qta.icon.return_value = MagicMock(name="QIcon")
 
     toggle_bindings = (
-        (icons.wireframe_icon,  "mdi6.grid"),
-        (icons.show_edges_icon, "mdi6.border-outside"),
-        (icons.hq_smoothing_icon, "mdi6.auto-fix"),
+        (_qt.icons.wireframe_icon,  "mdi6.grid"),
+        (_qt.icons.show_edges_icon, "mdi6.border-outside"),
+        (_qt.icons.hq_smoothing_icon, "mdi6.auto-fix"),
     )
 
     with patch.object(icons, "_qta", mock_qta):
@@ -300,7 +302,7 @@ def test_display_toggle_icons_correct_names_and_colors() -> None:
             for theme in ("dark", "light"):
                 mock_qta.icon.reset_mock()
                 factory(theme)
-                expected_color = icons._icon_color(theme)
+                expected_color = _qt.icons._icon_color(theme)
                 mock_qta.icon.assert_called_with(expected_name, color=expected_color)
 
 
@@ -315,33 +317,33 @@ def test_wireframe_and_edges_icons_are_distinct_names() -> None:
     ``SHOW_EDGES_ICON_NAME`` constants exposed for this purpose (rather
     than docstring scraping).
     """
-    import icons
+    import _qt.icons
 
-    assert icons.WIREFRAME_ICON_NAME != icons.SHOW_EDGES_ICON_NAME, (
-        f"WIREFRAME_ICON_NAME ({icons.WIREFRAME_ICON_NAME!r}) and "
-        f"SHOW_EDGES_ICON_NAME ({icons.SHOW_EDGES_ICON_NAME!r}) must use "
+    assert _qt.icons.WIREFRAME_ICON_NAME != _qt.icons.SHOW_EDGES_ICON_NAME, (
+        f"WIREFRAME_ICON_NAME ({_qt.icons.WIREFRAME_ICON_NAME!r}) and "
+        f"SHOW_EDGES_ICON_NAME ({_qt.icons.SHOW_EDGES_ICON_NAME!r}) must use "
         f"different MDI 6 glyphs so the two display toggles are visually "
         f"distinct at 16px."
     )
     # Both must be non-empty mdi6.* strings (lightweight format guard).
-    assert icons.WIREFRAME_ICON_NAME.startswith("mdi6."), (
-        f"WIREFRAME_ICON_NAME ({icons.WIREFRAME_ICON_NAME!r}) is not mdi6.*"
+    assert _qt.icons.WIREFRAME_ICON_NAME.startswith("mdi6."), (
+        f"WIREFRAME_ICON_NAME ({_qt.icons.WIREFRAME_ICON_NAME!r}) is not mdi6.*"
     )
-    assert icons.SHOW_EDGES_ICON_NAME.startswith("mdi6."), (
-        f"SHOW_EDGES_ICON_NAME ({icons.SHOW_EDGES_ICON_NAME!r}) is not mdi6.*"
+    assert _qt.icons.SHOW_EDGES_ICON_NAME.startswith("mdi6."), (
+        f"SHOW_EDGES_ICON_NAME ({_qt.icons.SHOW_EDGES_ICON_NAME!r}) is not mdi6.*"
     )
     # enriques-hq-smoothing-2026q3-e1 (rect F-M3): HQ smoothing joins
     # the same Display group — its icon must be distinct from both
     # siblings so the three toggles are visually orthogonal at 16px.
-    assert icons.HQ_SMOOTHING_ICON_NAME != icons.WIREFRAME_ICON_NAME, (
-        f"HQ_SMOOTHING_ICON_NAME ({icons.HQ_SMOOTHING_ICON_NAME!r}) "
+    assert _qt.icons.HQ_SMOOTHING_ICON_NAME != _qt.icons.WIREFRAME_ICON_NAME, (
+        f"HQ_SMOOTHING_ICON_NAME ({_qt.icons.HQ_SMOOTHING_ICON_NAME!r}) "
         f"must differ from WIREFRAME_ICON_NAME — three sibling display "
         f"toggles in the same group must use visually orthogonal glyphs."
     )
-    assert icons.HQ_SMOOTHING_ICON_NAME != icons.SHOW_EDGES_ICON_NAME, (
-        f"HQ_SMOOTHING_ICON_NAME ({icons.HQ_SMOOTHING_ICON_NAME!r}) "
+    assert _qt.icons.HQ_SMOOTHING_ICON_NAME != _qt.icons.SHOW_EDGES_ICON_NAME, (
+        f"HQ_SMOOTHING_ICON_NAME ({_qt.icons.HQ_SMOOTHING_ICON_NAME!r}) "
         f"must differ from SHOW_EDGES_ICON_NAME."
     )
-    assert icons.HQ_SMOOTHING_ICON_NAME.startswith("mdi6."), (
-        f"HQ_SMOOTHING_ICON_NAME ({icons.HQ_SMOOTHING_ICON_NAME!r}) is not mdi6.*"
+    assert _qt.icons.HQ_SMOOTHING_ICON_NAME.startswith("mdi6."), (
+        f"HQ_SMOOTHING_ICON_NAME ({_qt.icons.HQ_SMOOTHING_ICON_NAME!r}) is not mdi6.*"
     )

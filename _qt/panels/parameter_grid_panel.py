@@ -33,7 +33,7 @@ from PySide6.QtWidgets import (
 )
 
 import parameter_grid as pg
-from styles import (
+from _qt.styles import (
     GRID_AXIS_LABEL,
     GRID_AXIS_LINE,
     GRID_BOX_WIRE,
@@ -43,7 +43,7 @@ from styles import (
     SMALL_LABEL_STYLE,
 )
 from surfaces import ParamSpec
-from ui_helpers import Debouncer, build_slider_row
+from _qt.ui_helpers import Debouncer, build_slider_row
 
 # QColor wrappers around the palette tokens. QPen / QBrush want a QColor, not a
 # bare hex string; building these once here keeps the call sites clean and the

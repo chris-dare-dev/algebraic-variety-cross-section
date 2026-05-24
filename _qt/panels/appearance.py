@@ -28,7 +28,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from styles import (
+from _qt.styles import (
     BG_SURFACE_DEFAULT,
     BG_VIEWPORT,
     BORDER_SWATCH,
@@ -708,7 +708,7 @@ class AppearancePanel(QWidget):
         closed F-M2 from qtawesome-icons-2026q2-e2 (the ``[check-square][icon][label]``
         triple-prefix that no peer scientific-viz app uses).  See CONTEXT.md §8.15.
         """
-        import icons
+        import _qt.icons
         from PySide6.QtCore import QSize
 
         # rect HIGH (cleanup-deferred-findings-2026q3-e1 follow-up):
@@ -726,13 +726,13 @@ class AppearancePanel(QWidget):
 
         _ICON_SIZE = QSize(16, 16)
         self._wireframe_cb.setIconSize(_ICON_SIZE)
-        self._wireframe_cb.setIcon(icons.wireframe_icon(theme))
+        self._wireframe_cb.setIcon(_qt.icons.wireframe_icon(theme))
         self._edges_cb.setIconSize(_ICON_SIZE)
-        self._edges_cb.setIcon(icons.show_edges_icon(theme))
+        self._edges_cb.setIcon(_qt.icons.show_edges_icon(theme))
         # enriques-hq-smoothing-2026q3-e1 (rect F-M3): restore Display group
         # icon cadence — without this the HQ button is a plain-text outlier
         # next to two icon-bearing siblings (alignment fracture).  Uses
         # mdi6.auto-fix (magic-wand sparkle) semantically distinct from
         # mdi6.grid (wireframe) and mdi6.border-outside (show edges).
         self._hq_smoothing_cb.setIconSize(_ICON_SIZE)
-        self._hq_smoothing_cb.setIcon(icons.hq_smoothing_icon(theme))
+        self._hq_smoothing_cb.setIcon(_qt.icons.hq_smoothing_icon(theme))

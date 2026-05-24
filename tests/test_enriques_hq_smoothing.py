@@ -165,7 +165,7 @@ def test_hq_smoothing_toggle_is_checkable_qpushbutton_in_appearance_panel() -> N
     invalidate the clipped-mesh cache and re-render).
     """
     src = (
-        pathlib.Path(__file__).resolve().parent.parent / "panels" / "appearance.py"
+        pathlib.Path(__file__).resolve().parent.parent / "_qt" / "panels" / "appearance.py"
     ).read_text(encoding="utf-8")
 
     # Negative assertion: no QCheckBox construction for the HQ toggle.
@@ -277,7 +277,7 @@ def test_set_hq_smoothing_eligible_blocks_signals_around_setchecked() -> None:
     """
     import pathlib
     src = (
-        pathlib.Path(__file__).resolve().parent.parent / "panels" / "appearance.py"
+        pathlib.Path(__file__).resolve().parent.parent / "_qt" / "panels" / "appearance.py"
     ).read_text(encoding="utf-8")
 
     # Find the set_hq_smoothing_eligible method body.
@@ -323,7 +323,7 @@ def test_hq_smoothing_disabled_by_default_in_appearance_panel() -> None:
     Source-text grep guard.
     """
     src = (
-        pathlib.Path(__file__).resolve().parent.parent / "panels" / "appearance.py"
+        pathlib.Path(__file__).resolve().parent.parent / "_qt" / "panels" / "appearance.py"
     ).read_text(encoding="utf-8")
     # Match the specific button's setEnabled(False) — the line must
     # appear in the same block as the QPushButton construction.
@@ -359,7 +359,7 @@ def test_appearance_panel_uses_double_pass_smooth_label() -> None:
     Quality by appearance-panel-render-mode-split-2026q3-e3.
     """
     src = (
-        pathlib.Path(__file__).resolve().parent.parent / "panels" / "appearance.py"
+        pathlib.Path(__file__).resolve().parent.parent / "_qt" / "panels" / "appearance.py"
     ).read_text(encoding="utf-8")
     assert 'QPushButton("Double-pass smooth")' in src, (
         "appearance_panel.py is missing QPushButton('Double-pass smooth') — "
@@ -374,7 +374,7 @@ def test_appearance_panel_does_not_use_old_hq_smoothing_label() -> None:
     test specifically guards the user-rendered label string.
     """
     src = (
-        pathlib.Path(__file__).resolve().parent.parent / "panels" / "appearance.py"
+        pathlib.Path(__file__).resolve().parent.parent / "_qt" / "panels" / "appearance.py"
     ).read_text(encoding="utf-8")
     assert 'QPushButton("HQ smoothing")' not in src, (
         "appearance_panel.py still contains QPushButton('HQ smoothing') — "
@@ -425,7 +425,7 @@ def test_double_pass_smooth_tooltip_uses_imperative_verb() -> None:
     imperative pattern.
     """
     src = (
-        pathlib.Path(__file__).resolve().parent.parent / "panels" / "appearance.py"
+        pathlib.Path(__file__).resolve().parent.parent / "_qt" / "panels" / "appearance.py"
     ).read_text(encoding="utf-8")
     # The tooltip first phrase must use the imperative "Apply".
     assert '"Apply a second Taubin smoothing pass' in src, (

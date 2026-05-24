@@ -18,7 +18,7 @@ import pyvista as pv
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from panels.view import ViewPanel
+from _qt.panels.view import ViewPanel
 
 
 # ---------------------------------------------------------------------------

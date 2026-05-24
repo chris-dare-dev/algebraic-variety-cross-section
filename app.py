@@ -35,11 +35,11 @@ from PySide6.QtWidgets import (
 )
 from pyvistaqt import QtInteractor
 
-import icons
-from panels.appearance import AppearancePanel
-from panels.parameters import ParametersPanel
+import _qt.icons
+from _qt.panels.appearance import AppearancePanel
+from _qt.panels.parameters import ParametersPanel
 from render.worker import MeshResult, MeshWorker, is_stale_result
-from styles import (
+from _qt.styles import (
     APP_STYLESHEET,
     APP_STYLESHEET_DARK,
     BG_SURFACE_DEFAULT,
@@ -61,7 +61,7 @@ from surfaces import (
     enriques_figure_1,
     enriques_figure_2,
 )
-from panels.view import ViewPanel
+from _qt.panels.view import ViewPanel
 
 _PLACEHOLDER = "— Select —"
 
@@ -395,7 +395,7 @@ class MainWindow(QMainWindow):
         # accumulation semantics — this site is the initial bind so the
         # accumulation story doesn't apply yet (single Spin instance).
         self._render_busy_spinner.setIcon(
-            icons.render_busy_spinner_icon(
+            _qt.icons.render_busy_spinner_icon(
                 self._render_busy_spinner, self._active_theme
             )
         )
@@ -1654,7 +1654,7 @@ class MainWindow(QMainWindow):
         # qtawesome `Spin.stop()` hook is not directly callable
         # from this site without that refactor.
         self._render_busy_spinner.setIcon(
-            icons.render_busy_spinner_icon(
+            _qt.icons.render_busy_spinner_icon(
                 self._render_busy_spinner, self._active_theme
             )
         )
@@ -1707,7 +1707,7 @@ class MainWindow(QMainWindow):
         # spinner icon the same way as user-driven theme swaps, with
         # identical Spin QTimer accumulation semantics.
         self._render_busy_spinner.setIcon(
-            icons.render_busy_spinner_icon(self._render_busy_spinner, resolved)
+            _qt.icons.render_busy_spinner_icon(self._render_busy_spinner, resolved)
         )
         current_variety = self.variety_combo.currentText()
         if current_variety in VARIETIES:

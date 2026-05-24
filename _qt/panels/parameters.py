@@ -28,9 +28,9 @@ from PySide6.QtWidgets import (
 )
 
 import parameter_grid as pg
-from panels.parameter_grid_panel import ParameterGridPanel
+from _qt.panels.parameter_grid_panel import ParameterGridPanel
 from surfaces import ParamSpec
-from ui_helpers import Debouncer, build_slider_row
+from _qt.ui_helpers import Debouncer, build_slider_row
 
 
 class ParametersPanel(QWidget):
@@ -207,11 +207,11 @@ class ParametersPanel(QWidget):
         rendering (frontend-ux critic LOW-1 — matches the size set on the
         View dock's icons).
         """
-        import icons
+        import _qt.icons
         from PySide6.QtCore import QSize
 
         self._reset_btn.setIconSize(QSize(16, 16))
-        self._reset_btn.setIcon(icons.reset_defaults_icon(theme))
+        self._reset_btn.setIcon(_qt.icons.reset_defaults_icon(theme))
 
     # ------------------------------------------------------------------
     # Internals

@@ -33,7 +33,7 @@ _APP_SRC = (
     pathlib.Path(__file__).resolve().parent.parent / "app.py"
 ).read_text(encoding="utf-8")
 _ICONS_SRC = (
-    pathlib.Path(__file__).resolve().parent.parent / "icons.py"
+    pathlib.Path(__file__).resolve().parent.parent / "_qt" / "icons.py"
 ).read_text(encoding="utf-8")
 
 
@@ -215,19 +215,20 @@ def test_icons_module_has_render_busy_spinner_icon_factory() -> None:
     pinned to the ``mdi6.`` font family for visual coherence with the
     rest of the AVC icon set.
     """
-    import icons  # safe — module-level import is not Qt-construction.
+    import _qt  # noqa: PLC0415 — for '_qt.icons.X' refs that LibCST rewrote
+    import _qt.icons as icons  # noqa: PLC0415 — for bare 'icons.X' refs LibCST left unrewritten
 
     assert hasattr(icons, "render_busy_spinner_icon"), (
         "icons.py must export render_busy_spinner_icon() factory."
     )
-    assert callable(icons.render_busy_spinner_icon), (
+    assert callable(_qt.icons.render_busy_spinner_icon), (
         "icons.render_busy_spinner_icon must be callable."
     )
     assert hasattr(icons, "RENDER_BUSY_SPINNER_ICON_NAME"), (
         "icons.py must export RENDER_BUSY_SPINNER_ICON_NAME module constant."
     )
-    assert icons.RENDER_BUSY_SPINNER_ICON_NAME.startswith("mdi6."), (
-        f"RENDER_BUSY_SPINNER_ICON_NAME={icons.RENDER_BUSY_SPINNER_ICON_NAME!r} "
+    assert _qt.icons.RENDER_BUSY_SPINNER_ICON_NAME.startswith("mdi6."), (
+        f"RENDER_BUSY_SPINNER_ICON_NAME={_qt.icons.RENDER_BUSY_SPINNER_ICON_NAME!r} "
         "must pin the mdi6.* font family — mixing in fa5s.* or fa6s.* would "
         "add a second cold-boot font-load cost on first icon construction."
     )
@@ -272,9 +273,9 @@ def test_render_busy_spinner_icon_docstring_carries_ai9_audit_anchor() -> None:
     this anchor a future re-introduction of the original §9 blocker
     rationale is more likely.
     """
-    import icons
+    import _qt.icons
 
-    doc = icons.render_busy_spinner_icon.__doc__ or ""
+    doc = _qt.icons.render_busy_spinner_icon.__doc__ or ""
     assert "AI-9" in doc, (
         "render_busy_spinner_icon docstring must explicitly cite AI-9 — "
         "documents why the original §9 spinner deferral is now obsolete."

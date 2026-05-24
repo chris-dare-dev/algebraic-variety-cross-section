@@ -152,7 +152,7 @@ def main(argv: list[str]) -> int:
     qInstallMessageHandler(_qt_message_filter)
 
     try:
-        import styles  # noqa: F401 — verified by attribute access below
+        import _qt.styles  # noqa: F401 — verified by attribute access below
         from appearance_panel import AppearancePanel
         from parameters_panel import ParametersPanel
         from surfaces import VARIETIES
