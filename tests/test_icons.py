@@ -29,9 +29,9 @@ import sys
 
 import pytest
 
-import _qt  # for '_qt.styles.X' references that LibCST partially rewrote in B3
-import _qt.icons as icons  # for bare 'icons.X' references AND _qt.icons.X chained refs
-import _qt.styles as styles  # for bare 'styles.X' references LibCST left unrewritten
+import _qt
+import _qt.icons
+import _qt.styles as styles
 
 
 HEX6 = re.compile(r"^#[0-9a-fA-F]{6}$")
@@ -43,10 +43,10 @@ def test_icons_module_does_not_import_qtawesome_at_module_load() -> None:
     so app launch doesn't pay the ~150-200ms font-cache cold-boot cost.
     """
     # Force a fresh import to test the just-loaded state.
-    sys.modules.pop("icons", None)
-    icons_mod = importlib.import_module("icons")
+    sys.modules.pop("_qt.icons", None)
+    icons_mod = importlib.import_module("_qt.icons")
     assert icons_mod._qta is None, (
-        "icons._qta must be None at module load — the lazy-import sentinel "
+        "_qt.icons._qta must be None at module load — the lazy-import sentinel "
         "indicates qtawesome has not yet been touched.  If you see this fail, "
         "an `import qtawesome` snuck into module scope; move it back into "
         "_get_qta()."
@@ -99,7 +99,7 @@ def test_icon_functions_call_qta_icon_with_correct_args() -> None:
     mock_qta.icon.return_value = MagicMock(name="QIcon")
 
     # Patch the cached qtawesome module so _get_qta() returns the mock.
-    with patch.object(icons, "_qta", mock_qta):
+    with patch("_qt.icons._qta", mock_qta):
         # Reset Camera — mdi6.fit-to-screen — TEXT_VALUE color, both themes
         for theme in ("dark", "light"):
             mock_qta.icon.reset_mock()
@@ -169,7 +169,7 @@ def test_icons_return_valid_qicons_with_qapplication() -> None:
             pytest.skip(f"Cannot create QApplication: {exc}")
 
     # Fresh import so the _qta sentinel test above doesn't dirty this one.
-    sys.modules.pop("icons", None)
+    sys.modules.pop("_qt.icons", None)
     import _qt.icons
 
     targets = (
@@ -229,12 +229,12 @@ def test_v0_icons_still_bind_correctly() -> None:
         (_qt.icons.reset_defaults_icon, "mdi6.restore", "_reset_defaults_icon_color"),
     )
 
-    with patch.object(icons, "_qta", mock_qta):
+    with patch("_qt.icons._qta", mock_qta):
         for factory, expected_name, color_helper_name in v0_bindings:
             for theme in ("dark", "light"):
                 mock_qta.icon.reset_mock()
                 factory(theme)
-                expected_color = getattr(icons, color_helper_name)(theme)
+                expected_color = getattr(_qt.icons, color_helper_name)(theme)
                 mock_qta.icon.assert_called_with(expected_name, color=expected_color)
 
 
@@ -263,7 +263,7 @@ def test_camera_preset_icons_correct_names_and_colors() -> None:
         (_qt.icons.preset_isometric_icon, "mdi6.axis-arrow",   None),
     )
 
-    with patch.object(icons, "_qta", mock_qta):
+    with patch("_qt.icons._qta", mock_qta):
         for factory, expected_name, expected_rotated in preset_bindings:
             for theme in ("dark", "light"):
                 mock_qta.icon.reset_mock()
@@ -297,7 +297,7 @@ def test_display_toggle_icons_correct_names_and_colors() -> None:
         (_qt.icons.hq_smoothing_icon, "mdi6.auto-fix"),
     )
 
-    with patch.object(icons, "_qta", mock_qta):
+    with patch("_qt.icons._qta", mock_qta):
         for factory, expected_name in toggle_bindings:
             for theme in ("dark", "light"):
                 mock_qta.icon.reset_mock()
