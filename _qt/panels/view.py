@@ -446,32 +446,15 @@ class ViewPanel(QWidget):
         Returns ``(clipped_mesh, overlay_mesh_or_None)``. The overlay is the
         wireframe sphere/cube to draw alongside the clipped surface, or
         ``None`` if the user disabled the overlay or selected mode ``Off``.
+
+        Per restructure-feature-subpackages-2026q2-r2 Batch 4 (Move Method):
+        the math + PyVista pipeline is now in ``cross_section.clip``.  This
+        method keeps the widget reads (via ``self.domain_settings()``) and
+        delegates the pure computation.
         """
+        from cross_section.clip import clip_to_domain as _pure_clip
         s = self.domain_settings()
-        mode = s["mode"]
-        if mode == self.DOMAIN_NONE or mesh.n_points == 0:
-            return mesh, None
-
-        r = s["radius"]
-        # Both clips use the same scalar-clipping approach for reliable
-        # behavior on PolyData surfaces: tag every vertex with a "domain
-        # function" (radial distance for the sphere, Chebyshev / max-coord
-        # distance for the cube), then keep only verts where that function
-        # is <= the threshold.
-        work = mesh.copy()
-        if mode == self.DOMAIN_SPHERE:
-            work.point_data["_domain_dist"] = np.linalg.norm(work.points, axis=1)
-            overlay = (
-                pv.Sphere(radius=r, center=(0.0, 0.0, 0.0),
-                          theta_resolution=48, phi_resolution=24)
-                if s["show_overlay"] else None
-            )
-        else:  # DOMAIN_CUBE
-            work.point_data["_domain_dist"] = np.max(np.abs(work.points), axis=1)
-            overlay = pv.Box(bounds=(-r, r, -r, r, -r, r)) if s["show_overlay"] else None
-
-        clipped = work.clip_scalar(scalars="_domain_dist", value=r, invert=True)
-        return clipped, overlay
+        return _pure_clip(mesh, s["mode"], s["radius"], s["show_overlay"])
 
     # ------------------------------------------------------------------
     # Public API — called by MainWindow after each surface switch
