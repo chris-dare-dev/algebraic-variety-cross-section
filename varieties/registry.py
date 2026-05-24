@@ -10,7 +10,10 @@ Any new variety must be added here AND get a corresponding entry in
 varieties.tooltips.VARIETY_TOOLTIPS + SUBTYPE_TOOLTIPS.
 
 Stable canonical import path: `from varieties.registry import VARIETIES`.
-Backward-compat: `from surfaces import VARIETIES` still works via hub-shim re-export.
+
+(Per restructure-single-root-2026q2-r3 Batch 4: the `surfaces.py` hub-shim was
+retired on 2026-05-24; the historical `from surfaces import VARIETIES` path
+no longer exists. All callers now use the canonical path above.)
 """
 
 from __future__ import annotations

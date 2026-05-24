@@ -10,7 +10,10 @@ entry with the appropriate _LOD_NOTE_* suffix.
 Stable canonical import paths:
     from varieties.tooltips import VARIETY_TOOLTIPS, SUBTYPE_TOOLTIPS
 
-Backward-compat: `from surfaces import VARIETY_TOOLTIPS, SUBTYPE_TOOLTIPS` still works.
+(Per restructure-single-root-2026q2-r3 Batch 4: the `surfaces.py` hub-shim was
+retired on 2026-05-24; the historical `from surfaces import VARIETY_TOOLTIPS,
+SUBTYPE_TOOLTIPS` path no longer exists. All callers now use the canonical
+paths above.)
 """
 
 from __future__ import annotations

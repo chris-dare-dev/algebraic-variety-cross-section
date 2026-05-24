@@ -64,3 +64,40 @@ The 4 root-level r1 panel shim files and their test file have been deleted (M+1 
 - `tests/test_panels_shims.py` → DELETED (97 LOC; vacuous after shim removal).
 Prior CORRECTION block statement "Root-level shims remain but contain only the 18-line __getattr__ forwarder" is now false — root shims do NOT remain. Source grep tests continue using panels/ paths; no shim fallback.
 Tag: `refactor-r2-batch1-end` at 16b251b.
+
+## Lesson from restructure-single-root-2026q2-r3 batch 1 (2026-05-24)
+- Shim quirk: B1 is tooling-only (no shims, no file moves) — skip shim template lookup entirely
+- AVC-specific gotcha: rewrite-imports.py symbol_renames was dict[old_module, (new_mod, sym)] which silently overwrites all-but-last symbol when multiple symbols from same source module map to different destinations. Fixed to dict[(old_module, symbol_name), new_module]. This would have caused ALL B4 symbols to be wrong — only _hanson_cross_section would have been correctly routed.
+- LibCST rewrite surprise: leave_ImportFrom cannot return FlattenSentinel (multiple nodes). Multi-alias splitting MUST be done in leave_SimpleStatementLine which can return FlattenSentinel. This is the correct hook for one-statement-to-many expansion.
+- LibCST rewrite surprise 2: MetadataWrapper(tree).visit(transformer) is required (not tree.visit(transformer)) when METADATA_DEPENDENCIES is declared. QualifiedNameProvider.has_name() is callable from leave_Name etc. only after wrapping.
+- LibCST rewrite surprise 3: ScopeProvider is NOT needed alongside QualifiedNameProvider for has_name() — omitting it saves parse time per file with no functional cost.
+- Walker exclusion: the old .claude/worktrees/ exclusion was too narrow — the codemod was walking all of .claude/scripts/. Extended to .claude/ prefix (catches scripts/, notes/, agent-memory/, hooks/, commands/).
+- Tests-per-commit wall-clock: ~7.16s for 506 tests (consistent with prior batches; no source changes)
+
+## Lesson from restructure-single-root-2026q2-r3 batch 2 (2026-05-24)
+- Shim quirk: B2 has zero shims (no back-compat shim for parameter_grid; all callers are in-tree and rewritten by LibCST)
+- AVC-specific gotcha: varieties/types.py already has `from __future__ import annotations` AND `import pyvista as pv` — adding a @runtime_checkable Protocol referencing pv.PolyData requires NO forward-ref string and NO new pyvista import. Only add `from typing import Protocol, runtime_checkable`.
+- LibCST rewrite surprise: module-rename codemod (kind=module, batch=2) ran cleanly on all 4 alias-form callers with zero false positives. The B1 codemod fix (dict[(old_mod, sym)] key schema) is required even for batch=2 module-level renames because the codemod walks ALL batches' symbol entries — the B4 entries would have corrupted output without the fix.
+- Tests-per-commit wall-clock: ~5.70-6.50s for 506 tests (consistent with prior batches)
+
+## Lesson from restructure-single-root-2026q2-r3 batch 3 (2026-05-24)
+- Shim quirk: B3 is deletion-only (zero new shims) — skip shim template lookup entirely
+- AVC-specific gotcha: When deleting a root-level shim (e.g. `icons.py`), scan ALL test files for `importlib.import_module("<shim-name>")` string literals — LibCST does NOT rewrite these and the pre-flight grep only catches `^import` / `^from` at line-start. The `test_icons.py` file had `importlib.import_module("icons")` that was missed by the pre-flight scan.
+- AVC-specific gotcha 2: `patch.object(module_alias, attr, mock)` breaks after `sys.modules.pop(module_name, None)` because the alias still points to the OLD module object. The test-function's local `import _qt.icons` gets the NEW re-loaded module from sys.modules. These two objects diverge. Fix: use the string form `patch("_qt.icons._qta", mock)` which resolves via sys.modules at patch-entry time.
+- LibCST rewrite surprise: N/A for batch 3 (no import rewrites; deletions only)
+- Tests-per-commit wall-clock: ~5.75s for 499 tests (consistent with prior batches)
+
+## Lesson from restructure-single-root-2026q2-r3 batch 4 (2026-05-24)
+- Shim quirk: B4 introduces zero new shims (surfaces.py is deleted, not shimmed) — skip shim template lookup entirely
+- AVC-specific gotcha: For bare `import surfaces` sites, the LibCST codemod rewrites the body attribute-accesses `surfaces.X.Y` → `varieties.X.Y` but leaves the bare `import surfaces` statement behind (no matching `from surfaces import` pattern). Manual fix: replace `import surfaces` with `import varieties.X` statements for each sub-module referenced in the body via dotted access.
+- LibCST rewrite surprise: The codemod's attribute-access rewrite converts `surfaces.enriques.enriques_figure_1` → `varieties.enriques.enriques_figure_1`, treating the dotted chain as an attribute-access on a module alias. This creates dangling `varieties.X.Y` references without any corresponding `import varieties.X`. After the manual fix (`import varieties.enriques`, `import varieties.k3`, etc.), the `varieties.X.Y()` calls resolve correctly via Python's package sub-module access.
+- DeprecationWarning gate: The mandatory `-W error::DeprecationWarning -m pytest -q` gate between commit 1 and commit 2 passed cleanly (499 passed, exit 0). No caller was still routing through surfaces.py's `__getattr__` shim after the LibCST rewrite + manual fixes.
+- Tests-per-commit wall-clock: ~5.78-6.10s for 499 tests (consistent with prior B3 timing)
+- Single-root target achieved: `ls *.py` outputs only `app.py` after B4 commit 2.
+
+## Lesson from restructure-single-root-2026q2-r3 batch 5 (2026-05-24)
+- Shim quirk: B5 is lock-in only (zero new shims, zero file moves) — skip shim template lookup entirely
+- AVC-specific gotcha: import-linter 2.x requires `include_external_packages = true` in `[tool.importlinter]` for `forbidden_modules` entries that name third-party packages (PySide6, PyQt5, PyQt6). Without this flag, lint-imports silently ignores external-package names in the forbidden list.
+- import-linter quirk: empty contracts list (`Contracts: 0 kept, 0 broken`) is a valid step-0 confirmation that tooling is installed and working — do not skip this no-op run, it catches misconfigured root_packages before adding real contracts.
+- subprocess smoke pattern: `app` and `_qt` are subprocess-safe for the parametrize list because `app.py` guards `QApplication()` inside `if __name__ == "__main__": main()` and `_qt/__init__.py` is docstring-only. The scout's warning "DO NOT include app/_qt" applies only to packages that eagerly instantiate Qt at module scope.
+- Tests-per-commit wall-clock: ~7.21s for 504 tests (5 new smoke tests add ~1.66s; subprocess timeout=30 is generous, actual per-test wall clock ~0.33s each)
