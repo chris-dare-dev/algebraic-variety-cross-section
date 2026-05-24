@@ -38,7 +38,7 @@ from pyvistaqt import QtInteractor
 import icons
 from panels.appearance import AppearancePanel
 from panels.parameters import ParametersPanel
-from render_worker import MeshResult, MeshWorker, is_stale_result
+from render.worker import MeshResult, MeshWorker, is_stale_result
 from styles import (
     APP_STYLESHEET,
     APP_STYLESHEET_DARK,

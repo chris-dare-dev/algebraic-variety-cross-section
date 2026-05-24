@@ -25,7 +25,7 @@ import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from render_worker import MeshResult, MeshWorker, is_stale_result
+from render.worker import MeshResult, MeshWorker, is_stale_result
 
 
 # ---------------------------------------------------------------------------
