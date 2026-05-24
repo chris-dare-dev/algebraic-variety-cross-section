@@ -1,8 +1,8 @@
 {
   "id": "restructure-feature-subpackages-2026q2-r2",
   "created_at": "2026-05-23T20:44:24Z",
-  "updated_at": "2026-05-24T03:00:08Z",
-  "phase": "execute-complete",
+  "updated_at": "2026-05-24T03:02:10Z",
+  "phase": "rectify-running",
   "phase_history": [
     {
       "phase": "init",
@@ -39,6 +39,10 @@
     {
       "phase": "execute-complete",
       "at": "2026-05-24T03:00:08Z"
+    },
+    {
+      "phase": "rectify-running",
+      "at": "2026-05-24T03:01:01Z"
     }
   ],
   "restructure_brief": "Feature-subpackage decomposition of AVC. This is the substantive structural work that the prior restructure (restructure-full-audit-2026q2-r1) explicitly deferred under 'conservative bias' even though scout-B flagged it as the highest-ROI change. The conservative bias is RELAXED for this run; the design-adversary now has axis 12 (under-engineering vs evidence, added in commit b5235ab) and SHOULD push back on deferrals that don't address audit citations head-on. SCOPE: introduce feature subpackages at the root (NOT under src/avcs/ -- flat-package + feature subpackages, per scout-B's pragmatic recommendation). Target tree shape per scout-B's napari analogy: (1) varieties/ subpackage extracted from surfaces.py -- one module per variety family (k3, enriques, calabi_yau, fano), a varieties/_kernels.py for the 11 Numba @njit field kernels (per scout-A 4.2 cleanest seam), a varieties/_marching.py for _marching_cubes_to_polydata + _grid_to_polydata helpers, and a varieties/registry.py for the VARIETIES dict + tooltips (load-bearing per AI-8 -- must remain importable via 'from varieties.registry import VARIETIES'); (2) render/ subpackage absorbing render_worker.py to render/worker.py and any rendering helpers that emerge; (3) cross_section/ subpackage with view_panel.clip_to_domain extracted as a pure function; (4) _qt/ subpackage following napari's underscore-prefix convention for framework adapters -- RENAME of existing panels/ to _qt/panels/ + move icons.py + ui_helpers.py + styles.py inside as _qt/icons.py, _qt/helpers.py, _qt/styles.py (styles.py is data but is QSS-coupled and used only by Qt code); (5) keep app.py at root as the entry point (do NOT Extract Class on it in this restructure -- that's a separate milestone gated behind successful structural decomposition); (6) keep parameter_grid.py at root for now since it's pure-math infrastructure (or move into varieties/parameter_grid.py if the designer judges it belongs there -- the math is for variety parameter grids). HARD CONSTRAINTS: AI-1..AI-15 invariants from .claude/references/app-invariants.md are inviolable. Specifically AI-2, AI-6, AI-7, AI-8, AI-9, AI-12, AI-15. NON-NEGOTIABLE: every old import path gets a __getattr__ shim for one milestone. tests/test_numba_field_kernels.py specifically uses 'from surfaces import _<name>_field_kernel' -- preserve this. Plan a per-batch rollback tag protocol (refactor-batch{N}-end). README + CONTEXT.md WILL need substantive rewrites; both authorized for Batch 4+ anchor-updater. EFFORT EXPECTATION: this is materially larger than r1 (which moved 4 panel files); expect 6-9 batches, ~3-5 h wall-clock. Sequence low-risk-first per design-adversary axis 10: structural moves before semantic extractions before content edits.",
@@ -98,17 +102,23 @@
     ".claude/notes/repository-architect/restructure-feature-subpackages-2026q2-r2/execute/anchor-updater-batch-2-report.md",
     ".claude/notes/repository-architect/restructure-feature-subpackages-2026q2-r2/execute/anchor-updater-batch-3-report.md"
   ],
-  "execution_critic_path": null,
-  "test_suggester_path": null,
+  "execution_critic_path": ".claude/notes/repository-architect/restructure-feature-subpackages-2026q2-r2/rectify/execution-critic-critique.md",
+  "test_suggester_path": ".claude/notes/repository-architect/restructure-feature-subpackages-2026q2-r2/rectify/test-suggester-suggestions.md",
   "critique_finding_counts": {
     "critical": 0,
     "high": 0,
-    "medium": 0,
-    "low": 0
+    "medium": 1,
+    "low": 4
   },
   "rectification_commit": null,
   "fixed_findings": [],
-  "deferred_findings": [],
+  "deferred_findings": [
+    "M1",
+    "L1",
+    "L2",
+    "L3",
+    "L4"
+  ],
   "invalidated_findings": [],
   "user_gate_history": [
     {
@@ -125,6 +135,11 @@
       "gate": 3,
       "at": "2026-05-23T22:06:00Z",
       "response": "y"
+    },
+    {
+      "gate": 5,
+      "at": "2026-05-24T03:15:00Z",
+      "response": "y-implicit-inline-main-session"
     }
   ]
 }
