@@ -39,130 +39,17 @@ numba.config.THREADING_LAYER = "workqueue"
 from numba import njit, prange  # noqa: E402 — must follow the config set above
 
 
-@dataclass(frozen=True)
-class ParamSpec:
-    name: str        # kwarg name passed to the generator
-    label: str       # human-readable label for the slider
-    minimum: float
-    maximum: float
-    default: float
-    step: float = 0.01
-    suffix: str = ""
-    description: str = ""
+# Per restructure-feature-subpackages-2026q2-r2 Batch 5: ParamSpec and Surface
+# moved to varieties/types.py; should_render_on_drag, dispatch_mode, and
+# FAST_RENDER_THRESHOLD_MS moved to varieties/dispatch.py. Re-exported here for
+# backward-compatibility (existing `from surfaces import ParamSpec` keeps working).
+from varieties.types import ParamSpec, Surface
+from varieties.dispatch import (
+    should_render_on_drag,
+    dispatch_mode,
+    FAST_RENDER_THRESHOLD_MS,
+)
 
-
-@dataclass
-class Surface:
-    label: str
-    generate: Callable[..., pv.PolyData]
-    params: list[ParamSpec] = field(default_factory=list)
-    # realtime-variety-render-e2-s1 (CAND-8): measured typical generation
-    # time in ms at the surface's default parameters.  0 means "unmeasured /
-    # not fast" — every implicit (marching-cubes) generator keeps this default.
-    # The three Hanson parametric generators carry their measured values so
-    # `app.py`'s continuous-drag fast-path (see `should_render_on_drag`) can
-    # speed-route them: a surface with 0 < typical_ms <= 80 renders at every
-    # debounced drag tick; everything else stays release-only.  Defaulted
-    # field placed after `params` so the dataclass contract stays clean
-    # (AI-8 — the dataclass is not frozen; a trailing defaulted field is safe).
-    typical_ms: int = 0
-    # realtime-variety-render-e4b (CAND-3): coarse-preview-LOD floor for the
-    # marching-cubes grid `n`.  0 means "no coarse-LOD" — the safe default for
-    # any surface not explicitly opted in:
-    #   * Hanson parametric generators (typical_ms > 0): always render full;
-    #     they never go through marching cubes, so a coarse `n` is meaningless
-    #     (AI-6 — three-layer guard, this default is the second layer).
-    #   * Implicit generators whose topology is fragile at any practical
-    #     coarse floor (e.g. fano_two_quadrics's ε-tube): stay opt-out so
-    #     drag-time renders preserve mathematical honesty.
-    # Implicit generators that DO opt in carry a per-surface `coarse_n` value
-    # validated by tests/test_coarse_n.py's n-sweep — the floor is
-    # the smallest `n` at which the surface's defining topological features
-    # (Kummer's 16 nodes, Enriques double curves, etc.) survive the sweep.
-    # Mutually exclusive in use with `typical_ms`: a Surface with
-    # `typical_ms > 0` is parametric; a Surface with `coarse_n > 0` is
-    # implicit-LOD-eligible.
-    coarse_n: int = 0
-
-    def defaults(self) -> dict[str, float]:
-        return {p.name: p.default for p in self.params}
-
-
-# realtime-variety-render-e2-s2 (CAND-8): the continuous-drag fast-path
-# threshold, in ms.  A surface whose measured `typical_ms` falls in
-# (0, FAST_RENDER_THRESHOLD_MS] is "fast enough" to regenerate at every
-# debounced drag tick (~80 ms cadence) without the GUI feeling sluggish;
-# anything slower stays release-only until the e4 coarse-LOD path lands.
-FAST_RENDER_THRESHOLD_MS = 80
-
-
-def should_render_on_drag(surface: "Surface | None") -> bool:
-    """Pure speed-routing predicate for the continuous-drag fast-path.
-
-    Returns ``True`` when *surface* is fast enough to regenerate on every
-    debounced drag tick — i.e. it carries a measured ``typical_ms`` in the
-    half-open range ``(0, FAST_RENDER_THRESHOLD_MS]``.  Returns ``False`` for
-    ``None`` and for any surface with ``typical_ms == 0`` (unmeasured /
-    implicit marching-cubes generators), which therefore stay release-only
-    exactly as before this epic.
-
-    Extracted as a free function (no Qt, no ``QApplication``) so the routing
-    decision is unit-testable under the Qt-free AI-2 suite.  ``MainWindow``
-    calls this from its drag-tick handler; the panels do not — they have no
-    visibility into the current surface's ``typical_ms``.
-    """
-    return (
-        surface is not None
-        and 0 < surface.typical_ms <= FAST_RENDER_THRESHOLD_MS
-    )
-
-
-def dispatch_mode(surface: "Surface | None", in_drag: bool) -> str:
-    """Return the e4b speed-routing decision for a render request.
-
-    Three outcomes (the names are stable — `app.py` keys on them):
-
-    - ``"full"`` — render at full resolution.  Fired (a) on slider RELEASE
-      for every surface; (b) on slider DRAG for Hanson parametric surfaces
-      (already fast enough — the e2 continuous-drag fast-path).
-    - ``"coarse"`` — render at the surface's per-surface ``coarse_n`` floor
-      (realtime-variety-render-e4b / CAND-3).  Fired only on slider DRAG
-      for implicit (marching-cubes) generators with ``coarse_n > 0``; the
-      release path then re-renders at full resolution.
-    - ``"skip"`` — do nothing.  Fired on slider DRAG for opt-out implicit
-      generators (``coarse_n == 0``, e.g. ``fano_two_quadrics`` whose
-      ε-tube is too fragile for any practical coarse floor) and for
-      ``None`` (no surface selected).
-
-    AI-6 (three-layer Hanson skip):
-      1. This function returns ``"full"`` (NOT ``"coarse"``) for Hanson
-         because ``typical_ms > 0`` is checked before ``coarse_n``.
-      2. Hanson surfaces' ``coarse_n == 0`` default — even if a future bug
-         called for coarse mode on Hanson, the dispatch ``params["n"]``
-         injection in ``app.py`` skips when ``coarse_n == 0``.
-      3. The worker (``render_worker.MeshWorker``) is mode-agnostic — it
-         passes ``params`` through to ``surface.generate`` unmodified, so
-         a Hanson generator never sees an unwanted ``n`` override.
-
-    Extracted as a free function (no Qt, no ``QApplication``) so the
-    routing decision is unit-testable under the Qt-free AI-2 suite — same
-    pattern as ``should_render_on_drag`` (this module) and
-    ``clipped_cache_is_valid`` (``app.py``).
-    """
-    if surface is None:
-        return "skip"
-    if not in_drag:
-        # Release path is always full-resolution.
-        return "full"
-    if surface.typical_ms > 0:
-        # Hanson parametric surfaces are already fast enough; render full at
-        # every drag tick.  (AI-6 layer 1: positive Hanson signal.)
-        return "full"
-    if surface.coarse_n > 0:
-        # Implicit surface with a validated coarse-LOD floor.
-        return "coarse"
-    # Implicit, opt-out (coarse_n == 0): no drag render.
-    return "skip"
 
 
 # ---------------------------------------------------------------------------
