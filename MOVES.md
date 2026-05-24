@@ -244,7 +244,7 @@ surfaces.py decomposition: 1811 → 123 LOC (93% reduction). All historical impo
 ## 2026-05-24 — restructure-single-root-2026q2-r3: single-root lock-in (B1–B5)
 
 r3 baseline SHA: c1dcf89
-r3 final SHA: &lt;latest&gt; (HEAD after this docs commit)
+r3 final SHA: cabf688 (HEAD after this docs commit)
 
 **Goal:** `ls *.py | wc -l == 1` — app.py is the ONLY .py file at the repo root.
 
