@@ -21,16 +21,23 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from surfaces import (
+from varieties.dispatch import (
     FAST_RENDER_THRESHOLD_MS,
-    VARIETIES,
-    Surface,
+    should_render_on_drag)
+
+from varieties.registry import (
+    VARIETIES)
+
+from varieties.types import (
+    Surface)
+
+from varieties.calabi_yau import (
     calabi_yau_asymmetric,
     calabi_yau_cubic,
-    calabi_yau_quintic,
-    fermat_quartic,
-    should_render_on_drag,
-)
+    calabi_yau_quintic)
+
+from varieties.k3 import (
+    fermat_quartic)
 
 # The 3 Hanson parametric generators that get a measured typical_ms (e2-s1).
 _HANSON_GENERATORS = {

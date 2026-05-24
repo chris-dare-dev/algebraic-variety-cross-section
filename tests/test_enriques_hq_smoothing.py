@@ -28,13 +28,14 @@ import pathlib
 
 import numpy as np
 
-import surfaces
+import varieties._marching
+import varieties.enriques
 
 
 def test_enriques_fig1_hq_default_is_false() -> None:
     """`enriques_figure_1.hq_smoothing` defaults to False — the 449ms
     baseline is preserved for all callers that don't opt in."""
-    sig = inspect.signature(surfaces.enriques_figure_1)
+    sig = inspect.signature(varieties.enriques.enriques_figure_1)
     assert "hq_smoothing" in sig.parameters, (
         "enriques_figure_1 is missing hq_smoothing kwarg — the opt-in "
         "extension point added by enriques-hq-smoothing-2026q3-e1."
@@ -48,7 +49,7 @@ def test_enriques_fig1_hq_default_is_false() -> None:
 def test_enriques_fig2_hq_default_is_false() -> None:
     """`enriques_figure_2.hq_smoothing` defaults to False — same baseline
     preservation as fig 1."""
-    sig = inspect.signature(surfaces.enriques_figure_2)
+    sig = inspect.signature(varieties.enriques.enriques_figure_2)
     assert "hq_smoothing" in sig.parameters
     assert sig.parameters["hq_smoothing"].default is False
 
@@ -60,7 +61,7 @@ def test_marching_cubes_second_smooth_iter_default_is_zero() -> None:
     would silently impose the +138ms HQ overhead on every other generator
     too, with no benefit (they have no double-curve topology).
     """
-    sig = inspect.signature(surfaces._marching_cubes_to_polydata)
+    sig = inspect.signature(varieties._marching._marching_cubes_to_polydata)
     assert "second_smooth_iter" in sig.parameters, (
         "_marching_cubes_to_polydata is missing second_smooth_iter kwarg — "
         "the internal plumbing for the opt-in second Taubin pass added by "
@@ -81,7 +82,7 @@ def test_enriques_fig3_has_no_hq_kwarg() -> None:
     silently impose +138ms on a surface that gains nothing.  Scope
     enforcement.
     """
-    sig = inspect.signature(surfaces.enriques_figure_3)
+    sig = inspect.signature(varieties.enriques.enriques_figure_3)
     assert "hq_smoothing" not in sig.parameters, (
         "enriques_figure_3 accepts hq_smoothing — should be scoped to figs "
         "1+2 only.  Fig 3 has A₁ nodes per CONTEXT.md §8.13, not double "
@@ -92,7 +93,7 @@ def test_enriques_fig3_has_no_hq_kwarg() -> None:
 def test_enriques_fig4_has_no_hq_kwarg() -> None:
     """Same scope guard as fig 3 — fig 4 (icosahedral sextic) also has
     A₁ nodes, not double curves."""
-    sig = inspect.signature(surfaces.enriques_figure_4)
+    sig = inspect.signature(varieties.enriques.enriques_figure_4)
     assert "hq_smoothing" not in sig.parameters, (
         "enriques_figure_4 accepts hq_smoothing — should be scoped to figs "
         "1+2 only.  Fig 4 has A₁ nodes; no double-curve target."
@@ -103,14 +104,14 @@ def test_enriques_fig1_hq_on_returns_valid_mesh() -> None:
     """Smoke: enriques_figure_1(hq_smoothing=True) returns a non-empty
     PolyData — the second pass doesn't break the generator contract
     (AI-14: returns PolyData or raises ValueError)."""
-    mesh = surfaces.enriques_figure_1(hq_smoothing=True)
+    mesh = varieties.enriques.enriques_figure_1(hq_smoothing=True)
     assert mesh.n_points > 0
     assert mesh.n_faces > 0
 
 
 def test_enriques_fig2_hq_on_returns_valid_mesh() -> None:
     """Smoke: same as fig 1 for fig 2."""
-    mesh = surfaces.enriques_figure_2(hq_smoothing=True)
+    mesh = varieties.enriques.enriques_figure_2(hq_smoothing=True)
     assert mesh.n_points > 0
     assert mesh.n_faces > 0
 
@@ -130,8 +131,8 @@ def test_enriques_fig1_hq_on_moves_vertices_vs_hq_off() -> None:
     regression we're guarding against), every displacement would be
     exactly 0.
     """
-    mesh_off = surfaces.enriques_figure_1(c=1.0, hq_smoothing=False)
-    mesh_on = surfaces.enriques_figure_1(c=1.0, hq_smoothing=True)
+    mesh_off = varieties.enriques.enriques_figure_1(c=1.0, hq_smoothing=False)
+    mesh_on = varieties.enriques.enriques_figure_1(c=1.0, hq_smoothing=True)
     # Vertex counts are the same (Taubin doesn't add/remove vertices).
     assert mesh_off.n_points == mesh_on.n_points, (
         f"Vertex count changed between HQ-off ({mesh_off.n_points}) and "
@@ -221,7 +222,7 @@ def test_hq_smoothing_frozensets_stay_in_sync_with_varieties_registry() -> None:
     eligible_subtypes = app_module._HQ_SMOOTHING_ELIGIBLE_SUBTYPES
     eligible_generators = app_module._HQ_SMOOTHING_ELIGIBLE_GENERATORS
 
-    from surfaces import VARIETIES
+    from varieties.registry import VARIETIES
 
     enriques_subtypes = VARIETIES["Enriques surface"]
 

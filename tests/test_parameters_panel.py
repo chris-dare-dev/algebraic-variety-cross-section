@@ -18,23 +18,30 @@ import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from surfaces import (
+from varieties.k3 import (
     FERMAT_PARAMS,
-    KUMMER_PARAMS,
+    KUMMER_PARAMS)
+
+from varieties.enriques import (
     ENRIQUES_FIGURE_1_PARAMS,
     ENRIQUES_FIGURE_2_PARAMS,
     ENRIQUES_FIGURE_3_PARAMS,
-    ENRIQUES_FIGURE_4_PARAMS,
+    ENRIQUES_FIGURE_4_PARAMS)
+
+from varieties.calabi_yau import (
     CALABI_YAU_QUINTIC_PARAMS,
     CALABI_YAU_CUBIC_PARAMS,
     CALABI_YAU_ASYMMETRIC_PARAMS,
-    CALABI_YAU_DWORK_PARAMS,
+    CALABI_YAU_DWORK_PARAMS)
+
+from varieties.fano import (
     FANO_KLEIN_CUBIC_PARAMS,
     FANO_SEGRE_CUBIC_PARAMS,
     FANO_TWO_QUADRICS_PARAMS,
-    FANO_SEXTIC_DOUBLE_SOLID_PARAMS,
-    ParamSpec,
-)
+    FANO_SEXTIC_DOUBLE_SOLID_PARAMS)
+
+from varieties.types import (
+    ParamSpec)
 
 
 # ---------------------------------------------------------------------------

@@ -14,7 +14,9 @@ import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from surfaces import _marching_cubes_to_polydata, kummer_surface
+from varieties._marching import _marching_cubes_to_polydata
+
+from varieties.k3 import kummer_surface
 
 
 def test_all_positive_field_raises():

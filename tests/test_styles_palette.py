@@ -211,7 +211,7 @@ def test_variety_default_color_keys_match_surfaces_varieties() -> None:
     will be caught here before the silent BG_SURFACE_DEFAULT fallback masks
     the bug in production.
     """
-    from surfaces import VARIETIES
+    from varieties.registry import VARIETIES
     for key in _qt.styles.VARIETY_DEFAULT_COLOR:
         assert key in VARIETIES, (
             f"VARIETY_DEFAULT_COLOR has key {key!r} that is not present in "
@@ -607,7 +607,7 @@ def test_variety_default_color_dark_keys_match_surfaces_varieties() -> None:
     test).  Catches any future variety rename before the silent
     BG_SURFACE_DEFAULT fallback masks the bug.
     """
-    from surfaces import VARIETIES
+    from varieties.registry import VARIETIES
     for key in _qt.styles.VARIETY_DEFAULT_COLOR_DARK:
         assert key in VARIETIES, (
             f"VARIETY_DEFAULT_COLOR_DARK has key {key!r} not in "
@@ -1249,7 +1249,7 @@ def test_subtype_tooltips_have_lod_disclosure() -> None:
     opt-out gets the release-only note.  Without these the user can't
     predict what drag will trigger from the tooltip alone.
     """
-    from surfaces import SUBTYPE_TOOLTIPS
+    from varieties.tooltips import SUBTYPE_TOOLTIPS
 
     for subtype, tooltip in SUBTYPE_TOOLTIPS.items():
         assert any(

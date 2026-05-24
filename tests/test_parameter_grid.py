@@ -16,14 +16,17 @@ import pytest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import _qt.parameter_grid_math as pg
-from surfaces import (
-    CALABI_YAU_QUINTIC_PARAMS,
-    ENRIQUES_FIGURE_2_PARAMS,
-    FANO_TWO_QUADRICS_PARAMS,
+from varieties.calabi_yau import (
+    CALABI_YAU_QUINTIC_PARAMS)
+from varieties.enriques import (
+    ENRIQUES_FIGURE_2_PARAMS)
+from varieties.fano import (
+    FANO_TWO_QUADRICS_PARAMS)
+from varieties.k3 import (
     FERMAT_PARAMS,
-    KUMMER_PARAMS,
-    ParamSpec,
-)
+    KUMMER_PARAMS)
+from varieties.types import (
+    ParamSpec)
 
 _LENGTH = 240.0  # representative scene-axis length
 

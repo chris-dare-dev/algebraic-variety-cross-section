@@ -50,7 +50,7 @@ import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from surfaces import (
+from varieties._kernels import (
     _dwork_field_kernel,
     _enriques_fig1_field_kernel,
     _enriques_fig2_field_kernel,
@@ -61,8 +61,7 @@ from surfaces import (
     _kummer_field_kernel,
     _segre_cubic_field_kernel,
     _sextic_double_solid_field_kernel,
-    _two_quadrics_field_kernel,
-)
+    _two_quadrics_field_kernel)
 
 
 # ---------------------------------------------------------------------------

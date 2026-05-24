@@ -29,25 +29,36 @@ import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from surfaces import (
-    VARIETIES,
-    Surface,
+from varieties.registry import (
+    VARIETIES)
+
+from varieties.types import (
+    Surface)
+
+from varieties.calabi_yau import (
     calabi_yau_asymmetric,
     calabi_yau_cubic,
     calabi_yau_dwork,
-    calabi_yau_quintic,
-    dispatch_mode,
+    calabi_yau_quintic)
+
+from varieties.dispatch import (
+    dispatch_mode)
+
+from varieties.enriques import (
     enriques_figure_1,
     enriques_figure_2,
     enriques_figure_3,
-    enriques_figure_4,
+    enriques_figure_4)
+
+from varieties.fano import (
     fano_klein_cubic,
     fano_segre_cubic,
     fano_sextic_double_solid,
-    fano_two_quadrics,
+    fano_two_quadrics)
+
+from varieties.k3 import (
     fermat_quartic,
-    kummer_surface,
-)
+    kummer_surface)
 
 
 # ---------------------------------------------------------------------------

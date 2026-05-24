@@ -14,22 +14,27 @@ import os
 # Ensure the project root is importable when running tests from any cwd.
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from surfaces import (
+from varieties.k3 import (
     fermat_quartic,
-    kummer_surface,
+    kummer_surface)
+
+from varieties.enriques import (
     enriques_figure_1,
     enriques_figure_2,
     enriques_figure_3,
-    enriques_figure_4,
+    enriques_figure_4)
+
+from varieties.calabi_yau import (
     calabi_yau_quintic,
     calabi_yau_cubic,
     calabi_yau_asymmetric,
-    calabi_yau_dwork,
+    calabi_yau_dwork)
+
+from varieties.fano import (
     fano_klein_cubic,
     fano_segre_cubic,
     fano_two_quadrics,
-    fano_sextic_double_solid,
-)
+    fano_sextic_double_solid)
 
 
 # ---------------------------------------------------------------------------
@@ -156,12 +161,11 @@ def test_enriques_figures_padded_bounds_spike_path_b() -> None:
     """
     import inspect
     import math
-    from surfaces import (
+    from varieties.enriques import (
         enriques_figure_1,
         enriques_figure_2,
         enriques_figure_3,
-        enriques_figure_4,
-    )
+        enriques_figure_4)
 
     # Each tuple: (generator, expected bounds default, original bounds).
     # Currently both sides are stored Python float literals so the

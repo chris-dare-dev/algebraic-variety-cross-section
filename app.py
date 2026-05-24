@@ -46,21 +46,18 @@ from _qt.styles import (
     COLOR_WIREFRAME_OVERLAY,
     get_variety_default_colors,
 )
-from surfaces import (
-    VARIETIES,
+from varieties.registry import (
+    VARIETIES)
+from varieties.tooltips import (
     VARIETY_TOOLTIPS,
-    SUBTYPE_TOOLTIPS,
-    Surface,
-    # realtime-variety-render-e4b (CAND-3): `dispatch_mode` superseded the
-    # earlier `should_render_on_drag` call site here — the new predicate
-    # returns "coarse" / "full" / "skip", covering Hanson fast-path AND
-    # implicit-coarse-LOD AND opt-out in one decision.  `should_render_on_drag`
-    # is still exported from `surfaces` for backwards compatibility and unit
-    # tests; just not imported here.
-    dispatch_mode,
+    SUBTYPE_TOOLTIPS)
+from varieties.types import (
+    Surface)
+from varieties.dispatch import (
+    dispatch_mode)
+from varieties.enriques import (
     enriques_figure_1,
-    enriques_figure_2,
-)
+    enriques_figure_2)
 from _qt.panels.view import ViewPanel
 
 _PLACEHOLDER = "— Select —"

@@ -14,7 +14,7 @@ import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from surfaces import _grid_to_polydata, _concat_polydata
+from varieties._marching import _grid_to_polydata, _concat_polydata
 
 
 # ---------------------------------------------------------------------------

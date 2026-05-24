@@ -24,7 +24,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from surfaces import ParamSpec
+from varieties.types import ParamSpec
 
 # Minimum number of parameters for grid mode to add anything. With 0 or 1
 # parameter a grid is degenerate (no second axis), so the toggle is disabled.

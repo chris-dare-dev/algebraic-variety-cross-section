@@ -30,7 +30,8 @@ import re
 
 import pytest
 
-import surfaces
+import varieties.calabi_yau
+import varieties.k3
 
 
 # The exact format applied to mesh.bounds in app.py:_render_current.
@@ -62,7 +63,7 @@ def _format_bbox(mesh) -> str:
 def test_bbox_format_matches_regex_on_fermat_quartic() -> None:
     """The bbox suffix produced from Fermat quartic mesh.bounds matches
     the exact 'bbox: x.bbb × x.bbb × x.bbb' pattern that app.py emits."""
-    mesh = surfaces.fermat_quartic()
+    mesh = varieties.k3.fermat_quartic()
     result = _format_bbox(mesh)
     assert BBOX_REGEX.fullmatch(result), (
         f"bbox string {result!r} does not match {BBOX_REGEX.pattern!r}"
@@ -77,7 +78,7 @@ def test_bbox_extents_are_positive_for_symmetric_generator() -> None:
     generator (Fermat quartic); the same contract is documented in
     CONTEXT.md §4.3 for all 14 generators (since full extent is just
     ``bounds[2i+1] - bounds[2i]`` it is well-defined for every mesh)."""
-    mesh = surfaces.fermat_quartic()
+    mesh = varieties.k3.fermat_quartic()
     b = mesh.bounds
     assert (b[1] - b[0]) > 0.0, (
         f"Fermat quartic x-extent was {b[1] - b[0]} (expected > 0)"
@@ -94,7 +95,7 @@ def test_bbox_format_matches_regex_on_kummer_surface() -> None:
     """Second positive-path test covering a different generator family
     (Kummer quartic with adaptive bounds), confirming the format
     contract holds across the implicit-surface registry."""
-    mesh = surfaces.kummer_surface()
+    mesh = varieties.k3.kummer_surface()
     result = _format_bbox(mesh)
     assert BBOX_REGEX.fullmatch(result), (
         f"bbox string {result!r} does not match {BBOX_REGEX.pattern!r}"
@@ -114,7 +115,7 @@ def test_bbox_format_matches_regex_on_hanson_quintic() -> None:
     `_hanson_cross_section` that might produce degenerate vertex
     coordinates (e.g. a phase-cancelling configuration), which would
     otherwise let the status bar emit `bbox: nan × nan × nan`."""
-    mesh = surfaces.calabi_yau_quintic()
+    mesh = varieties.calabi_yau.calabi_yau_quintic()
     b = mesh.bounds
     # Full-extent computation needs all 6 indices to be finite.
     for i, axis in enumerate(("xmin", "xmax", "ymin", "ymax", "zmin", "zmax")):
@@ -146,7 +147,7 @@ def test_bbox_format_matches_regex_on_hanson_asymmetric() -> None:
     e2 implementation tested only the quintic, leaving the most
     structurally distinct member of the family unguarded.
     """
-    mesh = surfaces.calabi_yau_asymmetric()
+    mesh = varieties.calabi_yau.calabi_yau_asymmetric()
     b = mesh.bounds
     for i, axis in enumerate(("xmin", "xmax", "ymin", "ymax", "zmin", "zmax")):
         assert math.isfinite(b[i]), (
@@ -169,4 +170,4 @@ def test_valueerror_path_cannot_produce_bbox() -> None:
     PolyData on bad input, which would let app.py emit a bbox string
     like 'bbox: 0.000 × 0.000 × 0.000' on the error path."""
     with pytest.raises(ValueError):
-        surfaces.kummer_surface(mu_squared=0.2)
+        varieties.k3.kummer_surface(mu_squared=0.2)

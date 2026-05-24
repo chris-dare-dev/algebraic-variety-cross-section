@@ -26,7 +26,7 @@ from PySide6.QtWidgets import QHBoxLayout, QLabel, QSlider, QVBoxLayout, QWidget
 
 import _qt.parameter_grid_math as pg
 from _qt.styles import SMALL_LABEL_STYLE
-from surfaces import ParamSpec
+from varieties.types import ParamSpec
 
 # realtime-variety-render-e1-s4 (CAND-6): default debounce interval, ms.
 # The roadmap specifies 80 ms; the INVEST note allows 50-150 ms if tuning
