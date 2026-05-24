@@ -15,7 +15,7 @@ import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-import parameter_grid as pg
+import _qt.parameter_grid_math as pg
 from surfaces import (
     CALABI_YAU_QUINTIC_PARAMS,
     ENRIQUES_FIGURE_2_PARAMS,

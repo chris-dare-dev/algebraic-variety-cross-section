@@ -24,7 +24,7 @@ from typing import Callable
 from PySide6.QtCore import QObject, Qt, QTimer
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QSlider, QVBoxLayout, QWidget
 
-import parameter_grid as pg
+import _qt.parameter_grid_math as pg
 from _qt.styles import SMALL_LABEL_STYLE
 from surfaces import ParamSpec
 

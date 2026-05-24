@@ -27,7 +27,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-import parameter_grid as pg
+import _qt.parameter_grid_math as pg
 from _qt.panels.parameter_grid_panel import ParameterGridPanel
 from surfaces import ParamSpec
 from _qt.ui_helpers import Debouncer, build_slider_row
