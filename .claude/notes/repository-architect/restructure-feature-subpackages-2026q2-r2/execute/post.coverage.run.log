@@ -1,0 +1,15 @@
+........................................................................ [ 14%]
+........................................................................ [ 28%]
+........................................................................ [ 42%]
+........................................................................ [ 56%]
+........................................................................ [ 71%]
+........................................................................ [ 85%]
+........................................................................ [ 99%]
+..                                                                       [100%]
+=============================== warnings summary ===============================
+tests/test_icons.py::test_icons_module_does_not_import_qtawesome_at_module_load
+  /Users/chris.dare/Personal/SourceCode/algebraic-variety-cross-section/tests/test_icons.py:48: DeprecationWarning: icons._qta is deprecated; import from _qt.icons instead.
+    assert icons_mod._qta is None, (
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+506 passed, 1 warning in 6.91s

@@ -1,8 +1,8 @@
 {
   "id": "restructure-feature-subpackages-2026q2-r2",
   "created_at": "2026-05-23T20:44:24Z",
-  "updated_at": "2026-05-24T02:17:33Z",
-  "phase": "execute-running",
+  "updated_at": "2026-05-24T03:00:08Z",
+  "phase": "execute-complete",
   "phase_history": [
     {
       "phase": "init",
@@ -35,6 +35,10 @@
     {
       "phase": "execute-running",
       "at": "2026-05-23T22:08:37Z"
+    },
+    {
+      "phase": "execute-complete",
+      "at": "2026-05-24T03:00:08Z"
     }
   ],
   "restructure_brief": "Feature-subpackage decomposition of AVC. This is the substantive structural work that the prior restructure (restructure-full-audit-2026q2-r1) explicitly deferred under 'conservative bias' even though scout-B flagged it as the highest-ROI change. The conservative bias is RELAXED for this run; the design-adversary now has axis 12 (under-engineering vs evidence, added in commit b5235ab) and SHOULD push back on deferrals that don't address audit citations head-on. SCOPE: introduce feature subpackages at the root (NOT under src/avcs/ -- flat-package + feature subpackages, per scout-B's pragmatic recommendation). Target tree shape per scout-B's napari analogy: (1) varieties/ subpackage extracted from surfaces.py -- one module per variety family (k3, enriques, calabi_yau, fano), a varieties/_kernels.py for the 11 Numba @njit field kernels (per scout-A 4.2 cleanest seam), a varieties/_marching.py for _marching_cubes_to_polydata + _grid_to_polydata helpers, and a varieties/registry.py for the VARIETIES dict + tooltips (load-bearing per AI-8 -- must remain importable via 'from varieties.registry import VARIETIES'); (2) render/ subpackage absorbing render_worker.py to render/worker.py and any rendering helpers that emerge; (3) cross_section/ subpackage with view_panel.clip_to_domain extracted as a pure function; (4) _qt/ subpackage following napari's underscore-prefix convention for framework adapters -- RENAME of existing panels/ to _qt/panels/ + move icons.py + ui_helpers.py + styles.py inside as _qt/icons.py, _qt/helpers.py, _qt/styles.py (styles.py is data but is QSS-coupled and used only by Qt code); (5) keep app.py at root as the entry point (do NOT Extract Class on it in this restructure -- that's a separate milestone gated behind successful structural decomposition); (6) keep parameter_grid.py at root for now since it's pure-math infrastructure (or move into varieties/parameter_grid.py if the designer judges it belongs there -- the math is for variety parameter grids). HARD CONSTRAINTS: AI-1..AI-15 invariants from .claude/references/app-invariants.md are inviolable. Specifically AI-2, AI-6, AI-7, AI-8, AI-9, AI-12, AI-15. NON-NEGOTIABLE: every old import path gets a __getattr__ shim for one milestone. tests/test_numba_field_kernels.py specifically uses 'from surfaces import _<name>_field_kernel' -- preserve this. Plan a per-batch rollback tag protocol (refactor-batch{N}-end). README + CONTEXT.md WILL need substantive rewrites; both authorized for Batch 4+ anchor-updater. EFFORT EXPECTATION: this is materially larger than r1 (which moved 4 panel files); expect 6-9 batches, ~3-5 h wall-clock. Sequence low-risk-first per design-adversary axis 10: structural moves before semantic extractions before content edits.",
@@ -59,9 +63,29 @@
   "dry_run_report_path": ".claude/notes/repository-architect/restructure-feature-subpackages-2026q2-r2/preflight/dry-run-validator-report.md",
   "dry_run_verdict": "YELLOW->GREEN after fano_segre fix",
   "execute_batches_planned": 9,
-  "execute_batches_landed": 5,
-  "execute_commit_range": null,
-  "execute_commits": [],
+  "execute_batches_landed": 9,
+  "execute_commit_range": "2bfc6c8038d57b931f6d4128fb03cd2bb9130645..89cb525b10bc6f7bf65c81b5889e1ebc23415d12",
+  "execute_commits": [
+    "89cb525b10bc6f7bf65c81b5889e1ebc23415d12",
+    "efc3cc449e69bed5b663314ae3a25903f2eb2de4",
+    "cb4b57ff4f382a1e0aa1824b6170dc1da3d7983a",
+    "2c353e86be822454060b427f4b3f0e0cde3ef74e",
+    "78432f6ee88a6d9e20cbb95f573d295d1789488b",
+    "45fd9b8b06b66e0e1bbbaa02133db6204d314efc",
+    "4efca4a5e523c321ff2052559512e4595602e5fd",
+    "5a13979ee46b7859364a5ccee071286c184d7695",
+    "321610f75a861386fdeb4b6222a888bfa948e096",
+    "2fdf808b5c6a189ccf4f1b4a95edc298a6af202a",
+    "c05bcc5aed0b2c91b25c2b7505ca2a3f470ce057",
+    "2095d81180fc33535e78d23584b248fd3785de4f",
+    "13e7daa147e875d74650e306ec72fd13400e1447",
+    "16b251b74844a928073c5cbf7da7d6e709f13daf",
+    "c6d5a0e615667c4f52a2296b2a09be0af6ac272c",
+    "8b029e6791e298ac9f6e0629b96ba95f653bcaae",
+    "9060cbe659e4aa7ca8b61bd03b5aef0e6b4fcd2c",
+    "8763848c10d946bcbca68f2692662de9beff48e9",
+    "63c18a75cb97357e0626a945de8fe30480a2784e"
+  ],
   "parity_verifier_reports": [
     ".claude/notes/repository-architect/restructure-feature-subpackages-2026q2-r2/execute/parity-verifier-batch-1-report.md",
     ".claude/notes/repository-architect/restructure-feature-subpackages-2026q2-r2/execute/parity-verifier-batch-2-report.md",

@@ -1,0 +1,23 @@
+
+--- stderr ---
+Cannot analyze '.': 'algebraic-variety-cross-section' is not a valid Python module name.
+
+Technical reason:
+  pydeps works by generating a synthetic 'dummy' module
+  (e.g. _dummy_<target>.py) that contains real Python
+  'import <modname>' statements for every submodule of
+  the target, then runs Python's modulefinder on that
+  dummy to trace the import graph. The 'import' keyword
+  is part of Python's grammar and only accepts dotted
+  identifiers -- letters, digits, and underscores, and
+  not starting with a digit. A name like 'algebraic-variety-cross-section' cannot
+  appear on the right-hand side of an import statement,
+  so modulefinder has nothing to trace and pydeps
+  produces an empty graph.
+
+Fix:
+  Rename the offending file or directory so that every
+  path component is a valid Python identifier (e.g.
+  replace '-' with '_'). If the file must keep its
+  on-disk name, point pydeps at a package whose name
+  is importable instead.
