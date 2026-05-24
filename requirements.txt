@@ -8,6 +8,7 @@ qtawesome>=1.4.2,<2
 # /repository-architect tooling (Phase 3 dry-run + Phase 4 import rewrites + coverage parity).
 # Required by .claude/scripts/repository-architect/{rewrite-imports.py, snapshot-baseline.py, diff-baselines.py}.
 # Enforced at restructure init time by .claude/scripts/repository-architect/check-deps.sh.
+import-linter>=2.0,<3
 libcst>=1.5,<2
 pydeps>=3.0,<4
 coverage>=7.6,<8
