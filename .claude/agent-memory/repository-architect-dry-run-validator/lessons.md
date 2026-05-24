@@ -27,6 +27,20 @@
 
 - **r2 verdict: YELLOW** (3 broken imports from symbol-map typo; 2-entry fix unblocks it). No new cycles, no orphans, no collection loss, no conftest drift, no star-imports.
 
+## Lesson from restructure-single-root-2026q2-r3 (2026-05-24)
+
+- **False positive pattern — none this run.** All 34 broken-import findings were genuine: the symbol-map was drafted from a pre-r2 naming scheme and not reconciled against the actual post-r2 symbol names in surfaces.py/varieties/*. False-positive risk was low because findings were cross-validated by AST-parsing both the source (surfaces.py re-exports) and the destination (varieties/ function defs), not just string-matching.
+
+- **Symbol-map naming audit pattern:** Always cross-check symbol-map entries against BOTH (a) what the hub shim actually exports (surfaces.py re-export block) AND (b) what the target modules actually define (def/class lines in varieties/*). A mismatch at either end is a broken import. The r3 map had 17 wrong names referencing non-existent symbols. Root cause: map was drafted from an older design doc that named functions differently (e.g., `calabi_yau_quartic_pencil` vs actual `calabi_yau_cubic`, `fano_grassmannian` vs actual `fano_sextic_double_solid`, `_enriques_field_kernel` vs `_enriques_fig1_field_kernel`). Lesson: run `grep "^def \|^[A-Z_]*PARAMS" <target_module>` to verify every entry before committing the symbol-map.
+
+- **JSON schema mismatch pattern:** The rewrite-imports.py codemod uses schema v1.0 (flat list with "batch", "kind", "from", "to", "symbol" keys). The r3 symbol-map uses schema v1.1 (nested dict: batches.B4.moves[] with "old", "new", "form" keys). These are incompatible — B1 must reconcile the parser OR the symbol-map must be reverted to v1.0 flat format. Flag any schema_version field in symbol-map as a mandatory B1 pre-check.
+
+- **import-linter contract vs actual code pattern:** Always grep the proposed "forbidden" import targets against the actual source files before writing the contract. `render/worker.py` imports `from PySide6.QtCore import QObject, QRunnable, Signal` structurally (MeshWorker inherits QRunnable). The PLAN contract said "render imports nothing from PySide6" — false at HEAD. Check with: `grep -rn "^from PySide6\|^import PySide6" <layer_dir>/` before writing any forbidden-import contract for that layer.
+
+- **conftest drift gotcha (re-confirmed):** AVC still has zero conftest.py files. Short-circuit remains valid.
+
+- **LibCST version note:** 1.8.6 (unchanged from r1/r2). No new quirks. `tree.visit(v)` API confirmed working.
+
 ## CORRECTION 2026-05-23 (restructure-full-audit-2026q2-r1 batch 4)
 Panel file locations changed. Old path → new path:
 - `appearance_panel.py` (root) → `panels/appearance.py`; module `appearance_panel` → `panels.appearance`

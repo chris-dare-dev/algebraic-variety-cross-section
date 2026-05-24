@@ -113,3 +113,67 @@
   no dissent found on this decomposition approach.
 - **AGENTS.md size cap: updated to 200 lines** (from 300) — Anthropic docs confirmed; ETH Zurich
   supports minimalism; AVC is currently at 148 lines (well-positioned).
+
+---
+
+## Lesson from restructure-single-root-2026q2-r3 (2026-05-24)
+
+### New 2026 patterns observed
+
+- **Protocol + frozen dataclass is now CONSENSUS for registry polymorphism.**
+  Multiple 2025-2026 sources agree: use Protocol at the interface boundary,
+  keep dataclasses for concrete entries, do NOT inherit from Protocol.
+  The `VarietyGenerator` Protocol alongside `Surface` dataclass is the textbook
+  application of this pattern.
+  Sources: https://tiendu.github.io/2026/02/27/modern-python-oop-eng.html,
+           https://mypy.readthedocs.io/en/stable/protocols.html
+
+- **import-linter `forbidden` + `layers` dual-contract is the correct setup
+  for a ~10-package Qt desktop app.** `layers` for direction; `forbidden` for
+  external-package isolation. `include_external_packages = true` required for
+  forbidden to catch PySide6.
+  Source: https://import-linter.readthedocs.io/en/v2.7/contract_types.html
+
+- **PyPA src-vs-flat page is silent on "app.py at root + subpackages" pattern.**
+  This shape is practiced (Spyder uses bootstrap.py at root + flat spyder/)
+  but is not named or explicitly endorsed. Not condemned either.
+  Source: https://packaging.python.org/en/latest/discussions/src-layout-vs-flat-layout/
+
+- **napari uses src/napari/ (proper src layout), NOT "app.py at root".**
+  Spyder uses flat layout with bootstrap.py at root. AVC is closer to Spyder.
+  Fetched via gh API 2026-05-24.
+
+### AVC-specific lessons (do not generalize)
+
+- **parameter_grid.py is ALREADY pure math** — confirmed by reading the file.
+  It has no PySide6 or pyvista imports. Docstring explicitly says "Qt-free."
+  The logical split (math vs widget) already exists: math in parameter_grid.py,
+  widget in _qt/panels/parameter_grid_panel.py (or _qt/parameter_grid_panel.py).
+  r3 rename to parameter_grid_math.py is cosmetic; the split is done.
+
+- **r3 evaluator score is 23/28 PASS** (same as post-r2, since r3 changes are
+  not yet applied). Open failures: #4 (CODE_OF_CONDUCT), #5 (CONTRIBUTING),
+  #17 (app.py 1900 LOC), #19 (docs/), #20 (examples/) — none are r3 targets.
+
+- **M+1 shim deletion is justified by NEP 29 minimum** ("at least one minor
+  release") + Django's 1-cycle internal policy. PEP 387 does not govern
+  internal intra-repo restructuring. Confirm no live internal callers before
+  deleting shims.
+
+- **import-linter `layers` contract should NOT include app.py.** app.py is a
+  script, not a package; list only varieties, render, _qt, panels, cross_section
+  in root_packages.
+
+- **pyvista is a DOMAIN dependency for varieties/, not a framework adapter.**
+  Do NOT put pyvista in the forbidden list for varieties/. Only Qt/PySide6 belongs
+  in the forbidden list for varieties/ and render/.
+
+### Recommendation strength updates (r3)
+
+- **VarietyGenerator Protocol: NEW, HIGH** — consensus pattern, zero migration
+  cost (existing generators satisfy it structurally), improves AI-navigability.
+- **import-linter dual-contract (layers + forbidden): NEW, HIGH** — adds
+  machine-readable architecture enforcement; < 20 lines of pyproject.toml config.
+- **parameter_grid.py rename to _math: LOW** — cosmetic; split already exists;
+  moving it INSIDE _qt/ would be misleading (file has no Qt).
+- **M+1 shim deletion: confirmed HIGH** — NEP 29 + Django analog support it.

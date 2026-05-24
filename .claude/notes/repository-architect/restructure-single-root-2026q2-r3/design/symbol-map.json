@@ -1,0 +1,68 @@
+[
+  {
+    "_comment": "Restructure milestone: restructure-single-root-2026q2-r3. Baseline SHA: c1dcf89. Schema: flat array matching rewrite-imports.py expected format. Each record: {batch, operation, kind, from, to, symbol}. kind='module' means the module path itself moves (LibCST rewrites `import OLD` and `from OLD import X`). kind='symbol' means a specific symbol moves from one module to another (LibCST rewrites `from OLD_MOD import SYM` -> `from NEW_MOD import SYM` and attribute-access OLD_MOD.SYM -> NEW_MOD.SYM). Canonical names verified against varieties/{k3,enriques,calabi_yau,fano,_kernels,_marching,dispatch,types,registry,tooltips}.py at HEAD c1dcf89."
+  },
+
+  {"batch": 2, "operation": "B2: move parameter_grid -> _qt/parameter_grid_math", "kind": "module", "from": "parameter_grid", "to": "_qt.parameter_grid_math", "symbol": null},
+
+  {"batch": 4, "operation": "B4: surfaces.types -> varieties.types", "kind": "symbol", "from": "surfaces", "to": "varieties.types", "symbol": "ParamSpec"},
+  {"batch": 4, "operation": "B4: surfaces.types -> varieties.types", "kind": "symbol", "from": "surfaces", "to": "varieties.types", "symbol": "Surface"},
+
+  {"batch": 4, "operation": "B4: surfaces.registry -> varieties.registry", "kind": "symbol", "from": "surfaces", "to": "varieties.registry", "symbol": "VARIETIES"},
+
+  {"batch": 4, "operation": "B4: surfaces.tooltips -> varieties.tooltips", "kind": "symbol", "from": "surfaces", "to": "varieties.tooltips", "symbol": "VARIETY_TOOLTIPS"},
+  {"batch": 4, "operation": "B4: surfaces.tooltips -> varieties.tooltips", "kind": "symbol", "from": "surfaces", "to": "varieties.tooltips", "symbol": "SUBTYPE_TOOLTIPS"},
+
+  {"batch": 4, "operation": "B4: surfaces.dispatch -> varieties.dispatch", "kind": "symbol", "from": "surfaces", "to": "varieties.dispatch", "symbol": "dispatch_mode"},
+  {"batch": 4, "operation": "B4: surfaces.dispatch -> varieties.dispatch", "kind": "symbol", "from": "surfaces", "to": "varieties.dispatch", "symbol": "should_render_on_drag"},
+  {"batch": 4, "operation": "B4: surfaces.dispatch -> varieties.dispatch", "kind": "symbol", "from": "surfaces", "to": "varieties.dispatch", "symbol": "FAST_RENDER_THRESHOLD_MS"},
+
+  {"batch": 4, "operation": "B4: surfaces.k3 generators -> varieties.k3", "kind": "symbol", "from": "surfaces", "to": "varieties.k3", "symbol": "fermat_quartic"},
+  {"batch": 4, "operation": "B4: surfaces.k3 generators -> varieties.k3", "kind": "symbol", "from": "surfaces", "to": "varieties.k3", "symbol": "kummer_surface"},
+  {"batch": 4, "operation": "B4: surfaces.k3 PARAMS -> varieties.k3", "kind": "symbol", "from": "surfaces", "to": "varieties.k3", "symbol": "FERMAT_PARAMS"},
+  {"batch": 4, "operation": "B4: surfaces.k3 PARAMS -> varieties.k3", "kind": "symbol", "from": "surfaces", "to": "varieties.k3", "symbol": "KUMMER_PARAMS"},
+
+  {"batch": 4, "operation": "B4: surfaces.enriques -> varieties.enriques", "kind": "symbol", "from": "surfaces", "to": "varieties.enriques", "symbol": "enriques_figure_1"},
+  {"batch": 4, "operation": "B4: surfaces.enriques -> varieties.enriques", "kind": "symbol", "from": "surfaces", "to": "varieties.enriques", "symbol": "enriques_figure_2"},
+  {"batch": 4, "operation": "B4: surfaces.enriques -> varieties.enriques", "kind": "symbol", "from": "surfaces", "to": "varieties.enriques", "symbol": "enriques_figure_3"},
+  {"batch": 4, "operation": "B4: surfaces.enriques -> varieties.enriques", "kind": "symbol", "from": "surfaces", "to": "varieties.enriques", "symbol": "enriques_figure_4"},
+  {"batch": 4, "operation": "B4: surfaces.enriques PARAMS -> varieties.enriques", "kind": "symbol", "from": "surfaces", "to": "varieties.enriques", "symbol": "ENRIQUES_FIGURE_1_PARAMS"},
+  {"batch": 4, "operation": "B4: surfaces.enriques PARAMS -> varieties.enriques", "kind": "symbol", "from": "surfaces", "to": "varieties.enriques", "symbol": "ENRIQUES_FIGURE_2_PARAMS"},
+  {"batch": 4, "operation": "B4: surfaces.enriques PARAMS -> varieties.enriques", "kind": "symbol", "from": "surfaces", "to": "varieties.enriques", "symbol": "ENRIQUES_FIGURE_3_PARAMS"},
+  {"batch": 4, "operation": "B4: surfaces.enriques PARAMS -> varieties.enriques", "kind": "symbol", "from": "surfaces", "to": "varieties.enriques", "symbol": "ENRIQUES_FIGURE_4_PARAMS"},
+
+  {"batch": 4, "operation": "B4: surfaces.calabi_yau -> varieties.calabi_yau", "kind": "symbol", "from": "surfaces", "to": "varieties.calabi_yau", "symbol": "calabi_yau_quintic"},
+  {"batch": 4, "operation": "B4: surfaces.calabi_yau -> varieties.calabi_yau", "kind": "symbol", "from": "surfaces", "to": "varieties.calabi_yau", "symbol": "calabi_yau_cubic"},
+  {"batch": 4, "operation": "B4: surfaces.calabi_yau -> varieties.calabi_yau", "kind": "symbol", "from": "surfaces", "to": "varieties.calabi_yau", "symbol": "calabi_yau_asymmetric"},
+  {"batch": 4, "operation": "B4: surfaces.calabi_yau -> varieties.calabi_yau", "kind": "symbol", "from": "surfaces", "to": "varieties.calabi_yau", "symbol": "calabi_yau_dwork"},
+  {"batch": 4, "operation": "B4: surfaces.calabi_yau PARAMS -> varieties.calabi_yau", "kind": "symbol", "from": "surfaces", "to": "varieties.calabi_yau", "symbol": "CALABI_YAU_QUINTIC_PARAMS"},
+  {"batch": 4, "operation": "B4: surfaces.calabi_yau PARAMS -> varieties.calabi_yau", "kind": "symbol", "from": "surfaces", "to": "varieties.calabi_yau", "symbol": "CALABI_YAU_CUBIC_PARAMS"},
+  {"batch": 4, "operation": "B4: surfaces.calabi_yau PARAMS -> varieties.calabi_yau", "kind": "symbol", "from": "surfaces", "to": "varieties.calabi_yau", "symbol": "CALABI_YAU_ASYMMETRIC_PARAMS"},
+  {"batch": 4, "operation": "B4: surfaces.calabi_yau PARAMS -> varieties.calabi_yau", "kind": "symbol", "from": "surfaces", "to": "varieties.calabi_yau", "symbol": "CALABI_YAU_DWORK_PARAMS"},
+
+  {"batch": 4, "operation": "B4: surfaces.fano -> varieties.fano", "kind": "symbol", "from": "surfaces", "to": "varieties.fano", "symbol": "fano_klein_cubic"},
+  {"batch": 4, "operation": "B4: surfaces.fano -> varieties.fano", "kind": "symbol", "from": "surfaces", "to": "varieties.fano", "symbol": "fano_segre_cubic"},
+  {"batch": 4, "operation": "B4: surfaces.fano -> varieties.fano", "kind": "symbol", "from": "surfaces", "to": "varieties.fano", "symbol": "fano_two_quadrics"},
+  {"batch": 4, "operation": "B4: surfaces.fano -> varieties.fano", "kind": "symbol", "from": "surfaces", "to": "varieties.fano", "symbol": "fano_sextic_double_solid"},
+  {"batch": 4, "operation": "B4: surfaces.fano PARAMS -> varieties.fano", "kind": "symbol", "from": "surfaces", "to": "varieties.fano", "symbol": "FANO_KLEIN_CUBIC_PARAMS"},
+  {"batch": 4, "operation": "B4: surfaces.fano PARAMS -> varieties.fano", "kind": "symbol", "from": "surfaces", "to": "varieties.fano", "symbol": "FANO_SEGRE_CUBIC_PARAMS"},
+  {"batch": 4, "operation": "B4: surfaces.fano PARAMS -> varieties.fano", "kind": "symbol", "from": "surfaces", "to": "varieties.fano", "symbol": "FANO_TWO_QUADRICS_PARAMS"},
+  {"batch": 4, "operation": "B4: surfaces.fano PARAMS -> varieties.fano", "kind": "symbol", "from": "surfaces", "to": "varieties.fano", "symbol": "FANO_SEXTIC_DOUBLE_SOLID_PARAMS"},
+
+  {"batch": 4, "operation": "B4: surfaces._kernels -> varieties._kernels", "kind": "symbol", "from": "surfaces", "to": "varieties._kernels", "symbol": "_fermat_field_kernel"},
+  {"batch": 4, "operation": "B4: surfaces._kernels -> varieties._kernels", "kind": "symbol", "from": "surfaces", "to": "varieties._kernels", "symbol": "_kummer_field_kernel"},
+  {"batch": 4, "operation": "B4: surfaces._kernels -> varieties._kernels", "kind": "symbol", "from": "surfaces", "to": "varieties._kernels", "symbol": "_enriques_fig1_field_kernel"},
+  {"batch": 4, "operation": "B4: surfaces._kernels -> varieties._kernels", "kind": "symbol", "from": "surfaces", "to": "varieties._kernels", "symbol": "_enriques_fig2_field_kernel"},
+  {"batch": 4, "operation": "B4: surfaces._kernels -> varieties._kernels", "kind": "symbol", "from": "surfaces", "to": "varieties._kernels", "symbol": "_enriques_fig3_field_kernel"},
+  {"batch": 4, "operation": "B4: surfaces._kernels -> varieties._kernels", "kind": "symbol", "from": "surfaces", "to": "varieties._kernels", "symbol": "_enriques_fig4_field_kernel"},
+  {"batch": 4, "operation": "B4: surfaces._kernels -> varieties._kernels", "kind": "symbol", "from": "surfaces", "to": "varieties._kernels", "symbol": "_dwork_field_kernel"},
+  {"batch": 4, "operation": "B4: surfaces._kernels -> varieties._kernels", "kind": "symbol", "from": "surfaces", "to": "varieties._kernels", "symbol": "_klein_cubic_field_kernel"},
+  {"batch": 4, "operation": "B4: surfaces._kernels -> varieties._kernels", "kind": "symbol", "from": "surfaces", "to": "varieties._kernels", "symbol": "_segre_cubic_field_kernel"},
+  {"batch": 4, "operation": "B4: surfaces._kernels -> varieties._kernels", "kind": "symbol", "from": "surfaces", "to": "varieties._kernels", "symbol": "_two_quadrics_field_kernel"},
+  {"batch": 4, "operation": "B4: surfaces._kernels -> varieties._kernels", "kind": "symbol", "from": "surfaces", "to": "varieties._kernels", "symbol": "_sextic_double_solid_field_kernel"},
+
+  {"batch": 4, "operation": "B4: surfaces._marching -> varieties._marching", "kind": "symbol", "from": "surfaces", "to": "varieties._marching", "symbol": "_marching_cubes_to_polydata"},
+  {"batch": 4, "operation": "B4: surfaces._marching -> varieties._marching", "kind": "symbol", "from": "surfaces", "to": "varieties._marching", "symbol": "_grid_to_polydata"},
+  {"batch": 4, "operation": "B4: surfaces._marching -> varieties._marching", "kind": "symbol", "from": "surfaces", "to": "varieties._marching", "symbol": "_concat_polydata"},
+  {"batch": 4, "operation": "B4: surfaces._marching -> varieties._marching", "kind": "symbol", "from": "surfaces", "to": "varieties._marching", "symbol": "_hanson_cross_section"}
+]

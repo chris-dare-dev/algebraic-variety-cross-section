@@ -1,0 +1,17 @@
+# AI-1..AI-15 quick card (extracted from app-invariants.md)
+
+- **AI-1 — PySide6 + PyVista + pyvistaqt (LGPL-friendly stack)** — GUI is PySide6 (LGPL, friendlier than PyQt6's GPL for redistribution). The 3D viewport is `pyvistaqt.QtInteractor` — a real VTK render window dropped into `QMainWindow` so rotate / zoom / pan are nati
+- **AI-2 — Test suite is Qt-free (pure NumPy / PyVista / scikit-image)** — All 120 tests under `tests/` exercise pure NumPy / PyVista / scikit-image code paths.  There is no `pytest-qt`.  Reason: Qt + VTK GL context creation is unstable under `QT_QPA_PLATFORM=offscreen` on m
+- **AI-3 — Render verification is off-screen via `pv.OFF_SCREEN = True`** — For headless render verification (CI, the frontend-uplift visual scout, ad-hoc Read-the-PNG checks), the pattern is:
+- **AI-4 — Domain clipping uses `clip_scalar`, not `clip_box`** — PyVista's `clip_box(invert=...)` semantics on PolyData are reversed/unreliable (returned 0 vertices or the full mesh — both wrong; see CONTEXT.md §8.2 / commit `b68456f`).  Both sphere and cube clip m
+- **AI-5 — PyVista 0.46+ `clip_scalar` requires `scalars=` keyword** — ```python
+- **AI-6 — Implicit surfaces use marching cubes; parametric surfaces do NOT** — Implicit surface generators (Fermat, Kummer, all Enriques figures, Dwork pencil) sample a scalar field on a cubic grid and call `_marching_cubes_to_polydata(field, bounds)` which pre-validates the fie
+- **AI-7 — Hanson normals: `cell_normals=True, consistent_normals=False, auto_orient_normals=False`** — Hanson cross-sections are 9–25 disconnected components glued by `_concat_polydata`.  `compute_normals(consistent_normals=True)` cannot coherently orient disconnected components and produces per-patch 
+- **AI-8 — `Surface` / `ParamSpec` dataclass contract (frozen registry)** — All surfaces enter the GUI through the `VARIETIES` registry in `surfaces.py`:
+- **AI-9 — Re-entrancy guard `self._computing` around `processEvents()`** — `MainWindow._render_current` calls `QApplication.processEvents()` to keep the status bar responsive during ~0.5 s mesh generation.  `processEvents` drains the Qt event queue, which can re-enter via sl
+- **AI-10 — Raw mesh cached; domain clip doesn't regenerate** — `self._raw_mesh` is the un-clipped mesh.  `_on_domain_changed` (sphere/cube clip slider release) calls `_apply_domain_and_render(reset_camera=False)` directly without regenerating the mesh — only the 
+- **AI-11 — Fully-qualified Qt enums** — PySide6 prefers fully-qualified enum forms:
+- **AI-12 — WCAG AA text-contrast on all visible text** — `styles.py` is the centralized stylesheet.  `COLOR_MUTED = #5a5a5a` on `#f0f0f0` ≈ 5.4:1 (WCAG AA pass).  The earlier `#888` muted color (3.5:1 contrast — AA fail on small text) was explicitly fixed.
+- **AI-13 — 6-digit hex only (PyVista color parser)** — PyVista's color parser requires named colors, full 6-digit hex (`#888888`), or RGB tuples.  Short hex (`#888`) is rejected with a cryptic error.
+- **AI-14 — Generator function contract: `pv.PolyData` or `ValueError`** — Every generator returns a `pv.PolyData`.  Implicit generators raise `ValueError("No real zero set in the sampling box for these parameters. ...")` when the field has no zero crossing (pre-checked befo
+- **AI-15 — Math claim honesty: ≥2 sources + honest "real shadow" disclaimers** — Every variety's docstring + tooltip cross-references against ≥2 sources (Wikipedia + MathWorld + arXiv + classical text).  Where the genuine variety can't live in ℝ³ (Calabi–Yau 3-fold is 6-real-dimen

@@ -18,3 +18,9 @@
 - Surprising finding: test_numba_field_kernels.py has 11 hard-coded `from surfaces import _<name>_field_kernel` imports that are an explicit brief constraint — kernel extraction MUST leave re-export shims in surfaces.py
 - Surprising finding: 14 `_PARAMS` constants (FERMAT_PARAMS, KUMMER_PARAMS, etc.) are imported from surfaces by test_parameters_panel.py and test_parameter_grid.py — these must also be shimmed or tests updated on extraction
 - AI-invariant constraints encountered: AI-8 (VARIETIES + Surface + ParamSpec must stay importable from surfaces via shim); AI-6 (numba.config.THREADING_LAYER process-global side effect must travel with kernel extraction or stay in surfaces.py); AI-4+AI-5 (clip_scalar pattern in clip_to_domain is an invariant, not implementation detail)
+
+## Lesson from restructure-single-root-2026q2-r3 (2026-05-24)
+- Hotspots observed: surfaces.py 123-LOC re-export hub with 23 active import-line sites across 19 files (post-B3); parameter_grid.py 362 LOC with 4 callers all using `import parameter_grid as pg` alias form
+- Surprising finding: _qt/styles.py shows `from styles import ...` lines in its docstring (examples), NOT in live code — confirmed by grep; could mislead a surface scan that doesn't distinguish docstrings from imports
+- Surprising finding: `tests/test_status_bar_bbox.py:33` and `tests/test_enriques_hq_smoothing.py:31` use bare `import surfaces` (module reference), not `from surfaces import X` — LibCST rewriter must handle this pattern separately from attribute-form rewrites
+- AI-invariant constraints encountered: AI-8 (VarietyGenerator Protocol must be additive — cannot change Surface/ParamSpec fields); AI-6 (surfaces.py retirement must preserve implicit/parametric pipeline split already encoded in varieties/_marching.py); AI-9 (app.py import block rewrite only — no logic changes)
