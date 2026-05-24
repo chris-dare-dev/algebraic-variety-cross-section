@@ -2,7 +2,7 @@
 
 **Audience.** This file is a handoff document for a future Claude session that may continue this project. It captures the *why* behind decisions, the conventions in use, and the failure modes encountered, so a fresh session can be productive immediately. Read this end-to-end before editing.
 
-**Last updated.** End of the fourth "variety pass" — Fano 3-folds added on top of K3 + Enriques + Calabi–Yau. 113+ commits on `main`. 499 tests passing.
+**Last updated.** 2026-05-24 — restructure-single-root-2026q2-r3 complete. Single-root invariant: `app.py` is the ONLY `.py` file at repo root. 504 tests passing. Import-linter layer contracts active.
 
 ---
 
@@ -27,30 +27,57 @@ The Calabi–Yau pass is the only one with a non-implicit pipeline — the three
 ```
 algebraic-variety-cross-section/
 ├── app.py              MainWindow — dropdowns, three docks, plotter wiring, async render dispatch
-├── render_worker.py    Background-thread mesh worker (QThreadPool/QRunnable) — realtime-variety-render-e4
-├── surfaces.py         All mesh generators + Surface/ParamSpec dataclasses + VARIETIES registry (~840 LOC)
-├── panels/             UI panel subpackage (moved from root, restructure-full-audit-2026q2-r1 batch 4)
-│   ├── appearance.py   Color / wireframe / opacity / shading panel (right dock) (~300 LOC)
-│   ├── view.py         View presets, camera, scene aids, domain clip, screenshot (left dock) (~420 LOC)
-│   ├── parameters.py   Dynamic slider panel; rebuilds from each Surface's ParamSpec list (~220 LOC)
-│   └── parameter_grid_panel.py  ParameterGrid Qt widget layer (~360 LOC)
-│
-│   (Root-level shims appearance_panel.py, view_panel.py, parameters_panel.py,
-│    parameter_grid_panel.py remain for backward compat; emit DeprecationWarning;
-│    removal milestone: M+1 / next /repository-architect run)
-├── styles.py           Centralized stylesheet constants (palette, typography, dock-header CSS) (~140 LOC)
-├── tests/              pytest suite — pure NumPy/PyVista, no Qt fixtures (AI-2)
+│                       (app.py is the ONLY .py file at repo root — single-root invariant, r3)
+├── _qt/                Qt-layer subpackage (moved from root in r2/r3)
+│   ├── icons.py        qtawesome icon helpers
+│   ├── styles.py       Centralized stylesheet constants (palette, typography, dock-header CSS) (~140 LOC)
+│   ├── ui_helpers.py   Misc Qt helpers (Debouncer, etc.)
+│   ├── parameter_grid_math.py  Pure-math coordinate math for grid mode (moved from root in r3 B2)
+│   └── panels/         UI panel subpackage (moved from root in r1 B4, then into _qt/ in r2 B3)
+│       ├── appearance.py   Color / wireframe / opacity / shading panel (right dock) (~300 LOC)
+│       ├── view.py         View presets, camera, scene aids, domain clip, screenshot (left dock) (~420 LOC)
+│       ├── parameters.py   Dynamic slider panel; rebuilds from each Surface's ParamSpec list (~220 LOC)
+│       └── parameter_grid_panel.py  ParameterGrid Qt widget layer (~360 LOC)
+├── render/
+│   └── worker.py       Background-thread mesh worker (QThreadPool/QRunnable) — realtime-variety-render-e4
+├── cross_section/
+│   └── clip.py         Domain-clip pure function (clip_to_domain)
+├── varieties/          Surface registry + mesh generators (extracted from surfaces.py in r2/r3)
+│   ├── types.py        Surface + ParamSpec dataclasses; VarietyGenerator(Protocol) (added r3 B2)
+│   ├── registry.py     VARIETIES registry dict
+│   ├── dispatch.py     dispatch_mode, should_render_on_drag, FAST_RENDER_THRESHOLD_MS
+│   ├── tooltips.py     VARIETY_TOOLTIPS, SUBTYPE_TOOLTIPS
+│   ├── k3.py           K3 generators (fermat_quartic, kummer_surface)
+│   ├── enriques.py     Enriques generators (4 figures)
+│   ├── calabi_yau.py   Calabi-Yau generators (4 figures)
+│   ├── fano.py         Fano 3-fold generators (4 figures)
+│   ├── _kernels.py     Numba @njit field kernels for all 11 implicit generators
+│   └── _marching.py    Marching-cubes + grid pipeline helpers (_marching_cubes_to_polydata, _grid_to_polydata, etc.)
+├── tests/              pytest suite — 504 tests, pure NumPy/PyVista, no Qt fixtures (AI-2)
 │   ├── test_mesh_generators.py     smoke tests for every generator + edge cases
 │   ├── test_parameters_panel.py    static slider tick↔value math
-│   ├── test_clip_domain.py         ViewPanel.clip_to_domain pure-function tests
+│   ├── test_clip_domain.py         clip_to_domain pure-function tests
 │   ├── test_marching_cubes_empty.py raises on empty fields
 │   ├── test_render_worker.py       is_stale_result + MeshResult (Qt-free worker units)
-│   └── test_grid_helpers.py         _grid_to_polydata + _concat_polydata
-├── requirements.txt    Pinned dep ranges with upper bounds (PySide6 <7, pyvista <0.49, etc.)
+│   ├── test_grid_helpers.py        _grid_to_polydata + _concat_polydata
+│   └── test_import_smoke.py        Subprocess cyclic-import smoke tests (varieties, render, _qt, cross_section, app)
+├── pyproject.toml      [tool.importlinter] section: 2 forbidden contracts (varieties + cross_section, added r3 B5)
+├── requirements.txt    Pinned dep ranges with upper bounds (PySide6 <7, pyvista <0.49, import-linter>=2.0,<3)
 └── .venv/              Python 3.12 virtualenv — use `.venv/bin/python` and `.venv/bin/pytest`
 ```
 
 Don't commit `.claude/` — it's in `.gitignore` along with `.venv/`, `__pycache__/`, etc.
+
+### Import-linter contracts (added r3 B5)
+
+Two layer-direction contracts are active in `pyproject.toml [tool.importlinter]`:
+
+| Contract | Module | Forbidden from importing |
+|---|---|---|
+| `varieties is pure-math` | `varieties` | `app`, `_qt`, `panels`, `PySide6`, `PyQt5`, `PyQt6` |
+| `cross_section is pure-pipeline` | `cross_section` | `_qt`, `PySide6`, `PyQt5`, `PyQt6` |
+
+Note: `render/` is intentionally NOT in a forbidden-Qt contract — `render/worker.py` inherits from `QRunnable` (intentional architecture). Verify with `lint-imports` (expected: "2 kept, 0 broken").
 
 ---
 
@@ -64,7 +91,7 @@ These choices were made early by an Opus research agent. Don't relitigate them w
 - **Adaptive bounds** for the Fermat quartic family — the box is computed from `c` and `γ` so axial arms always fit. Don't hard-code box sizes for new generators with wide parameter ranges.
 - **Taubin smoothing post-isocontour** — `mesh.smooth_taubin(n_iter=20, pass_band=0.1)` is volume-preserving; vanilla Laplacian shrinks geometry.
 - **Gradient-based normals seeded by the contour** — `contour(..., compute_normals=True)` seeds analytic gradient normals from the scalar field; `compute_normals()` rederives per-vertex normals after Taubin smoothing for shading consistency.
-- **Numba JIT for the field kernels of every implicit generator** — `@njit(parallel=True, cache=True)` per-generator kernels in `surfaces.py` evaluate the scalar field for the implicit pipeline.  v0 (realtime-variety-render-e5 / CAND-2) covered the two highest-cost generators (`_fermat_field_kernel`, `_enriques_fig1_field_kernel`), measured ~200-370× faster than NumPy meshgrid-broadcasting (field eval was 41-45% of `generate()` latency); v1 (realtime-variety-render-e5b / CAND-2 v1) extended the same pattern mechanically to the remaining 9 implicit generators — `_kummer_field_kernel`, `_enriques_fig2/3/4_field_kernel`, `_dwork_field_kernel`, `_klein_cubic_field_kernel`, `_segre_cubic_field_kernel`, `_two_quadrics_field_kernel`, `_sextic_double_solid_field_kernel`.  **v0+v1 covers all 11 implicit generators**; only the Hanson parametric trio sits outside this pipeline (AI-6 — they never go through marching cubes, so the kernel pattern does not apply).  Numerical equivalence is pinned at `rtol=atol=1e-9` by `tests/test_numba_field_kernels.py` (45 tests; one parametrize block + clip-bounds assertion per kernel, NumPy reference verbatim from the pre-JIT generator body).  Powers `**N > 2` are written as explicit multiplies in the kernels (`x*x*x`, `x4 = x2*x2; x5 = x4*x`, `x2*x2*x2`) so per-voxel IEEE-754 op order matches NumPy term-for-term.  numba is BSD-2-Clause — a pure *compute* dependency, not a renderer, so AI-1-clean.  **Process-global side-effect:** `surfaces.py` import sets `numba.config.THREADING_LAYER = "workqueue"` (keeps Numba's thread pool off VTK's SMP pool); this is a process-wide write — importing `surfaces` pins the layer for the whole process.  `cache=True` persists compiled kernels to `__pycache__/` (gitignored; keyed by a source hash so a kernel edit auto-invalidates); cold-cache compile fires per-kernel on the e4 worker thread the first time each generator is selected (off the GUI thread — no freeze; ~+2.7-3.6 s cumulative one-time machine cost across all 9 new kernels), so no eager startup warm-up is used.  **`workqueue` is not thread-safe under concurrent parallel-kernel dispatch** — the `_computing` single-flight guard prevents that today; see §8.21 if single-flight is ever lifted.
+- **Numba JIT for the field kernels of every implicit generator** — `@njit(parallel=True, cache=True)` per-generator kernels in `surfaces.py` evaluate the scalar field for the implicit pipeline.  v0 (realtime-variety-render-e5 / CAND-2) covered the two highest-cost generators (`_fermat_field_kernel`, `_enriques_fig1_field_kernel`), measured ~200-370× faster than NumPy meshgrid-broadcasting (field eval was 41-45% of `generate()` latency); v1 (realtime-variety-render-e5b / CAND-2 v1) extended the same pattern mechanically to the remaining 9 implicit generators — `_kummer_field_kernel`, `_enriques_fig2/3/4_field_kernel`, `_dwork_field_kernel`, `_klein_cubic_field_kernel`, `_segre_cubic_field_kernel`, `_two_quadrics_field_kernel`, `_sextic_double_solid_field_kernel`.  **v0+v1 covers all 11 implicit generators**; only the Hanson parametric trio sits outside this pipeline (AI-6 — they never go through marching cubes, so the kernel pattern does not apply).  Numerical equivalence is pinned at `rtol=atol=1e-9` by `tests/test_numba_field_kernels.py` (45 tests; one parametrize block + clip-bounds assertion per kernel, NumPy reference verbatim from the pre-JIT generator body).  Powers `**N > 2` are written as explicit multiplies in the kernels (`x*x*x`, `x4 = x2*x2; x5 = x4*x`, `x2*x2*x2`) so per-voxel IEEE-754 op order matches NumPy term-for-term.  numba is BSD-2-Clause — a pure *compute* dependency, not a renderer, so AI-1-clean.  **Process-global side-effect:** `varieties/_kernels.py` import sets `numba.config.THREADING_LAYER = "workqueue"` (keeps Numba's thread pool off VTK's SMP pool); this is a process-wide write — importing `varieties._kernels` (directly or transitively) pins the layer for the whole process. Note: `surfaces.py` was retired in r3 B4; the side effect now originates from `_kernels.py` directly.  `cache=True` persists compiled kernels to `__pycache__/` (gitignored; keyed by a source hash so a kernel edit auto-invalidates); cold-cache compile fires per-kernel on the e4 worker thread the first time each generator is selected (off the GUI thread — no freeze; ~+2.7-3.6 s cumulative one-time machine cost across all 9 new kernels), so no eager startup warm-up is used.  **`workqueue` is not thread-safe under concurrent parallel-kernel dispatch** — the `_computing` single-flight guard prevents that today; see §8.21 if single-flight is ever lifted.
 - **Two-pass coarse-preview LOD** for implicit surfaces — during slider/grid drag the `MeshWorker` dispatches at `n = surface.coarse_n` (a per-surface floor on the `Surface` dataclass, validated by `tests/test_coarse_n.py`'s n-sweep); on slider release a full-resolution worker dispatches via the e1 catch-up. Opt-in per-surface: 9 of 11 implicit generators carry a measured `coarse_n` (Fermat=80, Kummer=100, Enriques×4=80, Dwork=100, Fano Klein/Segre/SexticDoubleSolid=80); `fano_two_quadrics` opts out (ε-tube width approaches voxel spacing at any practical floor — mathematically dishonest for drag previews); Hanson parametric trio MUST stay opt-out (AI-6 — they never go through marching cubes). The status-bar **AI-15 Preview badge** (`"Preview  ·  {label}  ·  NNN ms"`) appears with the first coarse result and persists across drag-tick overwrites until a full-res result replaces it — Qt's `QStatusBar` "replace" semantics IS the clear. realtime-variety-render-e4b / CAND-3; see §4.4 for the AND-promote `_pending_is_coarse` re-entrancy rule and §8.20 for the badge contract.
 - **qtawesome for button icons** — MIT-licensed icon font wrapper (PySide6-compatible since v1.4.1). Lazy-imported via [`icons.py`](icons.py) so the ~150-200ms font-cache cold-boot fires at first icon paint, not at app launch. Icon color resolves from the active palette's `TEXT_VALUE` token so the same icon works in both themes. Added in qtawesome-icons-2026q2-e1 (UPL-4 v0 from the 2026q2-graph-and-window uplift, covering Reset Camera / Screenshot / Reset Defaults); extended in qtawesome-icons-2026q2-e2 (UPL-4 v1) to the 7 View-panel camera presets (`mdi6.axis-{x,y,z}-arrow` with `rotated=180` for the minus directions, `mdi6.axis-arrow` for Isometric) and the 2 Appearance-panel display toggles (`mdi6.grid` for Wireframe, `mdi6.border-outside` for Show-edges — perceptually distinct at 16px). The render-busy spinner shipped in `render-busy-spinner-2026q3-e1` (UPL-4 v2): `mdi6.loading` with `qta.Spin(widget, interval=10, step=6)` (one 360° rotation per ~600 ms) on a flat disabled `QPushButton` added to the status bar via `addPermanentWidget()` (right side — never obscured by `showMessage()` calls); toggled `setVisible(True)/(False)` at the two `self._computing = True/False` sites in `_render_current` and `_on_mesh_ready`. AI-9 audit: `qta.Spin` uses a `QTimer` parented to the spinner widget that fires `widget.update()` → `paintEvent` — a pure paint path with no business-logic re-emission. AI-15: indicates compute *activity*, not percent-complete progress (Flying Edges and Taubin emit no intermediate signal).
 
@@ -109,7 +136,7 @@ VARIETIES: dict[str, dict[str, Surface]] = {
 
 The dropdown shows the **outer keys** (variety) → **inner keys** (subtype). The inner key is what you see in the dropdown ("Hanson quintic  [Fig. 1]"); the `Surface.label` is what appears in the status bar after rendering. This split lets us include a `[Fig. N]` tag in the dropdown that matches the user's "Figure 1, Figure 2..." mental model from the original brief, while the more academic full label appears in the status bar.
 
-**Two parallel tooltip dicts** — `VARIETY_TOOLTIPS` and `SUBTYPE_TOOLTIPS` — are also exported from `surfaces.py` and consumed by `app.py` to attach `Qt.ItemDataRole.ToolTipRole` to each combo item.
+**Two parallel tooltip dicts** — `VARIETY_TOOLTIPS` and `SUBTYPE_TOOLTIPS` — live in `varieties/tooltips.py` and are consumed by `app.py` to attach `Qt.ItemDataRole.ToolTipRole` to each combo item.
 
 ### 4.2 Generator function contract
 
@@ -225,7 +252,7 @@ Re-entrancy analysis (AI-9): `_on_mesh_ready` runs on the GUI thread via `Queued
 
 ### 4.5 Domain clipping (sphere / cube)
 
-`panels/view.py` exposes `clip_to_domain(mesh) -> (clipped_mesh, overlay_mesh_or_None)`. Both modes use the same scalar-clipping approach: tag every vertex with a "domain function" (Euclidean distance for sphere, Chebyshev `max(|x|,|y|,|z|)` for cube), then `clip_scalar(invert=True)` keeps the interior. **Don't use `clip_box`** — its `invert` semantics on PolyData are unreliable in current PyVista (see commit `b68456f`).
+`cross_section/clip.py` exposes `clip_to_domain(mesh) -> (clipped_mesh, overlay_mesh_or_None)` (extracted from `_qt/panels/view.py` in r2 B4). Both modes use the same scalar-clipping approach: tag every vertex with a "domain function" (Euclidean distance for sphere, Chebyshev `max(|x|,|y|,|z|)` for cube), then `clip_scalar(invert=True)` keeps the interior. **Don't use `clip_box`** — its `invert` semantics on PolyData are unreliable in current PyVista (see commit `b68456f`).
 
 ### 4.6 Warning surfacing
 
@@ -554,7 +581,7 @@ Bonus (rect HIGH closure): an animated qtawesome `QPushButton` MUST also call `s
 
 ### 8.21 Numba `workqueue` is NOT thread-safe under concurrent parallel-kernel dispatch
 
-The e5 spike pinned `numba.config.THREADING_LAYER = "workqueue"` (set at `surfaces.py` import) to keep Numba's pool off VTK's SMP pool. e4b's bring-up surfaced an additional constraint: **`workqueue` aborts the process with `"Concurrent access has been detected"` if two `@njit(parallel=True)` kernels run on different Python threads at the same time** (`numba.threading_layer()` returns `'workqueue'`; Numba's safety guard fires). This is *not* a problem in production because the `_computing` single-flight guard (CONTEXT.md §4.4) holds at most one `MeshWorker` in flight at a time — every parallel-kernel call is serialized across the worker pool — but it IS a real constraint a future change must respect. If single-flight is ever lifted (e.g. cancel-in-flight-and-dispatch-new), the options are: (a) `numba.set_num_threads(1)` to neuter `prange` parallelism (loses the e5 speedup); (b) switch to `THREADING_LAYER = "tbb"` which IS thread-safe (adds the TBB dep, breaks the e5 spike's "no contention with VTK SMP" argument); (c) keep an explicit Python lock around `surface.generate()` calls in the worker. **The simplest production rule: do not lift the `_computing` single-flight guard without simultaneously switching Numba's threading layer or capping its thread count.**
+The e5 spike pinned `numba.config.THREADING_LAYER = "workqueue"` (set at `varieties/_kernels.py` import — was `surfaces.py` prior to r3 B4) to keep Numba's pool off VTK's SMP pool. e4b's bring-up surfaced an additional constraint: **`workqueue` aborts the process with `"Concurrent access has been detected"` if two `@njit(parallel=True)` kernels run on different Python threads at the same time** (`numba.threading_layer()` returns `'workqueue'`; Numba's safety guard fires). This is *not* a problem in production because the `_computing` single-flight guard (CONTEXT.md §4.4) holds at most one `MeshWorker` in flight at a time — every parallel-kernel call is serialized across the worker pool — but it IS a real constraint a future change must respect. If single-flight is ever lifted (e.g. cancel-in-flight-and-dispatch-new), the options are: (a) `numba.set_num_threads(1)` to neuter `prange` parallelism (loses the e5 speedup); (b) switch to `THREADING_LAYER = "tbb"` which IS thread-safe (adds the TBB dep, breaks the e5 spike's "no contention with VTK SMP" argument); (c) keep an explicit Python lock around `surface.generate()` calls in the worker. **The simplest production rule: do not lift the `_computing` single-flight guard without simultaneously switching Numba's threading layer or capping its thread count.**
 
 ---
 
@@ -578,16 +605,19 @@ Logged as adversarial findings in the most recent reviews but skipped. Future ma
 
 ```bash
 # Static checks
-.venv/bin/python -c "import app, surfaces; from panels.appearance import AppearancePanel; from panels.view import ViewPanel; from panels.parameters import ParametersPanel; print('OK')"
+.venv/bin/python -c "import app; from varieties.registry import VARIETIES; from _qt.panels.appearance import AppearancePanel; from _qt.panels.view import ViewPanel; from _qt.panels.parameters import ParametersPanel; print('OK')"
 
 # Test suite
-.venv/bin/pytest tests/ -v          # 120 tests, ~4 s
+.venv/bin/pytest tests/ -v          # 504 tests, ~7 s
+
+# Layer-direction contracts
+.venv/bin/lint-imports              # expects "2 kept, 0 broken"
 
 # Render verification (off-screen — Qt+VTK GUI segfaults under offscreen)
 .venv/bin/python -c "
 import pyvista as pv
 pv.OFF_SCREEN = True
-from surfaces import VARIETIES
+from varieties.registry import VARIETIES
 m = VARIETIES['Calabi–Yau 3-fold']['Hanson quintic  [Fig. 1]'].generate()
 p = pv.Plotter(off_screen=True, window_size=(440, 380))
 p.add_mesh(m, color='#9aa6c8', smooth_shading=True)
@@ -608,8 +638,8 @@ p.show(screenshot='/tmp/check.png')
 If a future user asks for a fourth variety (Severi varieties, abelian surfaces, Fano threefolds, etc.):
 
 1. **Run the 5-phase pipeline** from §6.
-2. **Add tooltip dict entries** in `surfaces.py` (`VARIETY_TOOLTIPS` and `SUBTYPE_TOOLTIPS`). The user expects honest disclaimers if the genuine variety can't live in R³.
-3. **Add to `VARIETIES`** with `[Fig. N]` tags in the dropdown keys for consistency.
+2. **Add tooltip dict entries** in `varieties/tooltips.py` (`VARIETY_TOOLTIPS` and `SUBTYPE_TOOLTIPS`). The user expects honest disclaimers if the genuine variety can't live in R³.
+3. **Add to `VARIETIES`** in `varieties/registry.py` with `[Fig. N]` tags in the dropdown keys for consistency.
 4. **Cross-verify equations against ≥2 sources.** Wikipedia + MathWorld + arXiv + classical text is the bar.
 5. **Render off-screen and visually verify.** A correct equation can still produce a visually disappointing surface; iterate on parameters.
 6. **Add tests:** at minimum a smoke test in `tests/test_mesh_generators.py` and parameter-range entries in `tests/test_parameters_panel.py:ALL_PARAM_SPECS`.
@@ -621,17 +651,20 @@ If a future user asks for a fourth variety (Severi varieties, abelian surfaces, 
 ## 12. Final state at handoff
 
 - 113+ commits on `main`
-- 499 tests passing in ~7 s
+- 504 tests passing in ~7 s (499 after r3 B3 shim-delete, +5 smoke tests in r3 B5)
 - Four varieties live: K3 (2 subtypes), Enriques (4 figures), Calabi–Yau (4 figures), Fano 3-fold (4 figures)
 - Three docks: View (left), Parameters (right top), Appearance (right bottom)
 - Domain clipping with sphere/cube modes and adjustable radius
 - Adaptive bounds, Taubin smoothing, gradient normals throughout
 - Tooltips, keyboard shortcuts, busy cursor, status-bar feedback
 - Centralized stylesheet with WCAG AA-compliant text contrast
-- Numba JIT field kernels for all 11 implicit generators (workqueue threading layer)
+- Numba JIT field kernels for all 11 implicit generators (workqueue threading layer; side effect in varieties/_kernels.py)
 - QSettings persistence: window geometry, dock layout, last-used variety/subtype
 - File → Export Mesh (Ctrl+E): STL / OBJ / PLY export of the unclipped surface
 - Two-pass coarse-preview LOD with AI-15 Preview badge during slider drag
 - Back-face culling gated per-variety for Enriques family
 - Double-pass smooth opt-in for Enriques Figs. 1 + 2
 - render-busy spinner via qtawesome (addPermanentWidget, not obscured by showMessage)
+- **Single-root invariant (r3):** `app.py` is the ONLY `.py` file at repo root; all other modules in subpackages
+- **Import-linter layer contracts (r3):** 2 forbidden contracts in `pyproject.toml` enforce varieties/cross_section purity
+- **VarietyGenerator(Protocol) (r3):** `@runtime_checkable` Protocol in `varieties/types.py` after `Surface` dataclass

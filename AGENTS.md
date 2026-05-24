@@ -22,25 +22,44 @@ Deep-dive: CONTEXT.md §1 (Purpose), §2 (Architecture), §3 (Data flow)
 
 ```
 app.py                         Entry point and main window (~1900 LOC — God Object, do not Extract Class here)
-surfaces.py                    Surface registry + mesh generators (~1811 LOC)
-panels/                        UI panel subpackage (moved from root in restructure-full-audit-2026q2-r1 batch 4)
-  panels/appearance.py         Appearance controls panel (AppearancePanel)
-  panels/parameter_grid_panel.py  Parameter-grid interactive panel (ParameterGridPanel)
-  panels/parameters.py         Surface-parameter sliders panel (ParametersPanel)
-  panels/view.py               3-D viewport + clip controls (ViewPanel)
-render_worker.py               QThread worker for off-thread mesh computation
-parameter_grid.py              Draggable-dot grid widget
-styles.py                      QSS stylesheets (light + dark modes, WCAG AA palette)
-icons.py                       qtawesome icon helpers
-ui_helpers.py                  Misc Qt helpers
-tests/                         Flat test layout — 499 tests, all Qt-free
-requirements.txt               Runtime + restructure-tooling pins
-
-Note: Root-level shims (appearance_panel.py, parameter_grid_panel.py, parameters_panel.py,
-view_panel.py) were removed in restructure-feature-subpackages-2026q2-r2 batch 1 (M+1 cycle closed).
-The canonical paths are panels/appearance.py, panels/view.py, panels/parameters.py,
-panels/parameter_grid_panel.py. See MOVES.md for the full rosetta stone.
+_qt/                           Qt-layer subpackage (icons, styles, ui_helpers, panels)
+  _qt/icons.py                 qtawesome icon helpers
+  _qt/styles.py                QSS stylesheets (light + dark modes, WCAG AA palette)
+  _qt/ui_helpers.py            Misc Qt helpers
+  _qt/parameter_grid_math.py   Pure-math coordinate math for grid mode (moved from root in restructure-single-root-2026q2-r3 batch 2)
+  _qt/panels/                  UI panel subpackage
+    _qt/panels/appearance.py         Appearance controls panel (AppearancePanel)
+    _qt/panels/parameter_grid_panel.py  Parameter-grid interactive panel (ParameterGridPanel)
+    _qt/panels/parameters.py         Surface-parameter sliders panel (ParametersPanel)
+    _qt/panels/view.py               3-D viewport + clip controls (ViewPanel)
+render/worker.py               QThread worker for off-thread mesh computation
+cross_section/clip.py          Domain-clip pure function (clip_to_domain)
+varieties/                     Surface registry + mesh generators
+  varieties/types.py           Surface + ParamSpec dataclasses; VarietyGenerator(Protocol)
+  varieties/registry.py        VARIETIES registry dict
+  varieties/dispatch.py        dispatch_mode, should_render_on_drag, FAST_RENDER_THRESHOLD_MS
+  varieties/tooltips.py        VARIETY_TOOLTIPS, SUBTYPE_TOOLTIPS
+  varieties/k3.py              K3 generators (fermat_quartic, kummer_surface)
+  varieties/enriques.py        Enriques generators (4 figures)
+  varieties/calabi_yau.py      Calabi-Yau generators (4 figures)
+  varieties/fano.py            Fano 3-fold generators (4 figures)
+  varieties/_kernels.py        Numba @njit field kernels for all 11 implicit generators
+  varieties/_marching.py       Marching-cubes + grid pipeline helpers
+tests/                         Flat test layout — 504 tests, all Qt-free
+  tests/test_import_smoke.py   Subprocess smoke tests (5 entries: varieties, render, _qt, cross_section, app)
+requirements.txt               Runtime + restructure-tooling pins (includes import-linter>=2.0,<3)
+pyproject.toml                 [tool.importlinter] section: 2 forbidden contracts enforcing layer direction
 ```
+
+Post-r3 state: `app.py` is the ONLY `.py` file at the repo root (single-root invariant). All other
+modules live in subpackages: `_qt/`, `render/`, `cross_section/`, `varieties/`. Layer direction is
+enforced by import-linter contracts in `pyproject.toml`.
+
+Note: All root-level shims from r1 + r2 have now been removed:
+- r2 batch 1 closed M+1 cycle for r1 panel shims (appearance_panel.py, view_panel.py, parameters_panel.py, parameter_grid_panel.py)
+- r3 batch 3 closed M+1 cycle for r2 Qt shims (icons.py, styles.py, ui_helpers.py, render_worker.py, panels/__init__.py)
+- r3 batch 4 retired surfaces.py (123-LOC re-export hub, down from 1811 LOC pre-r2)
+The canonical paths for all moved symbols are in MOVES.md (the full r1->r2->r3 rosetta stone).
 
 Deep-dive: CONTEXT.md §4 (Module map), §5 (Panel inventory)
 
@@ -52,15 +71,18 @@ Deep-dive: CONTEXT.md §4 (Module map), §5 (Panel inventory)
 # Run the app
 python app.py
 
-# Run the full test suite (expected: 499 tests, ~7 s on Apple Silicon)
+# Run the full test suite (expected: 504 tests, ~7 s on Apple Silicon)
 python -m pytest -q
 
 # Run a single test file
-python -m pytest tests/test_surfaces.py -q
+python -m pytest tests/test_mesh_generators.py -q
 
 # Smoke-test imports (no Qt required)
-python -c "import surfaces; print('OK')"
-python -c "import styles; print('OK')"
+python -c "from varieties.registry import VARIETIES; print('OK')"
+python -c "from _qt.styles import APP_STYLESHEET; print('OK')"
+
+# Verify import-linter layer contracts (expects 2 contracts KEPT)
+lint-imports
 ```
 
 No build step required — pure-Python project; no `pip install -e .` needed to
@@ -96,7 +118,7 @@ Full table: CONTEXT.md §11 (AI invariants)
 - **Qt enums fully-qualified** (AI-11 above). Grep for bare `Qt.Align` / `Qt.Key` etc. and fix.
 - **No star-imports** anywhere in production code.
 - **Stylesheet colours** via QSS palette roles (e.g. `palette(window)`) — never
-  hardcode hex values directly in `setStyleSheet` calls. See `styles.py` for
+  hardcode hex values directly in `setStyleSheet` calls. See `_qt/styles.py` for
   the palette + WCAG notes.
 - **Type hints** on new public functions; not required on private helpers.
 - **Line length:** 100 chars (no hard linter; be reasonable).

@@ -4,7 +4,7 @@ An interactive desktop application for exploring **algebraic varieties** — K3 
 
 Built with **PySide6** (Qt) and **PyVista** (VTK), it renders implicit surfaces via marching cubes and parametric surfaces via direct triangulation.
 
-![architecture](https://img.shields.io/badge/python-3.12-blue) ![ui](https://img.shields.io/badge/ui-PySide6-green) ![3d](https://img.shields.io/badge/3d-PyVista%2FVTK-orange) ![tests](https://img.shields.io/badge/tests-499%20passing-brightgreen)
+![architecture](https://img.shields.io/badge/python-3.12-blue) ![ui](https://img.shields.io/badge/ui-PySide6-green) ![3d](https://img.shields.io/badge/3d-PyVista%2FVTK-orange) ![tests](https://img.shields.io/badge/tests-504%20passing-brightgreen)
 
 ---
 
@@ -143,10 +143,10 @@ A window titled **"Algebraic Variety Viewer"** should open at 1200×800. The sta
 ### Smoke-test the install (no GUI)
 
 ```bash
-# Verify imports
-python -c "import app, surfaces; from panels.appearance import AppearancePanel; from panels.view import ViewPanel; from panels.parameters import ParametersPanel; print('OK')"
+# Verify imports (no Qt window required)
+python -c "from varieties.registry import VARIETIES; from _qt.panels.appearance import AppearancePanel; from _qt.panels.view import ViewPanel; from _qt.panels.parameters import ParametersPanel; print('OK')"
 
-# Run the test suite (~7 seconds, 499 tests, no Qt window required)
+# Run the test suite (~7 seconds, 504 tests, no Qt window required)
 pytest tests/ -v
 ```
 
@@ -225,22 +225,42 @@ Mouse-camera bindings (VTK trackball, no rebinding):
 ```
 algebraic-variety-cross-section/
 ├── app.py                  Main window — dropdowns, three docks, plotter wiring (~1,900 LOC)
-├── surfaces.py             Mesh generators + Surface/ParamSpec dataclasses + VARIETIES registry (~1,811 LOC)
-├── panels/                 UI panel subpackage (moved from root in restructure-full-audit-2026q2-r1 batch 4)
-│   ├── __init__.py         Subpackage root; documents canonical import paths
-│   ├── appearance.py       Color / wireframe / opacity / shading panel (right dock)
-│   ├── view.py             Camera presets, domain clipping, scene aids, screenshot (left dock)
-│   ├── parameters.py       Dynamic slider panel (rebuilds per surface)
-│   └── parameter_grid_panel.py  ParameterGrid Qt widget layer
-├── styles.py               Centralized stylesheet constants (palette, typography)
-├── requirements.txt        Pinned dependency ranges
+│                           (app.py is the ONLY .py file at the repo root — single-root invariant)
+├── _qt/                    Qt-layer subpackage
+│   ├── icons.py            qtawesome icon helpers
+│   ├── styles.py           Centralized stylesheet constants (palette, typography)
+│   ├── ui_helpers.py       Misc Qt helpers (Debouncer, etc.)
+│   ├── parameter_grid_math.py  Pure-math coordinate math for parameter grid mode
+│   └── panels/             UI panel subpackage
+│       ├── appearance.py       Color / wireframe / opacity / shading panel (right dock)
+│       ├── view.py             Camera presets, domain clipping, scene aids, screenshot (left dock)
+│       ├── parameters.py       Dynamic slider panel (rebuilds per surface)
+│       └── parameter_grid_panel.py  ParameterGrid Qt widget layer
+├── render/
+│   └── worker.py           Background-thread mesh worker (QRunnable)
+├── cross_section/
+│   └── clip.py             Domain-clip pure function (clip_to_domain)
+├── varieties/              Surface registry + mesh generators
+│   ├── types.py            Surface + ParamSpec dataclasses; VarietyGenerator(Protocol)
+│   ├── registry.py         VARIETIES registry dict
+│   ├── dispatch.py         dispatch_mode + LOD routing
+│   ├── tooltips.py         VARIETY_TOOLTIPS, SUBTYPE_TOOLTIPS
+│   ├── k3.py               K3 generators (fermat_quartic, kummer_surface)
+│   ├── enriques.py         Enriques generators (4 figures)
+│   ├── calabi_yau.py       Calabi-Yau generators (4 figures)
+│   ├── fano.py             Fano 3-fold generators (4 figures)
+│   ├── _kernels.py         Numba @njit field kernels for all 11 implicit generators
+│   └── _marching.py        Marching-cubes + grid pipeline helpers
+├── pyproject.toml          [tool.importlinter] with 2 layer-direction contracts
+├── requirements.txt        Pinned dependency ranges (includes import-linter>=2.0,<3)
 ├── pytest.ini              testpaths = tests
-├── tests/                  120-test pytest suite (~4 s, pure NumPy / PyVista, no Qt fixture)
+├── tests/                  504-test pytest suite (~7 s, pure NumPy / PyVista, no Qt fixture)
 │   ├── test_mesh_generators.py        Smoke tests for every generator + edge cases
 │   ├── test_parameters_panel.py       Slider tick ↔ value math
-│   ├── test_clip_domain.py            ViewPanel.clip_to_domain pure-function tests
+│   ├── test_clip_domain.py            clip_to_domain pure-function tests
 │   ├── test_marching_cubes_empty.py   Empty-field ValueError propagation
-│   └── test_grid_helpers.py           _grid_to_polydata + _concat_polydata
+│   ├── test_grid_helpers.py           _grid_to_polydata + _concat_polydata
+│   └── test_import_smoke.py           Subprocess cyclic-import smoke tests (5 modules)
 └── CONTEXT.md              Developer handoff document — read before contributing
 ```
 
@@ -290,18 +310,19 @@ Read [CONTEXT.md](CONTEXT.md) for the full architecture rationale, the 5-phase d
 ## Running the tests
 
 ```bash
-pytest tests/ -v             # 499 tests, ~7 s
+pytest tests/ -v             # 504 tests, ~7 s
 ```
 
 The suite is **Qt-free** — every test exercises pure NumPy / PyVista / scikit-image / Numba, so it runs in CI without a display server. There are no end-to-end UI tests; Qt + VTK does not run reliably under offscreen platforms on macOS, so manual launch is the verification path for the GUI itself.
 
 The tests cover:
 
-- Every generator in `surfaces.py` produces a non-degenerate mesh at default parameters
+- Every generator in `varieties/` produces a non-degenerate mesh at default parameters
 - Edge-case parameter values (boundary of valid range, no-zero-crossing fields)
 - Slider tick ↔ value conversion math
 - Sphere and cube domain clipping
-- `_grid_to_polydata` / `_concat_polydata` helpers
+- `_grid_to_polydata` / `_concat_polydata` helpers (in `varieties/_marching.py`)
+- Cyclic-import smoke tests for all 5 subpackages (`tests/test_import_smoke.py`)
 
 ---
 
@@ -314,9 +335,9 @@ The tests cover:
 3. Define a `<NAME>_PARAMS` list in the same family module: `ParamSpec(name, label, minimum, maximum, default, step, suffix, description)` — one per slider. Import `ParamSpec` from `varieties.types`.
 4. Add `Surface(label, generator, params)` to the appropriate inner dict of `VARIETIES` in `varieties/registry.py`. Use a `[Fig. N]` suffix in the dropdown key for consistency.
 5. Add tooltip entries to `SUBTYPE_TOOLTIPS` in `varieties/tooltips.py` (and `VARIETY_TOOLTIPS` if introducing a new family).
-6. Add at least a smoke test in [tests/test_mesh_generators.py](tests/test_mesh_generators.py) and a parameter-range entry in [tests/test_parameters_panel.py](tests/test_parameters_panel.py). Test imports can use either the canonical path (`from varieties.k3 import fermat_quartic`) OR the legacy `from surfaces import fermat_quartic` (re-exported via the surfaces hub; will emit `DeprecationWarning` when the surfaces shim is fully retired).
+6. Add at least a smoke test in [tests/test_mesh_generators.py](tests/test_mesh_generators.py) and a parameter-range entry in [tests/test_parameters_panel.py](tests/test_parameters_panel.py). Use the canonical import path (e.g. `from varieties.k3 import fermat_quartic`).
 
-**Backward-compatibility note (post r2-restructure):** the historical `surfaces.py` module is now a hub re-export. Existing imports like `from surfaces import VARIETIES` continue to work; the canonical path is `from varieties.registry import VARIETIES`. See `MOVES.md` for the full r2 rosetta stone.
+**Post-r3 single-root state:** `surfaces.py` has been retired. The canonical import paths are documented in the per-module sections above (`from varieties.X import Y`). See `MOVES.md` for the full r1→r2→r3 rosetta stone.
 
 **Adding a whole new variety family** is a larger effort — see Section 6 of [CONTEXT.md](CONTEXT.md) for the 5-phase pipeline (math research → implementation → adversarial review → remediation → UX pass) used for the existing four families.
 

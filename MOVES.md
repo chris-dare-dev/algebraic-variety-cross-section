@@ -239,5 +239,72 @@ Total: 4 new subpackages (`render/`, `_qt/`, `cross_section/`, `varieties/`); 9 
 
 surfaces.py decomposition: 1811 → 123 LOC (93% reduction). All historical imports continue to work via re-exports + shims (M+1 deprecation cycle in effect).
 
+---
+
+## 2026-05-24 — restructure-single-root-2026q2-r3: single-root lock-in (B1–B5)
+
+r3 baseline SHA: c1dcf89
+r3 final SHA: &lt;latest&gt; (HEAD after this docs commit)
+
+**Goal:** `ls *.py | wc -l == 1` — app.py is the ONLY .py file at the repo root.
+
+**B1 (tooling — no file moves):**
+- Fixed LibCST `rewrite-imports.py` partial-attribute-rewrite bug (`QualifiedNameProvider.has_name()` + `METADATA_DEPENDENCIES` + multi-alias guard); added `.claude/scripts/` and `.claude/notes/` to walker exclusion list. Tool-only; no source edits.
+
+**B2 (parameter_grid move + Protocol add):**
+
+| Old path | New canonical path | LOC moved | Shim | Notes |
+|---|---|---|---|---|
+| `parameter_grid.py` | `_qt/parameter_grid_math.py` | 362 | NONE | 4 callers rewritten by LibCST (alias-form `import parameter_grid as pg` → `import _qt.parameter_grid_math as pg`) |
+
+- `VarietyGenerator(Protocol)` added to `varieties/types.py:69+` (after `Surface` dataclass). Additive — zero existing callers.
+- No back-compat shim: all 4 callers are in-tree; `parameter_grid` was never a public API.
+
+**B3 (5 shim deletes — M+1 cycle closed):**
+- `git rm` `icons.py` (23 LOC) — canonical: `_qt.icons`
+- `git rm` `styles.py` (22 LOC) — canonical: `_qt.styles`
+- `git rm` `ui_helpers.py` (27 LOC) — canonical: `_qt.ui_helpers`
+- `git rm` `render_worker.py` (23 LOC) — canonical: `render.worker`
+- `git rm` `panels/__init__.py` (40 LOC) + `rmdir panels/` — canonical: `_qt.panels.*`
+- `git rm` `tests/test_r2_shims.py` (108 LOC; tests covered shims that no longer exist)
+- `_qt/panels/__init__.py` docstring updated to remove stale `from panels.X` examples
+
+**B4 (surfaces.py retirement — 23 import sites rewritten, then deleted):**
+
+| Old import | New canonical import |
+|---|---|
+| `from surfaces import ParamSpec, Surface` | `from varieties.types import ParamSpec, Surface` |
+| `from surfaces import VARIETIES` | `from varieties.registry import VARIETIES` |
+| `from surfaces import VARIETY_TOOLTIPS, SUBTYPE_TOOLTIPS` | `from varieties.tooltips import VARIETY_TOOLTIPS, SUBTYPE_TOOLTIPS` |
+| `from surfaces import dispatch_mode, should_render_on_drag, FAST_RENDER_THRESHOLD_MS` | `from varieties.dispatch import dispatch_mode, should_render_on_drag, FAST_RENDER_THRESHOLD_MS` |
+| `from surfaces import fermat_quartic, kummer_surface` | `from varieties.k3 import fermat_quartic, kummer_surface` |
+| `from surfaces import enriques_figure_1, enriques_figure_2, …` | `from varieties.enriques import enriques_figure_1, enriques_figure_2, …` |
+| `from surfaces import calabi_yau_quintic, calabi_yau_*` | `from varieties.calabi_yau import calabi_yau_quintic, …` |
+| `from surfaces import fano_segre_cubic, fano_two_quadrics, fano_grassmannian` | `from varieties.fano import fano_segre_cubic, …` |
+| 14 `*_PARAMS` constants | `from varieties.{k3,enriques,calabi_yau,fano} import <NAME>_PARAMS` |
+| 11 `_<name>_field_kernel` private symbols | `from varieties._kernels import …` |
+| `_marching_cubes_to_polydata`, `_grid_to_polydata`, `_concat_polydata`, `_hanson_cross_section` | `from varieties._marching import …` |
+| Bare `import surfaces` (2 test files) | Refactored to specific `from varieties.X import Y` per use-site |
+| `git rm surfaces.py` | Hub retired (123 LOC of re-exports deleted; r2 M+1 cycle closed) |
+
+16 caller files rewritten by LibCST + 2 bare-import test files manually refactored.
+
+**B5 (verify + lock-in — no symbol moves):**
+- `pyproject.toml` `[tool.importlinter]` section added: 2 forbidden contracts
+  - `varieties` forbidden from importing `app`, `surfaces`, `_qt`, `panels`, `PySide6`, `PyQt5`, `PyQt6`
+  - `cross_section` forbidden from importing `_qt`, `PySide6`, `PyQt5`, `PyQt6`
+- `requirements.txt` `import-linter>=2.0,<3` pin added
+- `tests/test_import_smoke.py` added: 5 subprocess smoke tests (`varieties`, `render`, `_qt`, `cross_section`, `app`)
+- Anchor docs updated (CLAUDE.md, README.md, MOVES.md, CONTEXT.md)
+
+### r3 final state
+
+Root-level .py count: 7 → 1. End-state confirmed: `ls *.py` returns ONLY `app.py`.
+
+Test count: 506 (r2 final) → 499 (B3 deletes test_r2_shims.py, -7 tests) → 504 (B5 adds test_import_smoke.py, +5 tests).
+
+Layer direction: enforced by 2 import-linter forbidden contracts in `pyproject.toml`.
+
+Tags: `refactor-r3-b1-end` through `refactor-r3-b5-end` (5 batch-end tags for partial revert support).
 
 
