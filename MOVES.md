@@ -90,3 +90,53 @@ from render.worker import MeshWorker, MeshResult, is_stale_result
 
 Old imports still work via shim at `render_worker.py` (emits `DeprecationWarning`).
 Tag: `refactor-r2-batch2-end` at 2095d81.
+
+---
+
+## 2026-05-23 — restructure-feature-subpackages-2026q2-r2 batch 3: introduce _qt/ subpackage
+
+| Old path | New canonical path | LOC moved | Shim at old path | Removal milestone |
+|---|---|---|---|---|
+| `panels/` (subpackage) | `_qt/panels/` | 2322 (4 panel files) | `panels/__init__.py` hub shim (Template 1) | M+1 |
+| `panels.appearance` | `_qt.panels.appearance` | 738 | via panels hub | M+1 |
+| `panels.parameter_grid_panel` | `_qt.panels.parameter_grid_panel` | 719 | via panels hub | M+1 |
+| `panels.parameters` | `_qt.panels.parameters` | 368 | via panels hub | M+1 |
+| `panels.view` | `_qt.panels.view` | 503 | via panels hub | M+1 |
+| `icons.py` | `_qt/icons.py` | 373 | Template 2 shim at root | M+1 |
+| `styles.py` | `_qt/styles.py` | 708 | Template 2 shim at root | M+1 |
+| `ui_helpers.py` | `_qt/ui_helpers.py` | 264 | Template 2 shim at root | M+1 |
+
+Move commits: 2fdf808 (commit 1 — git mv + LibCST + panels hub) + 321610f (commit 2 — root → shims).
+Tags: `refactor-r2-batch3-commit1` at 2fdf808, `refactor-r2-batch3-end` at 321610f.
+
+### Import update guide
+
+Old:
+```python
+from panels.view import ViewPanel
+from panels.appearance import AppearancePanel
+import icons
+from styles import APP_STYLESHEET
+from ui_helpers import Debouncer
+```
+
+New canonical:
+```python
+from _qt.panels.view import ViewPanel
+from _qt.panels.appearance import AppearancePanel
+import _qt.icons as icons  # or: from _qt import icons
+from _qt.styles import APP_STYLESHEET
+from _qt.ui_helpers import Debouncer
+```
+
+### Tooling note (recorded for Phase 5)
+
+`scripts/repository-architect/rewrite-imports.py` has a partial-attribute-rewrite bug: it rewrites SOME `styles.X` → `_qt.styles.X` references but leaves others, requiring manual fix-ups in 5 test files. Tool needs a fix in a follow-up tooling milestone. `rewrite-imports.py` should also exclude `.claude/scripts/` from the rewrite tree (it touched `.claude/scripts/frontend-uplift/render-panel-chrome.py` which is out of scope).
+
+### Path-string refs requiring manual fixes (not LibCST-rewritable)
+
+- `tests/test_styles_palette.py:134,816,869,921,1116` — `"panels"/"appearance.py"` → `"_qt"/"panels"/"appearance.py"`
+- `tests/test_styles_palette.py:646-649` — panel-files tuple updated to `_qt/panels/*.py`
+- `tests/test_enriques_hq_smoothing.py:168,280,326,362,377` — same `"panels"/"appearance.py"` pattern
+- `tests/test_render_busy_spinner.py:36` — `"icons.py"` → `"_qt"/"icons.py"`
+
