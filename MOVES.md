@@ -140,3 +140,45 @@ from _qt.ui_helpers import Debouncer
 - `tests/test_enriques_hq_smoothing.py:168,280,326,362,377` — same `"panels"/"appearance.py"` pattern
 - `tests/test_render_busy_spinner.py:36` — `"icons.py"` → `"_qt"/"icons.py"`
 
+---
+
+## 2026-05-23 — restructure-feature-subpackages-2026q2-r2 batch 4: cross_section/ subpackage (Move Method)
+
+Move Method per Fowler: `ViewPanel.clip_to_domain` math extracted to a pure function.
+
+| Old location | New canonical | Notes |
+|---|---|---|
+| `_qt/panels/view.py::ViewPanel.clip_to_domain` body (~32 LOC) | `cross_section.clip.clip_to_domain` pure function (~80 LOC with docstring) | Widget reads stay in ViewPanel.domain_settings(); ViewPanel.clip_to_domain shrinks to ~3-line delegating call |
+| `_qt/panels/view.py::ViewPanel.DOMAIN_*` constants (3) | `cross_section.clip.DOMAIN_*` (re-exported via `cross_section/__init__.py`) | Constants preserved as string literals for QComboBox compatibility |
+
+Move commit: 4efca4a. Tag refactor-r2-batch4-end.
+
+---
+
+## 2026-05-23 — restructure-feature-subpackages-2026q2-r2 batch 5: varieties/types + varieties/dispatch (5 symbol extractions)
+
+| Old import | New canonical import | Status |
+|---|---|---|
+| `from surfaces import ParamSpec` | `from varieties.types import ParamSpec` | re-export at surfaces.py top; both paths work |
+| `from surfaces import Surface` | `from varieties.types import Surface` | re-export at surfaces.py top |
+| `from surfaces import dispatch_mode` | `from varieties.dispatch import dispatch_mode` | re-export at surfaces.py top |
+| `from surfaces import should_render_on_drag` | `from varieties.dispatch import should_render_on_drag` | re-export at surfaces.py top |
+| `from surfaces import FAST_RENDER_THRESHOLD_MS` | `from varieties.dispatch import FAST_RENDER_THRESHOLD_MS` | re-export at surfaces.py top |
+
+surfaces.py shrunk by ~125 LOC (1811 → 1686 LOC) — replaced the class bodies + function bodies with a single 7-line `from varieties.* import …` re-export block.
+
+Move commit: 45fd9b8. Tag refactor-r2-batch5-end.
+
+**No LibCST rewrite needed in B5** — existing callers continue using `from surfaces import …` via the re-exports. The deprecation warnings will fire later (B8) when surfaces.py becomes a hub `__getattr__` shim for the remaining symbols.
+
+### Files unchanged but newly able to use canonical paths
+
+- `parameter_grid.py:27` (could be `from varieties.types import ParamSpec`)
+- `_qt/panels/parameters.py:32` (same)
+- `_qt/ui_helpers.py:29` (same)
+- `_qt/panels/parameter_grid_panel.py:45` (same)
+- `app.py:53` (uses `from surfaces import ... Surface, dispatch_mode, ...` — could split into varieties.types + varieties.dispatch + varieties.registry across B5/B8)
+
+Updating these to canonical paths is deferred to a future cleanup milestone (would require coordinated changes to all 5 sites for cosmetic gain only — the re-exports work transparently).
+
+
