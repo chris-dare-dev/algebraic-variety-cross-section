@@ -63,3 +63,30 @@ Tests or scripts that read panel source files by path must use the new locations
 - Removed: `tests/test_panels_shims.py` (97 LOC; 4 vacuous tests after shim deletion — the shim tests were the only consumers of the 4 root shim files)
 - M+1 deprecation cycle from restructure-full-audit-2026q2-r1 batch 4 now closed.
 - Tag: `refactor-r2-batch1-end` at 16b251b
+
+---
+
+## 2026-05-23 — restructure-feature-subpackages-2026q2-r2 batch 2: introduce render/ subpackage
+
+| Old path | New canonical path | LOC moved | Shim at old path | Shim removal milestone |
+|---|---|---|---|---|
+| `render_worker.py` | `render/worker.py` | 225 | yes (Template 2 `__getattr__`, emits DeprecationWarning) | M+1 |
+
+Move commit SHA: `2095d81` (combined `git mv` + shim + LibCST app.py + LibCST tests/test_render_worker.py — single commit per r1 bisect-redness lesson).
+
+LibCST rewrote 2 callers: `app.py` (`from render_worker import …` → `from render.worker import …`) and `tests/test_render_worker.py` (same).
+
+### Import update guide
+
+Old:
+```python
+from render_worker import MeshWorker, MeshResult, is_stale_result
+```
+
+New canonical:
+```python
+from render.worker import MeshWorker, MeshResult, is_stale_result
+```
+
+Old imports still work via shim at `render_worker.py` (emits `DeprecationWarning`).
+Tag: `refactor-r2-batch2-end` at 2095d81.
