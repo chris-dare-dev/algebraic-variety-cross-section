@@ -153,6 +153,7 @@ Full table: CONTEXT.md §11 (AI invariants)
 | Path | Why off-limits |
 |---|---|
 | `.claude/` | AI agent scaffold — self-modification trap |
+| `.claude/archive/` | **Opt-in-only context graveyard — do NOT auto-read.** Stale notes, superseded plans, retired critiques. Only grep here when the user explicitly references a path or when `MOVES.md` lookup fails. See `.claude/archive/README.md`. |
 | `.github/` | CI/CD pipeline — out of scope for source edits |
 | `plans/` | Historical design artefacts — read-only |
 | `pytest.ini` | Anchor-updater owns this |
