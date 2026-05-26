@@ -32,6 +32,29 @@ Restructure-specific rationalizations to refuse. The architect (and every sub-ag
 | R14 | "We don't need a parity-verifier — pytest already tells us if things broke." | The parity-verifier checks collection count, coverage shape, cycle set, import-time, shim integrity, and star-imports. Plain pytest catches none of these except a true test failure. | "Parity-verifier runs after every batch. Period." |
 | R15 | "Bowler is the safe-refactor tool we need." | Bowler is archived and lib2to3 is deprecated. | "Use LibCST. Bowler is dead." |
 
+## Tree-Structure Principle (TSP) anti-patterns
+
+These are restructure-specific rationalizations that violate the TSP-1..TSP-11 contract documented in `.claude/commands/repository-architect.md`.  Every sub-agent (especially the design-adversary, execution-critic, and implementer) cites these by number when refusing.
+
+### Canonical references
+
+- **TSP-5 banlist (canonical list):** `utils helpers common misc lib core manager services controllers` — referenced as "the TSP-5 banlist" everywhere else.  Mechanical check: `.claude/scripts/repository-architect/check-banlist.sh` (used by verification-rubric item 23).
+- **Named follow-up restructure-id convention** (for TSP-7 retentions, see R20): `restructure-<scope>-<YYYYqN>-r<N>` (e.g. `restructure-app-decomposition-2026q4-r1`).  Open-ended retentions (no named follow-up) are CRITICAL.  Referenced as "(per R20)" everywhere else.
+- **AVC app.py canonical context** (for R20 / TSP-7 / TSP-11 narrative): the full r1-r3 deferral chronology and AI-9 migration shape live in `.claude/references/repository-architect/avc-tsp-status.md`.  Other sites cite "see R20 / avc-tsp-status.md" rather than restating.
+
+### Anti-pattern table
+
+| # | Tempting belief | Reality + violated principle | Refusal |
+|---|---|---|---|
+| R16 | "Split `surfaces.py` into `surfaces_a/b/c.py` at root." | TSP-1 root bloat + TSP-5 name evasion (`_a/_b/_c` carry no responsibility signal). | "Build a subpackage (TSP-6).  Sibling-scripts-at-root violates two principles at once." |
+| R17 | "Cut the 1900-LOC monolith into three 600-LOC siblings — done." | TSP-10: LOC is a signal, not a goal.  Per R16, often worse. | "The deliverable is a TREE.  Re-measure depth and fan-out, not LOC." |
+| R18 | "One sibling cross-import won't hurt." | TSP-2: forbidden + import-linter mechanically blocks.  Even one erodes the tree. | "Move the shared helper to a parent/lower-layer module.  If you need a contract update, surface as a Phase 3 user gate." |
+| R19 | "Name the new subpackage `utils/` for now and rename later." | TSP-5 banlist hit (see canonical list above).  "Rename later" is how dunghills (Lehtinen) are born. | "Pick the responsibility name NOW.  If you can't name it, back to Phase 1." |
+| R20 | "We can defer the `app.py` decomposition (or any other monolith retention) one more cycle.  TSP-7 allows AS-IS retention." | TSP-7 retentions are TIME-BOUNDED: each retention must NAME the specific follow-up restructure-id (convention above) that will address it.  Chronic deferral across restructure cycles is NOT principled retention — it's the same anti-pattern as R10 ("we'll do it later") at architectural scale.  AVC's `app.py` has been deferred across r1, r2, r3; that deferral has expired.  Full historical context: see `avc-tsp-status.md`. | "Either name the follow-up restructure-id, OR absorb at least one decomposition batch (e.g. 'extract MainWindow into `_qt/main_window.py` as batch 1, defer remaining decomposition to <named restructure-id>')." |
+| R21 | "Decomposing along section-comment boundaries is faster than mapping the call graph." | TSP-8: the CALL STACK is the future tree.  Comments are write-time thinking; the call graph is runtime truth.  Section-based splits create sibling-crosses (R18) or shim cycles within hours. | "Read `audit/call-graph.json`.  Cluster along call-edge cuts.  No call graph → no Phase 2." |
+| R22 | "The entry point can keep its helper functions at the bottom of the file — they're only used by `main()` anyway." | TSP-11: the entry-point file is the OUTERMOST orchestration layer.  Its body is composed of CALLS to factory functions and orchestrators that live in subpackages — it does not itself contain implementation.  "Helpers at the bottom" is how 1900-LOC root scripts grow one helper at a time; each helper looks innocent in isolation, but the aggregate violates the pseudocode contract. | "Helpers belong in a subpackage.  If a helper is only used by `main()`, it still belongs in a subpackage and is exposed via a factory or `module.helper()` call." |
+| R23 | "AI-9's `_computing` re-entrancy guard lives in `app.py`, so we can't move `MainWindow` out without lifting an invariant." | AI-9 constrains WHERE the guard lives (with its semantic owner, `MainWindow`), not WHICH FILE the owner lives in.  The clean decomposition: `MainWindow` (and `_computing`) moves to `_qt/main_window.py`; AI-9's invariant text updates to reference the new location; the guard's behavior is unchanged. | "Move `MainWindow` and `_computing` together to `_qt/main_window.py`.  Update AI-9's text in `app-invariants.md` as part of the anchor-updater batch.  No invariant lift required." |
+
 ## When to add a new anti-pattern
 
 Append a new row to the appropriate table above when:

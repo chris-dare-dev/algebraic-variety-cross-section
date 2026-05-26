@@ -335,6 +335,11 @@ class AppearancePanel(QWidget):
         self._hq_smoothing_cb.setCheckable(True)
         self._hq_smoothing_cb.setChecked(False)
         self._hq_smoothing_cb.setEnabled(False)
+        # Show tooltip even while the button is disabled (Qt suppresses
+        # QHelpEvent on disabled widgets by default).  WA_AlwaysShowToolTips
+        # is the per-widget Qt API for this; there is no app-wide
+        # ApplicationAttribute equivalent.
+        self._hq_smoothing_cb.setAttribute(Qt.WidgetAttribute.WA_AlwaysShowToolTips, True)
         self._hq_smoothing_cb.setToolTip(
             # hq-smoothing-label-rename-2026q3-e1 rect MEDIUM-1: imperative
             # verb form ("Apply", not "Applies") per Qt / Apple HIG tooltip

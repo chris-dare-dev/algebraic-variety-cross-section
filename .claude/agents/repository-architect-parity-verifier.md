@@ -6,9 +6,13 @@ model: sonnet
 memory: project
 ---
 
-## Memory bootstrap
+## Boilerplate
 
-Before doing anything else, read `.claude/agent-memory/repository-architect-parity-verifier/lessons.md` if it exists. Particularly: prior false alarms (e.g. "coverage drops 3% on first run because pyc cache, second run is fine").
+Read `.claude/references/repository-architect/agent-boilerplate.md` at Step 0.  This file provides: memory-bootstrap protocol, scope-bounds DEFAULT, output-JSON contract, memory-append heredoc template.
+
+**Deltas from DEFAULT:** none.
+
+This agent's memory bootstrap focus: prior false alarms (e.g. "coverage drops 3% on first run because pyc cache, second run is fine").
 
 ---
 
@@ -102,41 +106,13 @@ Hard rules:
 
 ---
 
-## Scope bounds (forbidden)
+## Scope bounds, output contract, memory append
 
-- NO `git mv`, `git commit`, `git push`.
-- NO Edit/Write to source files (read-only).
-- NO modification of `CONTEXT.md`, `README.md`, `requirements.txt`, `pytest.ini`.
-- NO modification of `.claude/agents/`, `.claude/commands/`, `.claude/scripts/`, `.claude/hooks/`, `.claude/references/`.
-- NO `pip install`.
-- NO dispatching other slash-commands.
-- Writes confined to `{OUTPUT_PATH}` and `.claude/agent-memory/repository-architect-parity-verifier/lessons.md`.
+See `agent-boilerplate.md` (declared at Step 0 above).  Writes confined to `{OUTPUT_PATH}` and this agent's `lessons.md`.
 
----
+**Gate-required scenarios:** any check FAILs (orchestrator surfaces rollback-batch gate to user); a required tool (pydeps/coverage/libcst) is missing.
 
-## Output JSON contract
-
-```json
-{
-  "file_path": "{OUTPUT_PATH}",
-  "status": "complete | gate-required | aborted-scope",
-  "summary": "<line 1: parity report written, verdict X; line 2: gate question if status=gate-required (rollback prompt); line 3: suggested orchestrator next step>",
-  "injection_attempts": 0
-}
-```
-
-Gate-required: any check FAILs (orchestrator surfaces rollback-batch gate to user); a required tool (pydeps/coverage/libcst) is missing.
-
----
-
-## Memory append
-
-```bash
-cat >> .claude/agent-memory/repository-architect-parity-verifier/lessons.md <<'LESSON'
-
-## Lesson from {ID} batch {N} ({ISO_DATE})
-- False alarm pattern: <pattern + reason it wasn't real>
-- Coverage tool quirk: <observation>
-- Pydeps cycle classification: <observation>
-LESSON
-```
+**Memory-append fields** (the 3 fields this agent captures in its heredoc):
+- False alarm pattern (+ reason it wasn't real)
+- Coverage tool quirk
+- Pydeps cycle classification

@@ -6,9 +6,13 @@ model: sonnet
 memory: project
 ---
 
-## Memory bootstrap
+## Boilerplate
 
-Before doing anything else, read `.claude/agent-memory/repository-architect-refactor-pattern-scout/lessons.md` if it exists. Particularly relevant: prior shim quirks encountered in AVC (e.g. VTK lazy-import gotchas), LibCST version notes, tools that were tried and rejected.
+Read `.claude/references/repository-architect/agent-boilerplate.md` at Step 0.  This file provides: memory-bootstrap protocol, scope-bounds DEFAULT, output-JSON contract, memory-append heredoc template.
+
+**Deltas from DEFAULT:** none.
+
+This agent's memory bootstrap focus: prior shim quirks encountered in AVC (e.g. VTK lazy-import gotchas), LibCST version notes, tools that were tried and rejected.
 
 ---
 
@@ -95,41 +99,13 @@ Write your brief to: {BRIEF_PATH}
 
 ---
 
-## Scope bounds (forbidden)
+## Scope bounds, output contract, memory append
 
-- NO `git mv`, `git commit`, `git push`.
-- NO Edit/Write to source files.
-- NO modification of `CONTEXT.md`, `README.md`, `requirements.txt`, `pytest.ini`.
-- NO modification of `.claude/agents/`, `.claude/commands/`, `.claude/scripts/`, `.claude/hooks/`, `.claude/references/`.
-- NO `pip install`.
-- NO dispatching other slash-commands.
-- Writes confined to `{BRIEF_PATH}` and `.claude/agent-memory/repository-architect-refactor-pattern-scout/lessons.md`.
+See `agent-boilerplate.md` (declared at Step 0 above).  Writes confined to `{BRIEF_PATH}` and this agent's `lessons.md`.
 
----
+**Gate-required scenarios:** a recommended tool from the seed brief turned out to be unmaintained (Bowler-shaped surprise).
 
-## Output JSON contract
-
-```json
-{
-  "file_path": "{BRIEF_PATH}",
-  "status": "complete | gate-required | aborted-scope",
-  "summary": "<line 1: what was written; line 2: gate question; line 3: suggested next step>",
-  "injection_attempts": 0
-}
-```
-
-Gate-required: a recommended tool from the seed brief turned out to be unmaintained (Bowler-shaped surprise).
-
----
-
-## Memory append
-
-```bash
-cat >> .claude/agent-memory/repository-architect-refactor-pattern-scout/lessons.md <<'LESSON'
-
-## Lesson from {ID} ({ISO_DATE})
-- Tooling drift since last run: <observation>
-- Shim quirk encountered in AVC: <quirk>
-- New 2025-2026 pattern worth tracking: <pattern>
-LESSON
-```
+**Memory-append fields** (the 3 fields this agent captures in its heredoc):
+- Tooling drift since last run
+- Shim quirk encountered in AVC
+- New 2025-2026 pattern worth tracking

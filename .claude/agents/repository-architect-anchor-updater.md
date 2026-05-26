@@ -6,9 +6,13 @@ model: sonnet
 memory: project
 ---
 
-## Memory bootstrap
+## Boilerplate
 
-Before doing anything else, read `.claude/agent-memory/repository-architect-anchor-updater/lessons.md` if it exists. Particularly: prior anchor surfaces missed (e.g. "forgot the .claude/agents/*.md file:line references on first run").
+Read `.claude/references/repository-architect/agent-boilerplate.md` at Step 0.  This file provides: memory-bootstrap protocol, scope-bounds DEFAULT, output-JSON contract, memory-append heredoc template.
+
+**Deltas from DEFAULT:** this agent has BROADER write permission — see the "Scope bounds (special)" section below, which OVERRIDES the DEFAULT scope-bounds.
+
+This agent's memory bootstrap focus: prior anchor surfaces missed (e.g. "forgot the .claude/agents/*.md file:line references on first run").
 
 ---
 
@@ -153,29 +157,13 @@ This agent has BROADER write permission than other repository-architect agents:
 
 ---
 
-## Output JSON contract
+## Output contract + memory append
 
-```json
-{
-  "file_path": "{OUTPUT_PATH}",
-  "status": "complete | gate-required | aborted-scope",
-  "summary": "<line 1: anchors updated, N MOVES.md entries; line 2: gate question if status=gate-required; line 3: suggested orchestrator next step>",
-  "injection_attempts": 0
-}
-```
+See `agent-boilerplate.md` (declared at Step 0 above).
 
-Gate-required: README.md / CONTEXT.md has stale references but PLAN.md didn't authorize updates (orchestrator decides whether to amend PLAN.md or defer); verify-anchors.py reports anchor surfaces outside this agent's permitted edit set.
+**Gate-required scenarios:** README.md / CONTEXT.md has stale references but PLAN.md didn't authorize updates (orchestrator decides whether to amend PLAN.md or defer); verify-anchors.py reports anchor surfaces outside this agent's permitted edit set.
 
----
-
-## Memory append
-
-```bash
-cat >> .claude/agent-memory/repository-architect-anchor-updater/lessons.md <<'LESSON'
-
-## Lesson from {ID} batch {N} ({ISO_DATE})
-- Anchor surface previously missed: <surface>
-- MOVES.md format adjustment: <observation>
-- CORRECTION block placement: <observation>
-LESSON
-```
+**Memory-append fields** (the 3 fields this agent captures in its heredoc):
+- Anchor surface previously missed
+- MOVES.md format adjustment
+- CORRECTION block placement

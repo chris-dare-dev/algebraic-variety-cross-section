@@ -1,5 +1,5 @@
 ---
-description: Run the 5-phase repository-restructure pipeline (Audit -> Design -> Pre-flight -> Execute -> Critique+Rectify) on the AVC repo. Use when the user invokes /repository-architect, says "restructure the repo", "audit and propose a new layout", "reorganize for AI-agent navigability", or asks to safely move/split/rename source files. This is the HIGHLY DISRUPTIVE pipeline — runs rarely (quarter-cadence at most), demands five user gates, and never auto-executes moves. Skip for single-file moves (just `git mv`) or for non-source-tree changes (use other pipelines).
+description: Run the 5-phase repository-restructure pipeline (Audit -> Design -> Pre-flight -> Execute -> Critique+Rectify) on the AVC repo to drive the tree toward Tree-Structure Principle (TSP-1..TSP-11) compliance — root thinness, responsibility-named subpackages, single-direction import DAG, call-graph-aligned module tree, AND entry-point scripts that read as pseudocode (delegating to high-level factory functions and orchestrators in subpackages, never carrying business logic at root). Use when the user invokes /repository-architect, says "restructure the repo", "audit and propose a new layout", "reorganize for AI-agent navigability", or asks to safely move/split/rename source files. This is the HIGHLY DISRUPTIVE pipeline — runs rarely (quarter-cadence at most), demands five user gates, and never auto-executes moves. Skip for single-file moves (just `git mv`) or for non-source-tree changes (use other pipelines).
 argument-hint: "<id> [--brief \"...\"] [--audit-only] [--design-only] [--resume]"
 ---
 
@@ -8,12 +8,16 @@ argument-hint: "<id> [--brief \"...\"] [--audit-only] [--design-only] [--resume]
 Run the canonical 5-phase AVC repository-restructure pipeline:
 **Audit -> Design -> Pre-flight -> Execute -> Critique+Rectify**
 
+The pipeline's NORTH STAR is the **Tree-Structure Principle (TSP-1..TSP-11)** in the dedicated section below.  Every phase is graded against TSP.  Process discipline (gates, parity checks, shims, anchors) is in service of an architectural goal: drive the repo toward a tree-shaped Python package where (a) the bulk of source lives in responsibility-named, importable subpackages, (b) only 1-2 entry-point scripts remain at the root, and (c) those entry points read as pseudocode — composed of calls to high-level factory functions and orchestrators that themselves live in the subpackage tree.  A restructure that closes every CRITICAL finding but leaves the tree mis-shaped, or leaves a root script bloated with business logic, is a FAILURE.
+
 This pipeline is the formalization of the safe-large-refactor playbook
 documented in `.claude/notes/repository-architect-design/scout-c-safe-refactor.md`
 combined with the orchestration patterns from `/milestone-pipeline`.  It
 extends the 4-phase milestone shape with an explicit **Pre-flight** gate
 (Phase 3) because the blast radius of an unverified restructure is much
 higher than the blast radius of an unverified milestone fix.
+
+> NOTE: prior-run notes under `.claude/notes/repository-architect-design/` pre-date the TSP north star.  Their safe-refactor mechanics remain load-bearing; their architectural framing does not.
 
 **Arguments:** $ARGUMENTS — parse as `<id> [--brief "..."] [--audit-only] [--design-only] [--resume]`
 
@@ -33,6 +37,16 @@ higher than the blast radius of an unverified milestone fix.
 - A /capability-scout or /roadmap output identifies a restructure as a foundational opportunity (then the operator dispatches /repository-architect against the proposed scope).
 - The repo has crossed a navigability threshold: file >2000 LOC, >15 top-level .py files, or AI-agent context-rot incidents.
 
+**Current AVC tree-shape context (post-r3, 2026-05):** root holds only `app.py` (~1900 LOC).  Four source subpackages exist (`_qt/`, `render/`, `cross_section/`, `varieties/`) with layer direction enforced by 2 import-linter contracts.  Status against TSP: **TSP-1 PASS** (count), **TSP-11 FAIL** (`app.py` is a monolith, not a pseudocode entry point) — `app.py` decomposition is the highest-priority open restructure target.  Full AVC-specific TSP application (CLAUDE.md §2 historical-note override, AI-9 migration shape, r1-r3 deferral chronology, AI-2 flat-tests carve-out) lives in `.claude/references/repository-architect/avc-tsp-status.md` — read at Phase 1, Phase 2, and Phase 5 entries.
+
+**TSP-triggered invocation cases (see TSP section below):**
+- Root has >2 top-level `.py` files containing logic (not counting `__init__.py`, `conftest.py`, `setup.py`) — TSP-1.
+- Any internal import cycle exists (`pydeps --show-cycles` non-empty) — TSP-3.
+- `lint-imports` reports a KEPT-violated contract, or a new sibling cross-import has been merged without a corresponding contract update — TSP-2.
+- Any module's call graph shows it calling >5 distinct internal modules — that's an orchestration layer, and it should be promoted to a parent with its callees demoted to children — TSP-8.
+- A subpackage contains a `utils.py` / `helpers.py` / `common.py` / `misc.py` / `lib.py` / `core.py` (the responsibility-name banlist) — TSP-5.
+- The `app.py` retention justification under TSP-7 has materially changed (e.g. AI-9 re-entrancy was lifted, or a Qt main-window decomposition pattern proven elsewhere in AVC) — the carve-out needs re-evaluation.
+
 **Do NOT invoke when:**
 - **Single-file move or rename** — just `git mv` it.  The 5-phase overhead is not worth it for a one-file change.
 - **Adding a new variety or feature** — use `/milestone-pipeline` (the repository structure is fine; you're adding content).
@@ -40,6 +54,82 @@ higher than the blast radius of an unverified milestone fix.
 - **Pure documentation reorganization** (CONTEXT.md sections, README.md headings) — write directly, no pipeline.
 - **Touching the test suite Qt-policy (AI-2)** — that's a separate decision that needs its own roadmap milestone.
 - **A previous `/repository-architect` run is `execute-running` or `rectify-running`** — finish it first, do not start a parallel restructure.
+- **Splitting only reduces LOC without improving tree shape (TSP-10)** — if the result isn't a TREE (deeper, dependency-ordered, sibling-import-free), don't restructure; file it as tech-debt and move on.
+- **The existing tree IS already shallow and the user wants to add a feature** — use `/milestone-pipeline`; restructure isn't a substitute for feature work.
+
+---
+
+## The Tree-Structure Principle (TSP) — the load-bearing contract
+
+This section is the **SINGLE SOURCE OF TRUTH** for the 11 principles — other reference files cite TSP-N by number; the verbatim text lives here.
+
+The TSP framework expresses one conviction: **a Python repository should be a TREE of importable modules.** Branches are responsibility-named subpackages; leaves are pure modules; the root is reserved for 1-2 thin entry points.  AVC enforces the layer-direction half mechanically with import-linter; the rest (responsibility naming, decomposition depth, call-graph alignment, entry-point pseudocode) is enforced by this pipeline.
+
+**TSP-1. Root is thin — both in count AND in content.**  A healthy Python repo root contains AT MOST 1-2 executable entry-point scripts (e.g. `app.py`, `cli.py`, or one `pyproject.toml`-declared console-script).  Everything else is in subpackages.  **Triggers a restructure if root has >2 top-level `.py` files containing logic (not counting `__init__.py`, `conftest.py`, `setup.py`).**  Thinness is BOTH a file-count constraint (this principle) AND a per-file content constraint (see TSP-11 below): a single 1900-LOC root script is no more "TSP-1 compliant" than four 500-LOC root scripts — the count check is necessary, the pseudocode check (TSP-11) is sufficient.  AVC's current post-r3 state passes TSP-1's count check (`app.py` only) but FAILS TSP-11's content check.
+
+**TSP-2. Subpackages are dependency-ordered.**  The package tree is a DAG where leaves are pure utilities/types with no internal deps, mid-layer is domain logic, root is orchestration.  Imports flow UP the tree only.  **Sibling cross-imports are forbidden** — siblings communicate via a parent or via a shared lower layer.  In AVC, this is enforced mechanically by import-linter's two forbidden contracts in `pyproject.toml`; PLAN.md MUST keep those contracts green (or propose a contract update with explicit user gate).
+
+**TSP-3. No internal import cycles.**  A cycle is a CRITICAL finding in any phase.  `pydeps --show-cycles` must report an empty set both pre- and post-restructure.
+
+**TSP-4. Each module has a single responsibility.**  File LOC is a SIGNAL of multi-responsibility, not the cause.  `>500 LOC` is the early warning, `>800 LOC` is the alarm (per evaluator checklist item 17).  Every module that exceeds the alarm threshold MUST either be decomposed in the current restructure OR carry a TSP-7 annotation (a one-paragraph justification AND a named follow-up restructure-id — open-ended retentions are rejected).  AVC's `app.py` is the canonical example: it has exceeded both thresholds for cycles r1-r3 without a named follow-up, so it currently FAILS TSP-4 and TSP-7 simultaneously — the next restructure run that touches `app.py` must address this.
+
+**TSP-5. Module names describe RESPONSIBILITY, not present implementation or architectural layer.**  Concrete names: `panels/`, `varieties/`, `cross_section/`, `render/`, `appearance/`, `clip/`, `tooltips/`.  Banned names (auto-FAIL): `utils.py`, `helpers.py`, `common.py`, `misc.py`, `lib.py`, `core.py`, `manager.py`, `services.py`, `controllers.py`.  A subpackage may use `_kernels.py` / `_marching.py` style underscore-prefixed names for implementation-detail modules INSIDE a responsibility-named subpackage (e.g. `varieties/_kernels.py`) — that's an existing AVC pattern and remains allowed.
+
+**TSP-6. Scripts at root are replaced with subpackages + thin entry points.**  When TSP-1 fires (root grows past 1-2 logic files) or a subpackage grows a monolith module that needs splitting, the decomposition target is:
+```
+<name>/                       # subpackage (was: <name>.py)
++-- __init__.py               # thin re-export shim for back-compat (emits DeprecationWarning per shim-templates.md)
++-- _entry.py or cli.py       # thin entry point if any (argparse + dispatch); for AVC GUI apps, the Qt main-window class belongs here
++-- <topic-1>.py              # extracted responsibility 1
++-- <topic-2>.py              # extracted responsibility 2
++-- <topic-3>/                # if topic 1+2 share, they get a sub-subpackage
+```
+The root-level `<name>.py` becomes a 3-line shim that imports from `<name>.<entry>` and re-exports for back-compat (one milestone shim window per `shim-templates.md`).  AVC precedent: r2 retired `panels.py`, `appearance_panel.py`, `view_panel.py`, `parameters_panel.py`, `parameter_grid_panel.py` into `_qt/panels/` following exactly this shape — see MOVES.md.
+
+**What "thin entry point" means concretely** (see TSP-11 for the full specification): the entry-point file's body is composed of CALLS to factory functions and orchestrators that live in subpackages — it does not itself contain business logic, math, parsing, I/O, validation, or panel/widget construction code.  For AVC's `app.py` specifically, the TSP-11-compliant target shape is roughly:
+```python
+# app.py — TSP-11-compliant target (~10-200 LOC, pseudocode-style)
+from PySide6.QtWidgets import QApplication
+from _qt.main_window import MainWindow   # MainWindow + AI-9 _computing guard live here
+
+def main() -> int:
+    app = QApplication.instance() or QApplication([])
+    window = MainWindow()
+    window.show()
+    return app.exec()
+
+if __name__ == "__main__":
+    raise SystemExit(main())
+```
+Everything else — `MainWindow` class, panel construction, computation orchestration, AI-9 re-entrancy guard, formula evaluation, signal/slot wiring — lives in subpackages.
+
+**TSP-7. Future-proofing: every script must justify NOT decomposing — and retentions are TIME-BOUNDED.**  When the PLAN evaluates a root script or a >500-LOC module, the default is decompose.  The burden of proof is on KEEPING it monolithic, not on splitting it.  PLAN.md section "Tree-structure compliance" must list every root-level `.py` file AND every module >500 LOC with one of two annotations:
+
+- (a) "decomposed in batch N — see symbol-map.json", OR
+- (b) "retained AS-IS FOR THIS RESTRUCTURE — justification: <one paragraph explaining why decomposing it within THIS restructure's scope is unsafe>; decomposition target: <`restructure-<scope>-<YYYYqN>-r<N>` of the follow-up that WILL address it> (or 'next restructure cycle' if this is itself a stepping-stone)".
+
+**Retention is always temporary.**  A retention without a named follow-up restructure-id is NOT a valid TSP-7 annotation — it's the chronic-deferral anti-pattern (R20) in disguise.  The design-adversary REJECTS open-ended retentions.
+
+**AVC-specific application:** `app.py` has been deferred across r1, r2, and r3.  That deferral has expired — chronic deferral across cycles is not principled retention.  Any future PLAN.md that retains `app.py` AS-IS must (a) name the specific follow-up restructure-id that will decompose it AND (b) justify why this restructure's scope can't absorb at least one decomposition batch (e.g. "extract MainWindow into `_qt/main_window.py` as the first batch").  The CLAUDE.md §2 note ("God Object, do not Extract Class here") is HISTORICAL and out of date with this TSP framework; the next `app.py` restructure must propose an anchor-updater edit to that note.  AI-9 is a constraint on WHERE the `_computing` guard lives (it moves WITH `MainWindow`), not a retention reason.
+
+**TSP-8. The current call-stack IS the future tree.**  Every "function A calls function B" relationship in the current monolith points to a "module X imports module Y" relationship in the future tree.  The Phase 1 auditor MUST MAP THE CALL STACK as a directed graph (`call-graph.json` artifact, produced via Python's `ast` module — see phase-1-audit.md); the Phase 2 designer MUST align the proposed tree's import graph with that call graph (one direction only — calls flow up; imports flow up).  Misaligned decompositions (e.g. splitting along arbitrary section comments rather than call-cluster boundaries) FAIL this principle and are caught by the design-adversary's TSP axis.
+
+**TSP-9. Tests mirror the tree — adapted for AVC's flat-tests convention.**  The general principle is: `tests/test_<module>.py` for each `<package>/<module>.py`, with test moves batched WITH the corresponding source move (no test-relocation follow-ups).  **AVC-specific carve-out:** AVC keeps `tests/` flat (504 Qt-free tests) per AI-2 — flat layout makes the "is this Qt-free?" check obvious at a glance and avoids `tests/_qt/...` confusion.  The carve-out applies to LAYOUT only: a new module added in a restructure batch MUST gain its corresponding `tests/test_<module>.py` IN THE SAME BATCH (the file lives in flat `tests/`, but it must exist).  Any moved test (e.g. when a module is renamed) moves WITH its source.  Cross-suite seam tests for new module boundaries are SUGGESTED by Phase 5 test-suggester and written in a follow-up milestone (per scout-C §10.1).
+
+**TSP-10. The restructure is NEVER about LOC alone.**  Splitting a 1900-LOC file into three 600-LOC siblings is yak-shaving if the result isn't a TREE.  A successful restructure is judged on tree shape — `tree -L 3` output, import-DAG depth, fan-out per node, sibling-import count, responsibility-name conformance — not on file size.  LOC is a signal for which modules to LOOK AT; tree shape is the success metric.
+
+**TSP-11. Entry-point scripts read as pseudocode.**  A root-level entry point (`app.py`, `cli.py`, `main.py`, anything declared as a `pyproject.toml` console-script entry) is the OUTERMOST orchestration layer of the application.  Its body MUST be composed primarily of calls to high-level factory functions, orchestrators, and dispatch helpers that live in the subpackage tree.  A reader walking the entry point top-to-bottom should be able to understand the application's high-level flow without descending into implementation details — the script reads as pseudocode.
+
+Concrete tests (mechanical, run by the auditor and execution-critic):
+
+- (a) **Function-call density** ≥70%.  Of all non-blank, non-comment, non-import statements in the entry point, at least 70% must be call expressions (or one-liners that delegate to a call — e.g. `result = factory(...)` counts).  Loops, conditionals, and assignments are permitted only when they orchestrate calls — not when they implement business logic.
+- (b) **No business logic at root.**  Numeric constants beyond CLI-default sentinels, formula evaluation, data transformations, parsing, validation, file I/O, signal/slot wiring, panel/widget construction, Qt enum-handling, palette-color computation, math kernels — all of this lives in subpackages and is exposed via a factory function or method.  The entry point CALLS the factory; it does not contain the implementation.
+- (c) **LOC budget (advisory).**  An entry point that grows past ~200 LOC is almost always carrying business logic; surface it for decomposition.  ~500 LOC is the alarm.  AVC's `app.py` at ~1900 LOC is a current TSP-11 FAIL and the highest-priority open restructure target (see TSP-7 for the time-bounded retention rule).
+- (d) **Class-construction pattern.**  If the entry point constructs a class (e.g. a Qt main window), the class itself MUST live in a subpackage; only the construction call (and minimal pre/post wiring like `app = QApplication([]); window = MainWindow(); window.show(); sys.exit(app.exec())`) stays at root.
+
+**Why this principle exists separately from TSP-1, TSP-4, TSP-6:** TSP-1 caps file count (one big root file still PASSES); TSP-4 flags >500-LOC files (but a 200-LOC business-logic root script slips under); TSP-6 names the decomposition TARGET shape but not the per-line constraint on the resulting root file.  TSP-11 is the load-bearing per-line content rule for entry points — without it, "thin entry point" remains vague and the pipeline produces 1900-LOC `app.py` files because every individual check passed.
+
+Every phase of this pipeline is graded against TSP-1..TSP-11.  A restructure that closes all CRITICAL/HIGH findings but leaves the tree mis-shaped — OR leaves a root entry point carrying business logic — is a FAILURE.
 
 ---
 
@@ -55,8 +145,7 @@ bash .claude/scripts/repository-architect/init-state.sh <ID> [--brief "<verbatim
 - `--design-only` -> `state.stop_after_phase = "design"`
 - (default) -> `state.stop_after_phase = null` (run all 5 phases)
 
-- If `state.json` already exists, the script prints `state already exists at <path> (phase=X) -- resuming` and exits 0.
-- If resuming: jump to the routing table at the bottom of this file ("Resume routing").
+- If `state.json` already exists, `init-state.sh` is idempotent (prints `state already exists ... -- resuming`, exits 0); jump to the Resume routing table at the bottom of this file.
 
 ```bash
 bash .claude/scripts/repository-architect/status.sh <ID>
@@ -83,7 +172,7 @@ the cache — agents will fall back to fresh derivation.
 
 ## Phase 1 — Audit (PARALLEL dispatch — 3 agents)
 
-Read `.claude/references/repository-architect/phase-1-audit.md` at phase entry.
+Read `.claude/references/repository-architect/phase-1-audit.md` AND `.claude/references/repository-architect/avc-tsp-status.md` at phase entry.
 
 **Advance state BEFORE dispatch** so `status.sh` wall-clock per phase is accurate:
 
@@ -150,7 +239,7 @@ If `state.stop_after_phase == "audit"`, stop here.  Otherwise wait for explicit 
 
 ## Phase 2 — Design (synthesis + pre-execution adversary)
 
-Read `.claude/references/repository-architect/phase-2-design.md` at phase entry.
+Read `.claude/references/repository-architect/phase-2-design.md` AND `.claude/references/repository-architect/avc-tsp-status.md` at phase entry.
 
 ```bash
 .venv/Scripts/python.exe .claude/scripts/repository-architect/checkpoint.py <ID> design-running
@@ -187,7 +276,8 @@ The design-adversary critiques the PLAN.md *before* any moves.  Uses the canonic
 - Hallucinated patterns (e.g. "let's split into MVC because that's the right pattern" — refuses if scout-B flagged layered architecture as an AI anti-pattern).
 - AI-15-style honesty problems ("are we splitting because the code genuinely needs it or because the agent likes splits?").
 - AI-1..AI-15 conflicts not explicitly addressed in PLAN.md section 6.
-- Over-engineering relative to repo size (scout-D notes the flat layout is appropriate for 7849 LOC; pushing src/ on a 7-file project is yak-shaving).
+- **TSP-1..TSP-11 conformance** (axis 13 — the load-bearing tree-shape check, now including TSP-11 entry-point pseudocode; see `phase-2-design.md` for the per-principle table required in PLAN.md).
+- Over-engineering relative to TSP-appropriate depth: introducing a 3-deep nest for a 200-LOC concern is yak-shaving; the goal is a tree shaped to the call-graph, not a tree shaped to look "enterprise-y".  Equally, refusing to decompose a >500-LOC monolith because "the existing flat layout is fine" violates TSP-4/TSP-7's burden of proof — every retention needs an explicit paragraph, not a default.
 
 **Transient failure handling:** re-dispatch ONCE if no output file.  Two consecutive failures -> gate-required.
 
@@ -390,7 +480,7 @@ bash .claude/hooks/repository-architect/summarize-phase.sh <ID> execute-complete
 
 ## Phase 5 — Critique + Rectify (PARALLEL critics + MAIN-SESSION rectify)
 
-Read `.claude/references/repository-architect/phase-5-rectify.md` at phase entry.
+Read `.claude/references/repository-architect/phase-5-rectify.md` AND `.claude/references/repository-architect/avc-tsp-status.md` at phase entry.
 
 ```bash
 .venv/Scripts/python.exe .claude/scripts/repository-architect/checkpoint.py <ID> rectify-running
@@ -431,7 +521,7 @@ If invalidation rate exceeds 40%, surface gate-required: the critic prompt is li
 bash .claude/hooks/repository-architect/summarize-phase.sh <ID> complete
 ```
 
-Print a 7-line final summary:
+Print a 9-line final summary:
 ```
 Restructure: <ID>
 Batches:     <N> executed
@@ -440,6 +530,8 @@ Findings:    C<critical> H<high> M<medium> L<low> (total <N>)
 Resolved:    fixed=<n> deferred=<n> invalidated=<n>
 Parity:      collection delta=<n>, coverage delta=<%>, cycles delta=<n>
 MOVES.md:    updated with <N> entries
+TSP shape:   depth=<N>-><M>, root-py=<P>-><Q>, root-entry-LOC=<L1>-><L2>, cycles=<R>-><S>, fan-out-max=<F1>-><F2>
+TSP grade:   <pass>/11 principles satisfied (FAIL list: <TSP-N, TSP-M, ...> or "none")
 ```
 
 **Do NOT auto-push.** This pipeline never pushes — the user pushes when ready.
@@ -482,8 +574,6 @@ If `--resume` is supplied:
 | `rectify-running` | Phase 5 step 2 (main-session rectify in progress; finish fixes, commit, advance to complete) |
 | `complete` | terminal — pipeline done; nothing to dispatch |
 
-`init-state.sh` is idempotent — it prints `state already exists at <path> (phase=X) -- resuming` and exits 0 when state already exists.
-
 ---
 
 ## Sub-agent contract
@@ -505,11 +595,9 @@ The `repository-architect-test-suggester` agent gets ONE additional documented s
 
 ## External-write boundary
 
-The `/repository-architect` pipeline enforces strict external-write boundaries.  In addition to the shared boundaries from `/milestone-pipeline`:
+The `/repository-architect` pipeline enforces strict external-write boundaries beyond the shared `/milestone-pipeline` set:
 
-- **No sub-agent may invoke `checkpoint.py` to write state.json.** State writes are orchestrator-only. Sub-agents READ state via `checkpoint.py --get` when needed but never WRITE. This is the load-bearing rule that makes Phase 1 (3 parallel auditors) and Phase 5 (2 parallel critics) race-free; the orchestrator serializes appends in its own turn after agents return.
-
-
+- **No sub-agent invokes `checkpoint.py` to WRITE state.json.** State writes are orchestrator-only; agents READ via `--get`.  This serialization is what makes Phase 1's 3 parallel auditors and Phase 5's 2 parallel critics race-free.
 - **No `git mv` from any sub-agent except `repository-architect-implementer`** during its Phase 4 dispatch.
 - **No writes to `CONTEXT.md`, `README.md`, `requirements.txt`, `pytest.ini`** from any sub-agent — except the anchor-updater MAY edit CONTEXT.md/README.md ONLY when PLAN.md section 6 explicitly authorizes it.
 - **No `pip install`** of new packages from any sub-agent.  PLAN.md MAY propose `libcst` / `pydeps` / `coverage` additions to `requirements.txt`; the orchestrator surfaces the proposal as a Phase 3 gate (NOT in Phase 4).
@@ -540,32 +628,27 @@ Skipping any of gates 1-3-5 violates the pipeline contract.  Gate 2 and Gate 4 a
 
 ## Common rationalizations (anti-pattern guard)
 
-See `.claude/references/repository-architect/anti-patterns.md` for the full table (scout-C §10).  The restructure-specific rows worth keeping inline:
+Inline summary below; full table (R1-R23) lives in `.claude/references/repository-architect/anti-patterns.md` and is read by the design-adversary, execution-critic, and implementer at dispatch time.
 
 | Tempting belief | Reality |
 |---|---|
-| "We can refactor and add features in the same PR." | Defeats `git bisect`, breaks rollback.  Land restructure; merge; then land features in follow-up. |
-| "The tests will catch any regression." | Green tests prove the suite still passes — not that it still exercises the same paths.  Run the Phase 4 parity check after every batch. |
-| "Let's just delete the old file, no shim needed." | Breaks `.claude/notes/**` references, agent memory, in-flight feature branches.  One milestone of shim is the cost of safety. |
-| "Big-bang commit so reviewers see the whole thing." | Unreviewable and unbisectable.  Reviewers see the whole thing via PLAN.md + commit-by-commit chain. |
-| "Sed will be fine for these import rewrites." | Python lexical structure — regex cannot distinguish `from foo import bar` from `"from foo import bar"`.  LibCST only (`rewrite-imports.py`). |
-| "Star-imports keep the shim shorter." | Defeats stacklevel-based DeprecationWarning pinpointing.  Use the `__getattr__` shim from `shim-templates.md`. |
-| "We don't need a rollback plan; we have git." | Without a pre-documented and pre-tested rollback, a panicked revert can take down adjacent work.  ROLLBACK.md is mandatory in Phase 3. |
-| "The CLAUDE.md / .claude/notes update can wait." | Stale path references will actively mislead the next agent session.  Phase 4 step 4c is part of every batch, not a follow-up. |
-| "We're internal-only; no deprecation needed." | Internal-only != no callers.  Notebooks, scratch scripts, agent memory, in-flight branches all count.  One milestone of shim. |
-| "Skipping the design-adversary saves time." | The design-adversary catches hallucinated patterns BEFORE execution; this is far cheaper than rollback after. |
+| "We can refactor and add features in the same PR." | Defeats `git bisect`, breaks rollback. Land restructure; merge; land features in follow-up. |
+| "Sed will be fine for these import rewrites." | Regex cannot distinguish `from foo import bar` from `"from foo import bar"`. LibCST only (`rewrite-imports.py`). |
+| "Skipping the design-adversary saves time." | Pre-execution adversary is the cheapest safety gate; post-execution rollback is far more expensive. |
+| "Splitting surfaces.py into 4 smaller files at root is good enough." | Splitting WITHOUT a subpackage multiplies TSP-1 violations and skips TSP-5. Split INTO a subpackage (TSP-6, anti-pattern R16). |
+| "Sibling cross-imports are fine if they're rare." | Forbidden by TSP-2 and enforced mechanically by import-linter. Even one erodes the tree (R18). |
+| "We can defer `app.py` decomposition one more cycle — TSP-7 allows retention." | TSP-7 retentions are TIME-BOUNDED and require a named follow-up restructure-id. `app.py` deferral across r1/r2/r3 is expired (R20). |
+| "The root script can keep its helper functions at the bottom of the file." | TSP-11: helpers belong in subpackages; the entry point's body is call expressions. "Helpers at the bottom" is how 1900-LOC root scripts accrete (R22). |
+| "AI-9's `_computing` guard means `app.py` can't be decomposed." | AI-9 constrains WHERE the guard lives (with `MainWindow`), not the file path. Move `MainWindow` → `_qt/main_window.py`; guard moves with it (R23). |
 
 ---
 
 ## Don'ts
 
-- **Don't run Phase 5 step 2 as a sub-agent** by default.  It needs full repo access, the user's review surface, and the ability to commit.  Sub-agents return one bundle and can't pause for user input.
-- **Don't let the implementer write the critique.**  Critic and implementer are deliberately different agents.
-- **Don't skip the design-adversary.**  Pre-execution adversary is the cheapest safety gate.
-- **Don't auto-execute Phase 4** — Gate 3 is a hard user [y].
-- **Don't bypass `init-state.sh`.**  State directory naming is load-bearing for status and checkpoint.
-- **Don't auto-dispatch a follow-up restructure.**  At `complete`, surface the summary and stop.  The user chooses what's next.
-- **Don't modify `.claude/agents/`, `.claude/commands/`, `.claude/scripts/`, `.claude/hooks/`, `.claude/references/`** during a restructure run.  The pipeline does not modify itself.
+- **Don't run Phase 5 step 2 as a sub-agent** — needs full repo access, user review, commit auth.  Sub-agents return one bundle and can't pause for user input.
+- **Don't let the implementer write the critique** — critic and implementer are deliberately different agents.
+- **Don't bypass `init-state.sh`** — state directory naming is load-bearing for status and checkpoint.
+- **Don't auto-dispatch a follow-up restructure** — at `complete`, surface the summary and stop.
 
 ---
 
@@ -586,42 +669,22 @@ The auditor and the implementer benefit most from memory accumulation:
 Phase references (`phase-1-audit.md`, `phase-2-design.md`, `phase-3-preflight.md`, `phase-4-execute.md`, `phase-5-rectify.md`) are surfaced INLINE at their phase entries above.  Cross-cutting references:
 
 - `.claude/references/repository-architect/state-schema.md` — `state.json` field reference
-- `.claude/references/repository-architect/anti-patterns.md` — restructure-specific anti-pattern table (scout-C §10)
-- `.claude/references/repository-architect/evaluator-checklist.md` — scout-B's 28-item checklist
-- `.claude/references/repository-architect/verification-rubric.md` — scout-C's 20-item post-execution rubric
+- `.claude/references/repository-architect/anti-patterns.md` — full R1-R23 anti-pattern table (R16-R23 are the TSP-specific rows; R20/R22/R23 are the user-locked carve-outs)
+- `.claude/references/repository-architect/evaluator-checklist.md` — scout-B's 28-item checklist (with TSP-N mapping column)
+- `.claude/references/repository-architect/verification-rubric.md` — 26-item post-execution rubric (items 1-20 process discipline + 21-26 TSP-shape)
 - `.claude/references/repository-architect/shim-templates.md` — canonical `__getattr__` shim patterns
 - `.claude/references/repository-architect/agent-prompts.md` — pre-substituted agent dispatch templates
+- `.claude/references/repository-architect/agent-boilerplate.md` — shared memory-bootstrap / scope-bounds / output-JSON / memory-append for all `repository-architect-*` agents
+- `.claude/references/repository-architect/avc-tsp-status.md` — AVC-specific TSP application (CLAUDE.md §2 override, AI-9 migration shape, r1-r3 deferral chronology, AI-2 flat-tests carve-out)
+- `.claude/references/repository-architect/tsp-11-computation.md` — AST methodology for the TSP-11 pseudocode grade; consumed identically by auditor + execution-critic
 - `.claude/references/repository-architect/memory-update-protocol.md` — sub-agent memory append protocol
 - `.claude/references/critique-format.md` — canonical severity language (shared)
 - `.claude/references/app-invariants.md` — AI-1..AI-15 architectural locks
 - `CONTEXT.md` — root doc
 - `.claude/notes/repository-architect-design/` — design briefs and synthesis from the design phase that produced this pipeline
 
-Files this command writes to (and the only places sub-agents may write):
+Files written under `.claude/notes/repository-architect/<ID>/`: `state.json`, `dispatch.log`, `cache/`, plus one subdir per phase (`audit/`, `design/`, `preflight/`, `execute/`, `rectify/`).
 
-```
-.claude/notes/repository-architect/<ID>/
-+-- state.json
-+-- dispatch.log
-+-- cache/                              # hook outputs
-+-- audit/                              # Phase 1
-+-- design/                             # Phase 2
-+-- preflight/                          # Phase 3
-+-- execute/                            # Phase 4
-+-- rectify/                            # Phase 5
+Agent memory: `.claude/agent-memory/repository-architect-*/lessons.md` (one dir per agent; names match the dispatch matrices above).
 
-.claude/agent-memory/
-+-- repository-architect-current-state-auditor/lessons.md
-+-- repository-architect-best-practices-scout/lessons.md
-+-- repository-architect-refactor-pattern-scout/lessons.md
-+-- repository-architect-design-adversary/lessons.md
-+-- repository-architect-dry-run-validator/lessons.md
-+-- repository-architect-implementer/lessons.md
-+-- repository-architect-parity-verifier/lessons.md
-+-- repository-architect-anchor-updater/lessons.md
-+-- repository-architect-execution-critic/lessons.md
-+-- repository-architect-test-suggester/lessons.md
-
-Repo root (cross-restructure rosetta stone):
-+-- MOVES.md
-```
+Repo root: `MOVES.md` (cross-restructure rosetta stone).

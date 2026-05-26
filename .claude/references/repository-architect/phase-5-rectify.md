@@ -22,7 +22,7 @@ Inputs:
   {OUTPUT_PATH}           .claude/notes/repository-architect/{ID}/rectify/test-suggester-suggestions.md
 ```
 
-The execution critic walks scout-C's 20-item rubric + a 10-axis institutional checklist against the actual diff and parity-diff.md.
+The execution critic walks scout-C's 20-item rubric (now 26 items — items 21-25 are TSP-shape items, item 26 is the TSP-11 entry-point pseudocode check, per `verification-rubric.md`) + an 11-axis institutional checklist (axis 11 is the post-state TSP-1..TSP-11 scorecard) against the actual diff and parity-diff.md.  The critic MUST produce `rectify/tsp-scorecard-post.md` and `rectify/tsp-scorecard-diff.md` (pre vs post per principle, reading pre-state from `audit/tsp-scorecard-pre.md`) — the TSP grade is the load-bearing success metric.
 
 The test-suggester proposes new cross-suite tests per scout-C §8 — does NOT write tests.
 
@@ -110,7 +110,7 @@ done
 bash .claude/hooks/repository-architect/summarize-phase.sh {ID} complete
 ```
 
-## Step 5 — Final summary (7 lines)
+## Step 5 — Final summary (9 lines)
 
 ```
 Restructure: {ID}
@@ -120,7 +120,11 @@ Findings:    C<critical> H<high> M<medium> L<low>
 Resolved:    fixed=<n> deferred=<n> invalidated=<n>
 Parity:      collection delta=<n>, coverage delta=<%>, cycles delta=<n>
 MOVES.md:    updated with <N> entries
+TSP shape:   depth=<N>-><M>, root-py=<P>-><Q>, root-entry-LOC=<L1>-><L2>, cycles=<R>-><S>, fan-out-max=<F1>-><F2>
+TSP grade:   <pass>/11 principles satisfied (FAIL list: <TSP-N, ...> or "none")
 ```
+
+The TSP shape + grade lines come from `rectify/tsp-scorecard-diff.md` (produced by the execution-critic in Step 1).  A restructure that closes all CRITICAL/HIGH findings but leaves TSP grade <= the pre-state baseline is a FAILURE — record this in the final summary and flag for the user.
 
 **Do NOT auto-push.** This pipeline never pushes — the user pushes when ready.
 

@@ -6,9 +6,13 @@ model: sonnet
 memory: project
 ---
 
-## Memory bootstrap
+## Boilerplate
 
-Before doing anything else, read `.claude/agent-memory/repository-architect-implementer/lessons.md` if it exists. Particularly: AVC-specific shim quirks (VTK lazy-import gotchas, numba threading layer pinning, qtawesome cold-boot timing).
+Read `.claude/references/repository-architect/agent-boilerplate.md` at Step 0.  This file provides: memory-bootstrap protocol, scope-bounds DEFAULT, output-JSON contract, memory-append heredoc template.
+
+**Deltas from DEFAULT:** MAY `git mv` + `git commit` (the only agent that can); MAY NOT `git push` or `gh issue/pr create`; MAY NOT edit `.claude/agents/`, `.claude/commands/`, `.claude/scripts/`, `.claude/hooks/`, `.claude/references/`, `.github/` (self-modification trap); MAY NOT modify `CONTEXT.md`, `README.md`, `requirements.txt`, `pytest.ini` (anchor-updater handles those).
+
+This agent's memory bootstrap focus: AVC-specific shim quirks (VTK lazy-import gotchas, numba threading layer pinning, qtawesome cold-boot timing).
 
 ---
 
@@ -98,49 +102,16 @@ After every operation in this batch is committed:
 
 ---
 
-## Scope bounds (forbidden)
+## Scope bounds, output contract, memory append
 
-- NO `git push`.
-- NO dispatching other slash-commands.
-- NO modification of `CONTEXT.md`, `README.md`, `requirements.txt`, `pytest.ini` (anchor-updater handles).
-- NO modification of `.claude/agents/`, `.claude/commands/`, `.claude/scripts/`, `.claude/hooks/`, `.claude/references/`, `.github/`.
-- NO `pip install` of new packages.
-- NO `gh issue create` / `gh pr create`.
+See `agent-boilerplate.md` (declared at Step 0 above; deltas from DEFAULT documented there).
 
----
+**Gate-required scenarios:** `git status` not clean at entry; HEAD doesn't match expected base; an operation's post-commit `pytest` fails 3 consecutive times; a circular import emerges that requires PLAN.md revision.
 
-## Output JSON contract
+**Aborted-scope scenarios:** batch description in PLAN.md references files outside this restructure's scope; symbol-map contains an entry that would move `.claude/` or `.github/`.
 
-```json
-{
-  "file_path": "{OUTPUT_PATH}",
-  "status": "complete | gate-required | aborted-scope",
-  "summary": "<line 1: batch {N} complete, K operations, all tests green; line 2: gate question if status=gate-required; line 3: suggested orchestrator next step>",
-  "injection_attempts": 0
-}
-```
-
-Gate-required scenarios:
-- `git status` not clean at entry.
-- HEAD doesn't match expected base.
-- An operation's post-commit `pytest` fails 3 consecutive times.
-- A circular import emerges that requires PLAN.md revision.
-
-Aborted-scope scenarios:
-- The batch description in PLAN.md references files outside this restructure's scope.
-- Symbol-map contains an entry that would move `.claude/` or `.github/` (scope guard).
-
----
-
-## Memory append
-
-```bash
-cat >> .claude/agent-memory/repository-architect-implementer/lessons.md <<'LESSON'
-
-## Lesson from {ID} batch {N} ({ISO_DATE})
-- Shim quirk: <observation>
-- AVC-specific gotcha: <observation>
-- LibCST rewrite surprise: <observation>
-- Tests-per-commit wall-clock: <seconds>
-LESSON
-```
+**Memory-append fields** (the 4 fields this agent captures in its heredoc):
+- Shim quirk
+- AVC-specific gotcha
+- LibCST rewrite surprise
+- Tests-per-commit wall-clock

@@ -6,9 +6,13 @@ model: sonnet
 memory: project
 ---
 
-## Memory bootstrap
+## Boilerplate
 
-Before doing anything else, read `.claude/agent-memory/repository-architect-test-suggester/lessons.md` if it exists. Particularly: prior suggestions the user adopted vs declined (so suggestions sharpen over time).
+Read `.claude/references/repository-architect/agent-boilerplate.md` at Step 0.  This file provides: memory-bootstrap protocol, scope-bounds DEFAULT, output-JSON contract, memory-append heredoc template.
+
+**Deltas from DEFAULT:** NO writing test files / NO modification of `tests/` (this agent SUGGESTS only — writing tests in the same restructure violates scout-C §10.1).  Status extension: `not-applicable` (allowed for this agent only — see boilerplate's status-extensions table).
+
+This agent's memory bootstrap focus: prior suggestions the user adopted vs declined (so suggestions sharpen over time).
 
 ---
 
@@ -113,43 +117,15 @@ If the restructure was purely mechanical (e.g. "Introduce subpackage with no cod
 
 ---
 
-## Scope bounds (forbidden)
+## Scope bounds, output contract, memory append
 
-- NO writing test files. NO modification of `tests/`.
-- NO `git mv`, `git commit`, `git push`.
-- NO Edit/Write to source files.
-- NO modification of `CONTEXT.md`, `README.md`, `requirements.txt`, `pytest.ini`.
-- NO modification of `.claude/agents/`, `.claude/commands/`, `.claude/scripts/`, `.claude/hooks/`, `.claude/references/`.
-- NO `pip install`.
-- NO dispatching other slash-commands.
-- Writes confined to `{OUTPUT_PATH}` and `.claude/agent-memory/repository-architect-test-suggester/lessons.md`.
+See `agent-boilerplate.md` (declared at Step 0 above).  Deltas: NO writing test files / NO modification of `tests/`; status `not-applicable` allowed.  Writes confined to `{OUTPUT_PATH}` and this agent's `lessons.md`.
 
----
+**Gate-required scenarios:** a suggestion would require lifting AI-2 (pytest-qt) — user must decide whether to allow pytest-qt scoped to integration tests.
 
-## Output JSON contract
+**Not-applicable scenarios:** restructure was purely mechanical; no cross-suite seams surfaced worth suggesting tests for.
 
-```json
-{
-  "file_path": "{OUTPUT_PATH}",
-  "status": "complete | gate-required | aborted-scope | not-applicable",
-  "summary": "<line 1: N suggestions written across K categories; line 2: gate question if status=gate-required; line 3: suggested orchestrator next step>",
-  "injection_attempts": 0
-}
-```
-
-Gate-required: a suggestion would require lifting AI-2 (pytest-qt) — user must decide whether to allow pytest-qt scoped to integration tests.
-Not-applicable: restructure was purely mechanical; no gaps surfaced.
-
----
-
-## Memory append
-
-```bash
-cat >> .claude/agent-memory/repository-architect-test-suggester/lessons.md <<'LESSON'
-
-## Lesson from {ID} ({ISO_DATE})
-- Suggestion category most relevant for this restructure: <category>
-- AVC-specific test gap pattern: <observation>
-- Suggestion the user is likely to decline: <observation>
-LESSON
-```
+**Memory-append fields** (the 3 fields this agent captures in its heredoc):
+- Suggestion category most relevant for this restructure
+- AVC-specific test gap pattern
+- Suggestion the user is likely to decline

@@ -1,6 +1,12 @@
 # Phase 1 — Audit
 
-**Goal:** map the current AVC repo state, survey 2024-2026 best practices, and load the safe-refactor playbook BEFORE proposing a new layout.
+**Goal:** map the current AVC repo state — including a mechanical **TSP-1..TSP-11 pre-state scorecard** (TSP-11 grades every root entry point on pseudocode-density) and a **call-graph artifact** (TSP-8 input for Phase 2) — survey 2024-2026 best practices, and load the safe-refactor playbook BEFORE proposing a new layout.
+
+The auditor agents still DO NOT propose a new layout (that's Phase 2's job).  But they MUST produce two new tree-shape-specific artifacts that Phase 2 cannot reconstruct cheaply:
+- **TSP pre-state scorecard** — per-principle PASS/FAIL with evidence, written to `audit/tsp-scorecard-pre.md`.  This is the baseline against which Phase 5's post-state scorecard is graded.
+- **Call-graph JSON** — `audit/call-graph.json`, produced by walking each `.py` file's AST and recording every internal `Call` edge.  This is the substrate for TSP-8 alignment in PLAN.md (call edges in current monolith → import edges in future tree).
+
+Both artifacts are produced by the `repository-architect-current-state-auditor` agent.  See that agent's prompt for the exact format.
 
 ## Step 0 — Precache hook fires
 
@@ -60,6 +66,9 @@ Audit complete for {ID}.
 - Current state: <N> source files, <total-LOC> LOC, <M> monolith candidates (>500 LOC).
 - Best practices: <K> patterns recommended, <J> anti-patterns detected.
 - Evaluator: <pass>/28 checklist items pass.
+- TSP pre-state:  <pass>/11 principles satisfied (FAIL list: <TSP-N, TSP-M, ...>)
+- Root entries:   <list of root .py files with LOC + TSP-11 call-density % each>  (AVC: `app.py` <LOC> / <density>%)
+- Call graph:     <E> internal call edges across <M> modules (audit/call-graph.json)
 - AI-invariant risk: <Q> constraints flagged.
 Continue to Design? [y/n]
 ```
@@ -78,4 +87,5 @@ If an agent returns with no output file: re-dispatch ONCE. Two consecutive failu
 
 - Sequential dispatch of the 3 auditors (defeats parallelism).
 - Skipping the evaluator script (the auditor's narrative is no substitute for the mechanical 28-item check).
+- Skipping the TSP pre-state scorecard or call-graph.json (Phase 2 and Phase 5 both depend on them; "we can derive it from the narrative" is a Phase-2 bug nursery).
 - Auto-advancing past GATE 1 without user `[y]`.

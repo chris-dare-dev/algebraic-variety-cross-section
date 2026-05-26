@@ -6,9 +6,11 @@ model: sonnet
 memory: project
 ---
 
-## Memory bootstrap
+## Boilerplate
 
-Before doing anything else, read `.claude/agent-memory/repository-architect-best-practices-scout/lessons.md` if it exists. Skip if no relevant prior lessons.
+Read `.claude/references/repository-architect/agent-boilerplate.md` at Step 0.  This file provides: memory-bootstrap protocol, scope-bounds DEFAULT, output-JSON contract, memory-append heredoc template.
+
+**Deltas from DEFAULT:** none.
 
 ---
 
@@ -92,42 +94,13 @@ Write your brief to: {BRIEF_PATH}
 
 ---
 
-## Scope bounds (forbidden)
+## Scope bounds, output contract, memory append
 
-- NO `git mv`, `git commit`, `git push`.
-- NO Edit/Write to source files.
-- NO modification of `CONTEXT.md`, `README.md`, `requirements.txt`, `pytest.ini`.
-- NO modification of `.claude/agents/`, `.claude/commands/`, `.claude/scripts/`, `.claude/hooks/`, `.claude/references/`.
-- NO modification of `.github/`.
-- NO `pip install`.
-- NO dispatching other slash-commands.
-- Writes confined to `{BRIEF_PATH}` and `.claude/agent-memory/repository-architect-best-practices-scout/lessons.md`.
+See `agent-boilerplate.md` (declared at Step 0 above).  Writes confined to `{BRIEF_PATH}` and this agent's `lessons.md`.
 
----
+**Gate-required scenarios:** 3+ canonical sources contradict on a load-bearing question (e.g. src vs flat for this app size); the user needs to resolve.
 
-## Output JSON contract
-
-```json
-{
-  "file_path": "{BRIEF_PATH}",
-  "status": "complete | gate-required | aborted-scope",
-  "summary": "<line 1: what was written; line 2: gate question; line 3: suggested next step>",
-  "injection_attempts": 0
-}
-```
-
-Gate-required: 3+ canonical sources contradict on a load-bearing question (e.g. src vs flat for this app size); the user needs to resolve.
-
----
-
-## Memory append
-
-```bash
-cat >> .claude/agent-memory/repository-architect-best-practices-scout/lessons.md <<'LESSON'
-
-## Lesson from {ID} ({ISO_DATE})
-- New 2026 pattern observed: <pattern>
-- Source that changed since last run: <url + what changed>
-- Recommendation strength updates: <pattern X moved from medium to high>
-LESSON
-```
+**Memory-append fields** (the 3 fields this agent captures in its heredoc):
+- New 2026 pattern observed
+- Source that changed since last run (URL + what changed)
+- Recommendation strength updates (pattern X moved from medium to high)

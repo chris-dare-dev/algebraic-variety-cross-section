@@ -1861,17 +1861,11 @@ class MainWindow(QMainWindow):
 
 def main() -> int:
     QApplication.setAttribute(Qt.AA_ShareOpenGLContexts, True)
-    # enriques-hq-smoothing-2026q3-e1 (rect F-M1): show tooltips on
-    # disabled widgets too.  Qt's default behavior on macOS is to
-    # suppress QHelpEvent for disabled widgets — which means our
-    # greyed-out HQ-smoothing button (and any future disabled-state
-    # control) hides its informative tooltip from users.  Enabling
-    # this attribute restores tooltip dispatch for disabled widgets
-    # app-wide, which is the canonical Qt fix for the
-    # disabled-widget-no-tooltip discoverability problem.
-    QApplication.setAttribute(
-        Qt.ApplicationAttribute.AA_EnableToolTipsOnDisabledWidgets, True
-    )
+    # enriques-hq-smoothing-2026q3-e1 (rect F-M1): tooltip dispatch on
+    # disabled widgets is enabled per-widget via Qt.WA_AlwaysShowToolTips
+    # at the point of construction (see _qt/panels/appearance.py for the
+    # HQ-smoothing button).  Qt has no app-wide ApplicationAttribute for
+    # this — WA_AlwaysShowToolTips is the canonical Qt API.
     # qsettings-persistence-v1-2026q3-e1 (UPL-25 partial — CONTEXT.md §9
     # V1 lift): set the organization + application name BEFORE any
     # QSettings construction.  The no-arg QSettings() form (used at

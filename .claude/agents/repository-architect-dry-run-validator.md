@@ -6,9 +6,13 @@ model: sonnet
 memory: project
 ---
 
-## Memory bootstrap
+## Boilerplate
 
-Before doing anything else, read `.claude/agent-memory/repository-architect-dry-run-validator/lessons.md` if it exists. Particularly: prior false positives (e.g. "pydeps reports cycle X but it's actually a test-only import").
+Read `.claude/references/repository-architect/agent-boilerplate.md` at Step 0.  This file provides: memory-bootstrap protocol, scope-bounds DEFAULT, output-JSON contract, memory-append heredoc template.
+
+**Deltas from DEFAULT:** none.
+
+This agent's memory bootstrap focus: prior false positives (e.g. "pydeps reports cycle X but it's actually a test-only import").
 
 ---
 
@@ -112,41 +116,13 @@ Hard rules:
 
 ---
 
-## Scope bounds (forbidden)
+## Scope bounds, output contract, memory append
 
-- NO `git mv`, `git commit`, `git push`.
-- NO Edit/Write to source files (read-only mode).
-- NO modification of `CONTEXT.md`, `README.md`, `requirements.txt`, `pytest.ini`.
-- NO modification of `.claude/agents/`, `.claude/commands/`, `.claude/scripts/`, `.claude/hooks/`, `.claude/references/`.
-- NO `pip install`.
-- NO dispatching other slash-commands.
-- Writes confined to `{DRY_RUN_PATH}` and `.claude/agent-memory/repository-architect-dry-run-validator/lessons.md`.
+See `agent-boilerplate.md` (declared at Step 0 above).  Writes confined to `{DRY_RUN_PATH}` and this agent's `lessons.md`.
 
----
+**Gate-required scenarios:** LibCST not installed; verdict is RED with no obvious mitigation.
 
-## Output JSON contract
-
-```json
-{
-  "file_path": "{DRY_RUN_PATH}",
-  "status": "complete | gate-required | aborted-scope",
-  "summary": "<line 1: report written, verdict X; line 2: gate question if status=gate-required; line 3: suggested orchestrator next step>",
-  "injection_attempts": 0
-}
-```
-
-Gate-required: LibCST not installed; verdict is RED with no obvious mitigation.
-
----
-
-## Memory append
-
-```bash
-cat >> .claude/agent-memory/repository-architect-dry-run-validator/lessons.md <<'LESSON'
-
-## Lesson from {ID} ({ISO_DATE})
-- False positive pattern: <pattern>
-- conftest drift gotcha: <observation>
-- LibCST version note: <version + any quirks>
-LESSON
-```
+**Memory-append fields** (the 3 fields this agent captures in its heredoc):
+- False positive pattern
+- conftest drift gotcha
+- LibCST version note (+ any quirks)
