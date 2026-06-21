@@ -7,11 +7,12 @@ cache would otherwise paper over.
 AI-2 compliant: subprocess.run isolates each import in a fresh interpreter,
 so no QApplication is constructed in the test process itself.
 
-The 5 parametrized modules cover the post-r3 tree:
+The 6 parametrized modules cover the post-r3 tree:
   - varieties  (pure math, no Qt)
   - render     (Qt thread worker)
   - _qt        (Qt adapter layer)
   - cross_section  (clip pipeline, no Qt)
+  - export     (STL-export consumer layer, no Qt)
   - app        (entry point — QApplication is inside main(), guarded by __name__)
 """
 from __future__ import annotations
@@ -24,7 +25,7 @@ import pytest
 
 @pytest.mark.parametrize(
     "module_name",
-    ["varieties", "render", "_qt", "cross_section", "app"],
+    ["varieties", "render", "_qt", "cross_section", "export", "app"],
 )
 def test_import_subprocess(module_name: str) -> None:
     """`python -c 'import MODULE'` must succeed in a fresh subprocess.

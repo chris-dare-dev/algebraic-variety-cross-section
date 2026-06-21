@@ -24,7 +24,7 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.backends.legacy:build"
 
 [tool.importlinter]
-root_packages = ["varieties", "_qt", "render", "cross_section"]
+root_packages = ["varieties", "_qt", "render", "cross_section", "export"]
 include_external_packages = true
 
 [[tool.importlinter.contracts]]
@@ -38,3 +38,9 @@ name = "cross_section is pure-pipeline (forbidden from Qt)"
 type = "forbidden"
 source_modules = ["cross_section"]
 forbidden_modules = ["_qt", "PySide6", "PyQt5", "PyQt6"]
+
+[[tool.importlinter.contracts]]
+name = "export is a Qt-free consumer layer (forbidden from app, _qt, render, Qt)"
+type = "forbidden"
+source_modules = ["export"]
+forbidden_modules = ["app", "_qt", "render", "PySide6", "PyQt5", "PyQt6"]
