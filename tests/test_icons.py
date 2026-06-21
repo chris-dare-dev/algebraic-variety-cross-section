@@ -126,6 +126,19 @@ def test_icon_functions_call_qta_icon_with_correct_args() -> None:
                 ),
             )
 
+        # Export STL — mdi6.printer-3d — TEXT_VALUE color, both themes
+        for theme in ("dark", "light"):
+            mock_qta.icon.reset_mock()
+            _qt.icons.export_stl_icon(theme)
+            mock_qta.icon.assert_called_with(
+                "mdi6.printer-3d",
+                color=(
+                    _qt.styles.PALETTE_DARK["TEXT_VALUE"]
+                    if theme == "dark"
+                    else _qt.styles.PALETTE_LIGHT["TEXT_VALUE"]
+                ),
+            )
+
         # Reset Defaults — mdi6.restore — TEXT_RESET_BTN color (red-family,
         # NOT TEXT_VALUE — see _reset_defaults_icon_color rationale).
         for theme in ("dark", "light"):
@@ -175,6 +188,8 @@ def test_icons_return_valid_qicons_with_qapplication() -> None:
     targets = (
         (_qt.icons.reset_camera_icon, "reset_camera_icon"),
         (_qt.icons.screenshot_icon, "screenshot_icon"),
+        # stl-print-export — verifies mdi6.printer-3d exists in the MDI6 catalog.
+        (_qt.icons.export_stl_icon, "export_stl_icon"),
         (_qt.icons.reset_defaults_icon, "reset_defaults_icon"),
         # qtawesome-icons-2026q2-e2 (UPL-4 v1) — camera presets
         (_qt.icons.preset_plus_x_icon, "preset_plus_x_icon"),

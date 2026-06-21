@@ -161,6 +161,17 @@ def screenshot_icon(theme: str = "dark") -> QIcon:
     return _get_qta().icon("mdi6.camera", color=_icon_color(theme))
 
 
+def export_stl_icon(theme: str = "dark") -> QIcon:
+    """Return a QIcon for the Export STL (3-D print) button (``mdi6.printer-3d``).
+
+    A 3-D-printer glyph — semantically "send this surface to the printer".
+    Distinct from ``screenshot_icon``'s camera body and the ``File → Export
+    Mesh…`` menu action (which has no icon), so the View dock's print-export
+    button reads unambiguously as "make a printable model", not "save a photo".
+    """
+    return _get_qta().icon("mdi6.printer-3d", color=_icon_color(theme))
+
+
 def reset_defaults_icon(theme: str = "dark") -> QIcon:
     """Return a QIcon for the Reset Defaults button (``mdi6.restore``).
 

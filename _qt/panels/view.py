@@ -47,6 +47,11 @@ class ViewPanel(QWidget):
     # MainWindow listens and re-clips the cached mesh without regenerating it.
     domain_changed = Signal()
 
+    # Emitted when the user clicks "Export STL…" in the Export group.
+    # MainWindow owns the surface/params/clip state, so it handles the export
+    # (see MainWindow._on_export_stl_print) — this panel only knows the plotter.
+    export_stl_requested = Signal()
+
     # Domain mode constants
     DOMAIN_NONE = "Off"
     DOMAIN_SPHERE = "Sphere"
@@ -268,6 +273,7 @@ class ViewPanel(QWidget):
         group = QGroupBox("Export")
         layout = QVBoxLayout(group)
         layout.setContentsMargins(6, 6, 6, 6)
+        layout.setSpacing(4)
 
         # qtawesome-icons-2026q2-e1 (UPL-4): stored as instance attr so
         # refresh_icons(theme) can re-apply the icon on theme switch.
@@ -276,7 +282,37 @@ class ViewPanel(QWidget):
         self._shot_btn.clicked.connect(self._on_screenshot)
         layout.addWidget(self._shot_btn)
 
+        # stl-print-export: a PRINT-READY STL export, distinct from
+        # File → Export Mesh… (which saves the raw, unclipped analysis mesh
+        # in math units). This one produces a watertight solid scaled to
+        # millimetres for the printer, and HONORS the Clip Region — a Sphere/
+        # Cube clip becomes a true watertight spherical/cubic CSG solid
+        # ("printed in a spherical pattern"), not the open on-screen slice.
+        # MainWindow holds the surface/params/clip state and does the work via
+        # export.printable; this panel only emits the request signal.
+        self._export_stl_btn = QPushButton("Export STL…")
+        self._export_stl_btn.setToolTip(
+            "Save a print-ready STL of the current surface.\n"
+            "Watertight solid, scaled to fit the printer build volume, and\n"
+            "clipped to the Clip Region shape (a Sphere clip prints a sphere-\n"
+            "bounded solid). For the raw analysis mesh use File → Export Mesh."
+        )
+        # Disabled until MainWindow has a successfully rendered surface
+        # (mirrors the File → Export Mesh… action's enable lifecycle).
+        self._export_stl_btn.setEnabled(False)
+        self._export_stl_btn.clicked.connect(self.export_stl_requested.emit)
+        layout.addWidget(self._export_stl_btn)
+
         return group
+
+    def set_export_stl_enabled(self, enabled: bool) -> None:
+        """Enable/disable the Export STL… button.
+
+        Called by MainWindow in lockstep with the File → Export Mesh… action
+        so both export entry points are live only when a real surface is on
+        screen (never exporting a stale or placeholder mesh).
+        """
+        self._export_stl_btn.setEnabled(enabled)
 
     # ------------------------------------------------------------------
     # Callbacks
@@ -402,6 +438,9 @@ class ViewPanel(QWidget):
         self._reset_camera_btn.setIcon(_qt.icons.reset_camera_icon(theme))
         self._shot_btn.setIconSize(_ICON_SIZE)
         self._shot_btn.setIcon(_qt.icons.screenshot_icon(theme))
+        # stl-print-export: 3-D-printer glyph on the Export STL… button.
+        self._export_stl_btn.setIconSize(_ICON_SIZE)
+        self._export_stl_btn.setIcon(_qt.icons.export_stl_icon(theme))
 
         # v1 (qtawesome-icons-2026q2-e2): 6 ortho preset buttons +
         # isometric.  Map button label → factory function so the wiring

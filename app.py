@@ -23,6 +23,7 @@ from PySide6.QtGui import (
 from PySide6.QtWidgets import (
     QApplication,
     QComboBox,
+    QDialog,
     QDockWidget,
     QFileDialog,
     QHBoxLayout,
@@ -300,6 +301,8 @@ class MainWindow(QMainWindow):
         # --- View dock (left) ------------------------------------------------
         self.view_panel = ViewPanel(self.plotter)
         self.view_panel.domain_changed.connect(self._on_domain_changed)
+        # stl-print-export: View dock → Export STL… (print-ready, clip-aware).
+        self.view_panel.export_stl_requested.connect(self._on_export_stl_print)
         view_dock = QDockWidget("View", self)
         view_dock.setObjectName("ViewDock")
         view_dock.setWidget(self.view_panel)
@@ -616,6 +619,9 @@ class MainWindow(QMainWindow):
             # error path.  rect MEDIUM: also reset _raw_mesh_is_coarse
             # so the LOD-fidelity flag is in sync with action state.
             self._export_mesh_action.setEnabled(False)
+            # stl-print-export: disable the View dock's Export STL… button on
+            # the placeholder/clear branch (mirrors the menu action above).
+            self.view_panel.set_export_stl_enabled(False)
             self._raw_mesh_is_coarse = False
             self.statusBar().showMessage("Choose a variety to begin.")
             self.parameters_panel.set_context_hint("")
@@ -1025,6 +1031,9 @@ class MainWindow(QMainWindow):
                 # failed regenerate.  Paired with the setEnabled(True) in
                 # the success path below.
                 self._export_mesh_action.setEnabled(False)
+                # stl-print-export: keep the View dock's Export STL… button in
+                # lockstep with the menu action — no exporting a stale mesh.
+                self.view_panel.set_export_stl_enabled(False)
                 # rect MEDIUM: reset the LOD fidelity flag alongside
                 # the _raw_mesh = None reset — keep the two in sync.
                 self._raw_mesh_is_coarse = False
@@ -1061,6 +1070,9 @@ class MainWindow(QMainWindow):
             # available the moment a valid raw mesh exists.  Synchronous
             # setEnabled — no signal storms, AI-9 safe.
             self._export_mesh_action.setEnabled(True)
+            # stl-print-export: enable the View dock's Export STL… button the
+            # moment a valid raw mesh exists (mirrors the menu action).
+            self.view_panel.set_export_stl_enabled(True)
             # rect MEDIUM (cross-critic AI-15): parallel-track LOD
             # fidelity so the export handler can disclose draft-
             # resolution exports in both the suggested filename
@@ -1530,6 +1542,149 @@ class MainWindow(QMainWindow):
             )
         else:
             self.statusBar().showMessage(f"Mesh exported: {basename}")
+
+    def _on_export_stl_print(self) -> None:
+        """Save a PRINT-READY STL of the current surface (View dock → Export STL…).
+
+        Distinct from ``File → Export Mesh…`` (``_on_export_mesh``), which saves
+        the raw, unclipped analysis mesh in *math units* for downstream tools.
+        This path runs the ``export.printable`` pipeline:
+
+          * regenerates the surface deterministically at full resolution;
+          * HONORS the Clip Region — a Sphere/Cube clip is realised as a true
+            *watertight* CSG intersection (variety solid ∩ sphere/cube), so the
+            print is "bounded in a spherical pattern", not the open on-screen
+            slice the viewport shows;
+          * scales + centres the model into millimetres to fit the Bambu Lab
+            H2S build volume.
+
+        Re-entrancy (AI-9): gated on ``not self._computing`` so it never runs a
+        synchronous generation concurrently with the QThreadPool render worker
+        (avoids two Numba ``parallel=True`` kernels in flight under the
+        ``workqueue`` threading layer). The export itself is synchronous on the
+        GUI thread but touches no Qt state and calls no ``processEvents`` — the
+        single-flight ``_computing`` invariant is undisturbed. A WaitCursor
+        covers the sub-second compute. ``QFileDialog`` runs its own modal loop
+        but returns before any render can re-enter (mirrors ``_on_export_mesh``).
+        """
+        if self._current_surface is None:
+            self.statusBar().showMessage("Select a surface before exporting an STL.")
+            return
+        if self._computing:
+            # A render is in flight; don't generate concurrently (AI-9).
+            self.statusBar().showMessage(
+                "Render in progress — try Export STL again in a moment."
+            )
+            return
+
+        variety = self.variety_combo.currentText()
+        subtype = self.subtype_combo.currentText()
+        if variety not in VARIETIES or subtype not in VARIETIES[variety]:
+            self.statusBar().showMessage("Select a surface before exporting an STL.")
+            return
+
+        # Lazy import keeps app-launch import cost unaffected and avoids a hard
+        # module-load dependency on the export package / Qt dialog.
+        from export.printable import ClipMode, export_to_stl
+        from _qt.dialogs.print_options_dialog import PrintOptionsDialog
+
+        surface = self._current_surface
+        params = self.parameters_panel.values() if surface.params else {}
+        dom = self.view_panel.domain_settings()  # {mode, radius, show_overlay}
+        clip = {
+            self.view_panel.DOMAIN_NONE: ClipMode.NONE,
+            self.view_panel.DOMAIN_SPHERE: ClipMode.SPHERE,
+            self.view_panel.DOMAIN_CUBE: ClipMode.CUBE,
+        }.get(dom["mode"], ClipMode.NONE)
+
+        # Discoverable default filename (ASCII-folded label + clip suffix),
+        # reusing the same sanitisation as _on_export_mesh.
+        ascii_label = unicodedata.normalize("NFKD", surface.label).encode(
+            "ascii", "ignore"
+        ).decode("ascii")
+        sanitised = (
+            ascii_label.replace(" ", "_").replace("/", "-").replace("[", "").replace("]", "")
+        )
+        clip_suffix = "" if clip is ClipMode.NONE else f"_{clip.value}"
+        default_name = f"{sanitised}{clip_suffix}_print.stl"
+
+        # Print options dialog (printer preset / size / fit / margin / format),
+        # pre-filled from the last session's choices (LastSession/Print*).
+        _settings = QSettings()
+        last_printer = _settings.value("LastSession/printPrinter", "", type=str) or None
+        last_size = _settings.value("LastSession/printSizeMm", 120.0, type=float)
+        last_fit = _settings.value("LastSession/printFitToPlate", False, type=bool)
+        last_binary = _settings.value("LastSession/printBinary", True, type=bool)
+        dialog = PrintOptionsDialog(
+            self,
+            printer=last_printer,
+            target_mm=last_size,
+            fit_to_plate=last_fit,
+            margin_mm=5.0,
+            binary=last_binary,
+        )
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return  # user cancelled the options dialog
+        try:
+            export_kwargs = dialog.export_kwargs()
+        except (KeyError, ValueError) as exc:
+            self.statusBar().showMessage(f"STL export failed — {exc}")
+            return
+        opts = dialog.options()
+        # Persist the user's choices for next time (best-effort).
+        _settings.setValue("LastSession/printPrinter", opts["printer"] or "")
+        _settings.setValue("LastSession/printSizeMm", float(opts["target_mm"]))
+        _settings.setValue("LastSession/printFitToPlate", bool(opts["fit_to_plate"]))
+        _settings.setValue("LastSession/printBinary", bool(opts["binary"]))
+
+        path, _ = QFileDialog.getSaveFileName(
+            self, "Export STL for 3-D Print", default_name, "STL files (*.stl)"
+        )
+        if not path:
+            return  # cancelled
+        if not path.lower().endswith(".stl"):
+            path += ".stl"
+
+        QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+        try:
+            try:
+                result = export_to_stl(
+                    path, variety=variety, subtype=subtype, params=params,
+                    clip=clip, radius=dom["radius"], **export_kwargs,
+                )
+            except NotImplementedError:
+                # Sphere/cube CSG isn't wired for this surface — export the full
+                # surface unclipped rather than failing, and say so.
+                result = export_to_stl(
+                    path, variety=variety, subtype=subtype, params=params,
+                    clip=ClipMode.NONE, **export_kwargs,
+                )
+                self.statusBar().showMessage(
+                    f"Print-clip not available for {surface.label}; exported the "
+                    f"full surface instead: {os.path.basename(result.path)}"
+                )
+                return
+        except ValueError as exc:
+            # AI-14 "no real zero set" / empty clip region, etc.
+            self.statusBar().showMessage(f"STL export failed — {exc}")
+            return
+        except Exception as exc:  # noqa: BLE001 — surfaced to the status bar
+            self.statusBar().showMessage(f"STL export failed: {exc}")
+            return
+        finally:
+            QApplication.restoreOverrideCursor()
+
+        basename = os.path.basename(result.path)
+        ex, ey, ez = result.extent_mm
+        if result.watertight:
+            self.statusBar().showMessage(
+                f"STL exported (print-ready, {ex}×{ey}×{ez} mm): {basename}"
+            )
+        else:
+            self.statusBar().showMessage(
+                f"STL exported ({ex}×{ey}×{ez} mm — open shell; use a solidify "
+                f"modifier in your slicer): {basename}"
+            )
 
     # --- theme system ------------------------------------------------------
 
