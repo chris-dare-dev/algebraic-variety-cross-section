@@ -1,35 +1,35 @@
 # AVC-specific integration
 
-Project-specific conventions for the **Algebraic Variety Viewer** (this repo, `algebraic-variety-cross-section`).  Read this once per roadmap to wire the skill output into the project correctly.
+Project-specific conventions for the **Algebraic Variety Viewer** (this repo, `algebraic-variety-cross-section`).  Read this once per roadmap to wire the `/roadmap` output into the project correctly.  This file is a repo-local overlay; it is not in the registry manifest.
 
 ## Repo identity
 
 | Item | Value |
 |---|---|
 | Default branch | `main` |
-| Branch policy | **Always work directly on `main`** — no feature branches, no PRs, single commit per phase per CONTEXT.md section 12.  Roadmap docs are no exception; the materializer stages a `plans/<slug>-roadmap.md` and the user commits it. |
+| Branch policy | **Always work directly on `main`** — no feature branches, no PRs, single commit per phase per CONTEXT.md section 12.  Roadmaps are no exception; the materializer stages `plans/<slug>/roadmap.yaml` and the user commits it. |
 | Ticket system | **GitHub Issues** (no GitLab, Jira, Linear).  The orchestrator resolves `owner/repo` at gate time via `gh repo view --json nameWithOwner` — never hardcoded so forks see the correct prompt. |
 | Canonical root doc | **`CONTEXT.md`** (not `CLAUDE.md`).  Read its section 6 (5-phase pipeline), section 3 (stack rationale), section 4 (architecture conventions), section 8 (bugs caught), section 9 (things explicitly NOT done), section 12 (final state at handoff). |
 | App invariants | `.claude/references/app-invariants.md` — AI-1 .. AI-15.  Every epic must respect these. |
 
-## Roadmap doc location
+## Roadmap location
 
-The roadmap skill writes ONLY to `plans/<slug>-roadmap.md`.  The directory `plans/` is created by `init-roadmap.sh` if absent.
+The roadmap pipeline writes ONLY to `plans/<slug>/roadmap.yaml` (roadmap/1 format — one flat `items:` list with write-once IDs; scaffolded by `.claude/scripts/roadmap-init.py`, validated by `.claude/scripts/roadmap-validate.py`).  Execution progress goes to append-only journals under `plans/<slug>/progress/`.  Legacy prose roadmaps at `plans/<slug>-roadmap.md` remain readable via `.claude/scripts/milestone-pipeline-resolve-brief.py`'s fallback.
 
 There is no equivalent of `docs/roadmaps/` in this repo — per-epic execution artifacts produced by CONTEXT.md section 6's 5-phase pipeline live under `.claude/notes/<pipeline>/<id>/artifacts/`, NOT under `docs/`.  The relevant existing artifact roots are:
 
 - `.claude/notes/capability-scouts/<id>/artifacts/` — `/capability-scout` outputs (`synthesis.md`, `challenge.md`, `final-report.md`)
 - `.claude/notes/frontend-uplifts/<id>/artifacts/` — `/frontend-uplift` outputs (same triple)
-- `.claude/notes/roadmaps/<slug>/` — this skill's state + issue drafts
+- `plans/<slug>/github/` — the roadmap pipeline's issue-body drafts (when `--github` is passed)
 
-The roadmap skill never writes outside `plans/` (the artifact) and `.claude/notes/roadmaps/<slug>/` (its private state + drafts).
+The roadmap pipeline never writes outside `plans/<slug>/` (the plan + journals + drafts).
 
 ## Milestone-ID format
 
-Roadmap skill emits epic ids in the form `<slug>-e<N>`:
+roadmap/1 IDs are write-once semantic slugs enforced by `roadmap-validate.py`: epics `<slug>-eN`, milestones `<slug>-mN`, spikes `<slug>-spike-N`, tasks `<slug>-t-<sem>`.
 
-- `<slug>` is kebab-case, lowercase, no spaces, max 30 chars.  Same slug as the roadmap filename.
-- `e<N>` is a positive integer; sub-epic letters (`e1a`, `e2b`) only when an epic is split mid-flight.
+- `<slug>` is kebab-case, lowercase, no spaces, max 30 chars.  Same slug as the roadmap directory.
+- Dropped items are tombstoned in `retired:`, never deleted; regeneration must carry every existing id forward.
 
 Examples drawn from realistic AVC roadmap scopes:
 
@@ -43,19 +43,19 @@ There is **no `<id>-eN`-keyed state directory in this repo** — CONTEXT.md sect
 
 ## GitHub Issues integration
 
-Triggered by `--gh-issues` flag at `/roadmap` invocation.
+Triggered by the `--github` flag at `/roadmap` invocation.
 
 ### Depth: epic + child stories
 
-- One **parent issue** per Initiative (epic).  Body from `templates/epic-issue.md`.  Labels: `epic:<slug>-e<N>`, `roadmap:<slug>`.
-- One **child issue** per Now-lane story.  Body from `templates/story-issue.md`.  Labels: `story`, `epic:<slug>-e<N>`.
+- One **parent issue** per Initiative (epic).  Labels: `epic:<slug>-e<N>`, `roadmap:<slug>`.
+- One **child issue** per Now-lane story.  Labels: `story`, `epic:<slug>-e<N>`.
 - Parent reference: child body contains a literal `## Parent: #<number>` line (auto-substituted after parent is created).  GitHub renders this as a clickable cross-link.
 
 GitHub does NOT have native epic/story types in Issues (only in Projects).  The label-based approach is the standard workaround.
 
 ### Tooling
 
-Uses `gh issue create` from the GitHub CLI.  The **materializer never shells out to `gh`** — it drafts bodies to `.claude/notes/roadmaps/<slug>/issue-drafts/` and reports the count.  The **orchestrator** (the main `/roadmap` session) is the only thing that may run `gh issue create`, and only after explicit per-event `[y]` from the user.  One issue at a time so a partial failure is recoverable.
+Uses `gh issue create` from the GitHub CLI.  The **materializer never shells out to `gh`** — it emits per-issue body files under `plans/<slug>/github/` and reports the count.  The **orchestrator** (the main `/roadmap` session) is the only thing that may run `gh issue create`, and only after explicit per-event `[y]` from the user.  One issue at a time so a partial failure is recoverable.
 
 The orchestrator must resolve the repo identity at gate time:
 
@@ -76,10 +76,10 @@ Never hardcode `cedar/algebraic-variety-cross-section` or any other identity —
 
 ## Pairing with CONTEXT.md section 6's 5-phase implementation pipeline
 
-The roadmap skill OFFERS the implementation-pipeline handoff at the end of Phase 4 — never auto-invokes.  Because this repo does not yet have a single named slash command that drives all five phases (the user dispatches phase agents directly per CONTEXT.md section 6's "wakeup pattern"), the offer reads:
+The roadmap pipeline OFFERS the implementation-pipeline handoff at the end of Phase 4 — never auto-invokes.  Because this repo does not yet have a single named slash command that drives all five phases (the user dispatches phase agents directly per CONTEXT.md section 6's "wakeup pattern"), the offer reads:
 
 ```
-Roadmap complete: plans/<slug>-roadmap.md
+Roadmap complete: plans/<slug>/roadmap.yaml
 
 Now-lane epics:
 1. <slug>-e1 — {epic title} ({N} stories)
@@ -98,28 +98,7 @@ On `[y]`, the orchestrator emits a single instruction the user reads and types i
 
 ## Resumability after compaction
 
-State pointer: `.claude/notes/roadmaps/<slug>/state.json`.
-
-```json
-{
-  "slug": "enriques-mesh-quality",
-  "phase": "sequence",
-  "started_at": "2026-05-20T01:00:00Z",
-  "updated_at": "2026-05-20T03:42:00Z",
-  "roadmap_path": "plans/enriques-mesh-quality-roadmap.md",
-  "first_unpopulated_section": null,
-  "gh_issues_requested": false,
-  "gh_issues_created": []
-}
-```
-
-Re-invoking `/roadmap enriques-mesh-quality` after compaction:
-
-1. `init-roadmap.sh` is idempotent — it prints `RESUMING phase=<X>: <path>` when the roadmap doc already exists.
-2. The orchestrator runs `.venv/Scripts/python.exe .claude/scripts/roadmap/validate-roadmap.py <slug> --report-first-unpopulated` to determine which marker section is the first that still contains `{{...}}` placeholders.
-3. Re-enters at the corresponding phase per the file-presence state model in `commands/roadmap.md`.
-
-The state file is written by `init-roadmap.sh --advance <phase>` (the only place state advancement happens; the materializer calls this once at the end of Phase 4 with `--advance complete`).
+The roadmap.yaml file IS the state.  Re-invoking `/roadmap enriques-mesh-quality` after compaction reads the existing `plans/enriques-mesh-quality/roadmap.yaml`, validates it with `.venv/Scripts/python.exe .claude/scripts/roadmap-validate.py <path>`, and resumes at the first incomplete phase per the orchestrator contract in `.claude/commands/roadmap.md`.  IDs are write-once — regeneration carries every existing id forward; drops go to `retired:`.
 
 ## Existing slash commands the roadmap should pair with
 
@@ -130,7 +109,7 @@ These commands exist in this repo; the roadmap should name them in the relevant 
 | `/capability-scout` | The epic is exploratory / "what should we build next in the variety-survey space?"  Final report at `.claude/notes/capability-scouts/<id>/artifacts/final-report.md` is the canonical input.  Run BEFORE `/roadmap` when the brief is itself a question. |
 | `/frontend-uplift` | The epic touches the GUI / panel layout / styles / interaction surface.  Final report at `.claude/notes/frontend-uplifts/<id>/artifacts/final-report.md` (e.g., `2026q2-panel-refresh`) is a strong brief source.  The roadmap epic's specialist hints should cite the relevant UPL-N candidate ids. |
 
-A typical workflow: `/capability-scout` or `/frontend-uplift` produces a ranked candidate report -> the user picks the top 1-2 candidates -> invokes `/roadmap` with `--brief` set to the candidate's synthesis sketch -> the roadmap pipeline produces `plans/<slug>-roadmap.md` -> the user dispatches CONTEXT.md section 6's 5-phase pipeline per Now-lane epic.
+A typical workflow: `/capability-scout` or `/frontend-uplift` produces a ranked candidate report -> the user picks the top 1-2 candidates -> invokes `/roadmap` with `--brief` set to the candidate's synthesis sketch -> the roadmap pipeline produces `plans/<slug>/roadmap.yaml` -> the user dispatches CONTEXT.md section 6's 5-phase pipeline per Now-lane epic.
 
 ## Canonical 5-surface set + renderable surfaces
 
@@ -147,7 +126,7 @@ CONTEXT.md section 3 documents the stack rationale; AI-1 through AI-15 in `.clau
 
 Primary platform: macOS on Apple Silicon (the user's daily-driver desktop).  Linux/Windows are claimed but less-tested; if an epic might regress them, name it in the specialist hints.
 
-## What the roadmap skill should NOT touch
+## What the roadmap pipeline should NOT touch
 
 - `app.py`, `surfaces.py`, `parameters_panel.py`, `appearance_panel.py`, `view_panel.py`, `styles.py` (these are the implementation pipeline's surface)
 - `tests/` (same)
@@ -156,6 +135,6 @@ Primary platform: macOS on Apple Silicon (the user's daily-driver desktop).  Lin
 - `docs/` if it ever exists (off-limits as a forward-looking rule)
 - `.claude/notes/capability-scouts/` / `.claude/notes/frontend-uplifts/` (other pipelines' state)
 - `.claude/agent-memory/<other-pipelines>/` (other pipelines' memory)
-- The frontend or backend code at large — the roadmap skill is doc-only; code-writing is the implementation pipeline's job
+- The frontend or backend code at large — the roadmap pipeline is plan-only; code-writing is the implementation pipeline's job
 
-The skill writes ONLY under `plans/<slug>-roadmap.md`, `.claude/notes/roadmaps/<slug>/`, and `.claude/agent-memory/roadmap-*/`.
+The pipeline writes ONLY under `plans/<slug>/` and `.claude/agent-memory/roadmap-*/`.

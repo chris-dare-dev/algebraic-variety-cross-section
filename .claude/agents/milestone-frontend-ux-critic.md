@@ -120,7 +120,7 @@ project` auto-enables Edit; do not use it elsewhere.
 ## Memory update (mandatory before return)
 
 Follow the shared protocol in
-`.claude/references/milestone-pipeline/memory-update-protocol.md`: append
+`.claude/references/milestone-pipeline-memory-update-protocol.md`: append
 to `.claude/agent-memory/milestone-frontend-ux-critic/lessons.md` via
 Bash heredoc (never `Write`).  Focus this milestone's lesson on:
 
