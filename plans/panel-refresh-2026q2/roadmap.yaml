@@ -1,0 +1,128 @@
+# roadmap/1 migrated from panel-refresh-2026q2-roadmap.md by roadmap-migrate.py
+# with LLM completion pass (goal split, HMW from §2, lanes from §8, priorities/RICE
+# from §7, depends_on from §6.2, acceptance from epic acceptance signals; done
+# events seeded to progress/agent.jsonl — e3/e4/e5 were executed under renamed
+# milestone slugs variety-palette-2026q2-e1 / enriques-backface-2026q2-e1 +
+# enriques-taubin-spike-2026q2-e1 / status-bar-bbox-2026q2-e1..e2).
+schema: roadmap/1
+slug: panel-refresh-2026q2
+project: algebraic-variety-cross-section
+title: "Panel Refresh 2026Q2 — first-wave visual polish bundle"
+status: active
+phase: sequenced
+brief: |
+  Ship the challenger-vetted first-wave bundle from the 2026q2-panel-refresh
+  frontend-uplift catalog (UPL-3 background-flash fix, UPL-1 palette tokens,
+  UPL-5 per-variety colors, UPL-19+UPL-18 Enriques sawtooth fix, UPL-13
+  status-bar bbox) atop the three foundational refactors, so the researcher
+  sees visually distinct, polished, artifact-free surfaces from first launch
+  across all four variety families.
+horizon: { start: 2026-05-20, end: 2026-06-13 }
+goal:
+  hmw: "How might we ship the challenger-vetted first-wave bundle (UPL-3 → UPL-1 → UPL-5 → UPL-19+UPL-18 spike → UPL-13) atop the three foundational refactors, so that the researcher driving the GUI can see visually distinct, polished, artifact-free surfaces from first launch — across all four variety families — without any background flash, uniform steel-blue monotony, or Enriques sawtooth tear?"
+  objective: "By 2026-06-13 (end of ~2-week first-wave sprint), the app delivers a visually polished, artifact-free first-launch experience across all four variety families, with no background flash, distinct per-variety surface colors, an Enriques sawtooth-free canonical render, a status-bar spatial readout, and a clean styles.py palette-token foundation for second-wave candidates — all while all 120 existing tests continue to pass."
+  key_results:
+  - "Off-screen render of Enriques surface / Canonical sextic [Fig. 1] at default parameters produces no visible comb-tooth sawtooth tear in /tmp/check-enriques.png (UPL-18 + UPL-19 done)."
+  - "Off-screen renders of the canonical 5-surface set each display a distinct default surface color matching the VARIETY_DEFAULT_COLOR map — no two variety families share the same hue — confirmed visually from /tmp/check-*.png (UPL-5 done)."
+  - "Status bar after any successful render reads 'N vertices, N faces · bbox ±a × ±b × ±c' (UPL-13 done), confirmed by grepping the app's _render_current method for the bbox format string."
+  - "styles.py contains a named PALETTE_LIGHT dict with at least 6 named tokens covering viewport background, panel background, value text, muted text, focus ring, and variety-family colors — no raw hex literals remaining for these properties in styles.py or appearance_panel.py (UPL-1 done)."
+  assumptions:
+  - tier: must
+    text: "The UPL-18 v0 Taubin lift (second pass n_iter=40, pass_band=0.05 + bounds * 1.05) eliminates the Enriques sawtooth without pushing render time above the ~500ms single-render budget."
+    validation: "Spike in Phase 3: measure render time before/after the second Taubin pass on the Enriques canonical sextic via off-screen render; if over 500ms, fall back to bounds-padding only and defer the Taubin pass. EXECUTED as enriques-taubin-spike-2026q2-e1 (2026-05-22, commit b4226bd): over-budget → Path B shipped (bounds padded 5% for the wing-tip fix; second Taubin pass deferred)."
+  - tier: must
+    text: "Surface dataclass (frozen=True, AI-8) accepts a new recommends_backface_culling: bool = False field without breaking the existing registry or any test."
+    validation: "Spike in Phase 3: confirm @dataclass(frozen=True) allows default-valued field addition in Python 3.12; verify VARIETIES registry still instantiates cleanly. Resolved during enriques-backface-2026q2-e1 (per-variety back-face culling shipped 2026-05-22, commit fc48add)."
+  - tier: should
+    text: "The APP_STYLESHEET f-string refactor (UPL-1 palette token extraction) can be done without changing any rendered surface colors, dock sizes, or font sizes."
+    validation: "fallback: if any panel visual regression is detected during off-screen smoke renders, revert to literal-by-literal substitution one token at a time rather than a bulk f-string rewrite"
+  - tier: should
+    text: "Moving plotter.set_background(...) to MainWindow.__init__() (UPL-3) does not interact with the VTK GL context setup timing — the plotter is fully constructed before the call."
+    validation: "fallback: if the background call at init time produces a blank/grey viewport, defer the call to after the first plotter.render() using QTimer.singleShot(0, ...)"
+  - tier: should
+    text: "The four proposed per-variety default hex tokens (K3 #8ab4d4, Enriques #c8a880, CY3 #4a90d9, Fano #7ec8a0) are visually adequate against the light viewport background #f0f0f0 as well as the dark #2f2f2f."
+    validation: "fallback: substitute any token that fails visual legibility with a slightly more saturated alternative (same hue, +10% L in HSL)"
+  - tier: might
+    text: "The backface_culling=True flag (UPL-19 Option a) reduces the Enriques sawtooth visibility independently of UPL-18 — defer: ship both, but if UPL-19 alone closes the visual complaint sufficiently, the UPL-18 spike may not need a v0 ship."
+  - tier: might
+    text: "Appending bbox ±a × ±b × ±c to the status bar (UPL-13) using mesh.bounds max extents gives a compact, correct representation for all symmetric surfaces — defer: if any asymmetric surface produces a confusing ± readout, extend to full-extent format in a follow-on (this happened: status-bar-bbox-2026q2-e2 switched to size: Lx × Ly × Lz)."
+  wont:
+  - "No QSettings cross-launch state persistence in this wave (CONTEXT.md §9 deferred; UPL-15 is explicitly second-wave and carries a MAJOR challenger penalty)."
+  - "No superqt / qtawesome dependency landing in this wave — first wave explicitly excludes UPL-2 and all candidates that depend on it (UPL-7, UPL-8, UPL-10 icons, UPL-14, UPL-16)."
+  - "No dark-mode toggle (UPL-4) in this wave — depends on UPL-1 landing AND carries M effort; explicitly second-wave. The first wave lays the palette-token foundation only."
+generated_by:
+  agent: roadmap-migrate.py
+  brief: 'source: panel-refresh-2026q2-roadmap.md (created 2026-05-20)'
+retired: []
+items:
+- id: panel-refresh-2026q2-e1
+  kind: epic
+  title: "Launch background flash fix (UPL-3)"
+  summary: "Eliminate the light-grey-to-dark-grey viewport background flash during the first ~500ms of every launch by moving plotter.set_background(...) from AppearancePanel.apply_to_actor() into MainWindow.__init__(), so the intended background is set before any surface render fires. Stories: s1 move the call; s2 guard apply_to_actor(None) no-op + off-screen smoke regression."
+  lane: now
+  priority: must
+  rice: { r: 10, i: 1, c: 0.5, e: 0.25, score: 20.0, rank: 1 }
+  tags: [value]
+  acceptance:
+  - "Given an out-of-box startup, when K3 Fermat quartic renders off-screen at defaults, then /tmp/check-k3-bg.png shows the dark viewport background (#2f2f2f or token equivalent) with no grey flash frame"
+  - "Given appearance_panel.py, when read, then apply_to_actor(None) at startup no longer silently leaves the background unset (call removed or guarded)"
+  - "All 120 existing tests still pass"
+  origin:
+    src: panel-refresh-2026q2-roadmap.md:105
+- id: panel-refresh-2026q2-e2
+  kind: epic
+  title: "Named palette token foundation (UPL-1)"
+  summary: "Extract every scattered hex literal in styles.py and appearance_panel.py into a PALETTE_LIGHT dict covering BG_VIEWPORT, BG_PANEL, TEXT_VALUE, TEXT_MUTED, FOCUS_RING, and per-variety color placeholders — so UPL-5 and future dark-mode work can populate tokens without structural changes. Absorbs the #888 short-hex AI-13 fix (UPL-21). ENABLER."
+  lane: next
+  priority: must
+  rice: { r: 10, i: 1, c: 0.8, e: 1, score: 8.0, rank: 3 }
+  depends_on: [panel-refresh-2026q2-e1]
+  tags: [enabler]
+  acceptance:
+  - "Given styles.py, when read, then a PALETTE_LIGHT dict exports ≥6 named tokens and no raw hex literals remain in styles.py or appearance_panel.py for the covered properties"
+  - "Given appearance_panel.py:48, when read, then the short-hex #888 is replaced with #888888 (AI-13 / UPL-21)"
+  - "Given the canonical 5-surface set, when rendered off-screen, then no visual regression from the token rename; all 120 tests pass"
+  origin:
+    src: panel-refresh-2026q2-roadmap.md:128
+- id: panel-refresh-2026q2-e3
+  kind: epic
+  title: "Per-variety default surface color (UPL-5)"
+  summary: "Make the first-launch surface color visually distinct per variety family (K3 #8ab4d4, Enriques #c8a880, CY3 #4a90d9, Fano #7ec8a0) via a VARIETY_DEFAULT_COLOR map in styles.py and AppearancePanel.set_default_color(...) wired to variety selection. Rank-1 RICE (30.0) in the uplift catalog. Executed as milestone variety-palette-2026q2-e1."
+  lane: later
+  priority: should
+  depends_on: [panel-refresh-2026q2-e2]
+  tags: [value]
+  acceptance:
+  - "Given the canonical 5-surface set, when rendered off-screen, then each variety family shows its distinct default color from VARIETY_DEFAULT_COLOR — no two families share a hue"
+  - "Given set_default_color, when a new variety is selected, then color reapplies to the existing actor without regenerating the raw mesh (AI-10) and without bypassing the _computing guard (AI-9)"
+  - "All 120 existing tests still pass; new off-screen render tests cover the 4 family colors (pure NumPy/PyVista — AI-2)"
+  origin:
+    src: panel-refresh-2026q2-roadmap.md:152
+- id: panel-refresh-2026q2-e4
+  kind: epic
+  title: "Enriques sawtooth visual fix (UPL-19 + UPL-18 spike)"
+  summary: "Eliminate the comb-tooth sawtooth tear on the Enriques canonical sextic: (a) back-face culling for Enriques surfaces via a recommends_backface_culling Surface field (UPL-19); (b) second Taubin pass + bounds padding (UPL-18 v0), gated on a render-time spike with a ≤500ms budget. Executed as enriques-backface-2026q2-e1 + enriques-taubin-spike-2026q2-e1 — spike came in over budget, so Path B shipped: bounds padded 5%, second Taubin pass deferred."
+  lane: next
+  priority: must
+  rice: { r: 10, i: 3, c: 0.5, e: 1, score: 15.0, rank: 2 }
+  depends_on: [panel-refresh-2026q2-e1]
+  tags: [value]
+  acceptance:
+  - "Given the Enriques canonical sextic at defaults, when rendered off-screen post-fix, then /tmp/check-enriques-post.png shows no visible comb-tooth sawtooth tear vs the pre-fix render evidence"
+  - "Given the spike timing log, when the second Taubin pass exceeds the 500ms budget, then the commit ships bounds-padding only with a comment deferring the second pass (this branch was taken)"
+  - "Given surfaces.py, when read, then the Enriques Surface entry has recommends_backface_culling=True wired into add_mesh(backface_culling=...); all 120 tests pass"
+  origin:
+    src: panel-refresh-2026q2-roadmap.md:175
+- id: panel-refresh-2026q2-e5
+  kind: epic
+  title: "Status-bar spatial bbox readout (UPL-13)"
+  summary: "After every successful render, append the spatial extent to the status bar ('N vertices, N faces · bbox ±a × ±b × ±c') from mesh.bounds max extents so researchers read the surface extent without measuring the viewport. Executed as status-bar-bbox-2026q2-e1; follow-up e2 switched the readout to full-extent size: Lx × Ly × Lz (peer-aligned) per the documented [MIGHT] fallback."
+  lane: now
+  priority: should
+  tags: [value]
+  acceptance:
+  - "Given any successful render, when the status bar updates, then the text matches 'N vertices, N faces' plus the bbox readout, formatted inside the success branch only"
+  - "Given the ValueError path (_raw_mesh is None), when a render fails, then the status bar shows the error message only — no bbox append"
+  - "All 120 existing tests still pass; ≥1 new pure-PyVista test asserts the bbox format for a known surface (AI-2, no pytest-qt)"
+  origin:
+    src: panel-refresh-2026q2-roadmap.md:199

@@ -1,0 +1,157 @@
+# roadmap/1 migrated from realtime-variety-render-roadmap.md by roadmap-migrate.py
+# with LLM completion pass (goal split, HMW from §2, lanes from §8, priorities/RICE
+# from §7, depends_on from §6.2, acceptance from epic acceptance signals; done
+# events seeded to progress/agent.jsonl). Execution-time follow-on milestones
+# realtime-variety-render-e4b (CAND-3 coarse-LOD split per e4's documented split
+# clause) and -e5b (CAND-2 v1, all 11 generators) do not fit the roadmap/1 id
+# grammar and are recorded in the e4/e5 summaries + journal notes instead.
+schema: roadmap/1
+slug: realtime-variety-render
+project: algebraic-variety-cross-section
+title: "Realtime Variety Render — slider-drag latency arc"
+status: active
+phase: sequenced
+brief: |
+  Progressively reduce surface-regeneration latency from >0.5s to imperceptible
+  during slider/grid-dot drag. Quick-wins bundle first (telemetry, grid-cap
+  hygiene, queue-latest re-entrancy fix, debounce, clip cache), then the Hanson
+  parametric continuous-drag fast-path, the mandatory macOS background-thread
+  spike, the worker + coarse-preview LOD destination arc, Numba JIT field
+  kernels, and VTK Flying Edges. Source: capability-scout realtime-variety-render
+  final report (2026-05-22, 13 candidates).
+horizon: { start: 2026-05-22, end: 2026-09-30 }
+goal:
+  hmw: "How might we progressively reduce surface-regeneration latency from >0.5 s to imperceptible during slider/grid-dot drag, so that a researcher exploring the algebraic variety families can observe the surface morphing in real time without releasing the control?"
+  objective: "By 2026-09-30, a researcher can drag any Calabi–Yau Hanson-family slider and watch the surface update continuously (no release required), and dragging an implicit-surface slider shows a coarse-but-valid preview in motion with the final full-resolution surface snapping into place on release — all without the slider freezing or the final drag position being silently dropped."
+  key_results:
+  - "CAND-5 ships: every fast drag-and-release on an implicit surface correctly renders the slider's final resting position — confirmed by off-screen render at the default parameter + a manual drag-release smoke check (the current CRITICAL correctness bug is eliminated)."
+  - "CAND-12 ships: the status bar displays a measured render time in ms for every surface generation call, providing a before/after baseline for all subsequent performance candidates."
+  - "CAND-8 ships: the Calabi–Yau Hanson surfaces (3 parametric figures) update visibly at every slider tick during a drag without requiring release — confirmed by a typical_ms measurement ≤ 80 ms on the dev machine."
+  - "CAND-3 + CAND-4 ship: implicit surfaces show a coarse-preview mesh updating during drag (with 'Preview' status-bar badge) and snap to full resolution on release — CAND-4 spike passes first."
+  assumptions:
+  - tier: must
+    text: "pyvistaqt issue #793 does NOT hang on the current dev machine's installed PySide6 version, OR the requirements.txt pin can be tightened to PySide6 <6.10 without breaking other functionality."
+    validation: "e3 macOS thread-safety spike: reproduce the hang on the dev machine before any CAND-4 implementation work (≤2 days); CAND-3 and CAND-2 are both downstream of CAND-4, so this gates the entire destination arc. Executed — e4 worker shipped 2026-05-22 (spike go)."
+  - tier: must
+    text: "VTK + QThread are safe to use concurrently on macOS arm64 — pv.PolyData objects can be constructed on a worker thread and handed to the main thread via a Qt.QueuedConnection signal without a GC-triggered crash (VTK GitLab #18782)."
+    validation: "e3 spike: prove with a minimal off-screen PolyData-via-signal round-trip test on the dev machine, no plotter; explicit Python ref retention is the documented mitigation. Executed — mitigation replicated in the e4 worker implementation."
+  - tier: must
+    text: "Numba @njit(parallel=True) is available and stable on macOS arm64 (Numba 0.60+) with the workqueue threading layer (not unguarded TBB)."
+    validation: "e5 Numba arm64 spike: install and verify before CAND-2 implementation; Apple-Silicon wheels confirmed on PyPI but not validated against this app's deps. Executed — spike doc committed 3a07e6e, e5 v0 + e5b v1 shipped."
+  - tier: should
+    text: "The quality delta between n=220 and n=260 grid resolution is imperceptible at viewport zoom for Fermat quartic and Enriques Fig 4."
+    validation: "fallback: keep n=260 for both if a spot-check off-screen render reveals visible degradation, accepting slightly higher latency on the interactive path"
+  - tier: should
+    text: "The coarse-preview n=80 floor is topologically honest for Kummer (16 nodes remain visually distinct) and Dwork conifold at ψ≈1."
+    validation: "fallback: raise the floor to n=100 or n=120 for affected surfaces; must be validated via an off-screen n-sweep before CAND-3 ships"
+  - tier: should
+    text: "Flying Edges (CAND-1) produces visually equivalent surface quality to skimage marching cubes for all 8 implicit generators on Apple Silicon — the loss of analytic gradient normals does not produce visible shading degradation on Enriques sextic or Kummer high-curvature regions."
+    validation: "fallback: keep skimage MC if off-screen Kummer+Enriques comparison renders show visible shading regression; Flying Edges is independent of the destination arc and can be deferred without blocking anything"
+  - tier: should
+    text: "Numba first-call JIT latency for the initial 2-generator v0 scope (Fermat + Enriques canonical sextic) stays under 500 ms total with a startup warm-up strategy."
+    validation: "fallback: move warm-up to background thread at first surface selection rather than eager app startup"
+  - tier: might
+    text: "A single hand-rolled QTimer-based debounce utility shared between ParametersPanel and ParameterGridPanel (a ui_helpers addition) is the cleanest CAND-6 implementation — defer: if superqt is already pulled in by CAND-4's worker pattern, @qdebounced is equally valid; decide at implementation time."
+  - tier: might
+    text: "typical_ms: int = 0 is a cleaner Surface dataclass field than fast: bool for CAND-8's speed-routing — defer: decide at CAND-8 implementation time; challenger CC-3 prefers typical_ms but either is valid."
+  - tier: might
+    text: "CAND-11 (clipped-mesh cache) delivers a measurable latency reduction on the appearance-only-change path — defer: confirm with CAND-12 telemetry after it ships."
+  wont:
+  - "No pytest-qt UI tests for the threading worker lifecycle or signal-slot path (AI-2 / CONTEXT.md §9 — macOS Qt+VTK offscreen segfault prohibits this until the environment constraint changes)."
+  - "No parameter-space mesh interpolation / morphing between cached meshes (AI-15 violation per synthesis tension #2 — the interpolated mesh corresponds to no algebraic equation; parking-lotted permanently for a math-education tool)."
+  - "No GPU isosurfacing or raycasting path (AI-1 / AI-3 conflict — produces a rasterized image, not pv.PolyData; breaks domain clipping AI-4 and Hanson normals AI-7; macOS Metal VTK backend still experimental as of 2026)."
+  - "No new variety families or additional figures in this roadmap — this roadmap is exclusively the latency/interactivity arc for the existing 8 generators."
+  - "No QSettings persistence of slider values, surface selection, or window layout (CONTEXT.md §9 explicit deferral)."
+generated_by:
+  agent: roadmap-migrate.py
+  brief: 'source: realtime-variety-render-roadmap.md (created 2026-05-22)'
+retired: []
+items:
+- id: realtime-variety-render-e1
+  kind: epic
+  title: "Quick-wins scaffolding bundle"
+  summary: "Ship CAND-12 (render timing telemetry), CAND-13 (grid-resolution-cap hygiene 260→220), CAND-5 (re-entrancy guard drop→queue-latest — the CRITICAL final-drag-position fix), CAND-6 (debounce slider/grid valueChanged, 80ms), and CAND-11 (clipped-mesh cache) as a single coordinated pass establishing the measured ms baseline and interaction discipline every subsequent epic builds on."
+  lane: now
+  priority: must
+  rice: { r: 10, i: 2, c: 0.8, e: 1, score: 16.0, rank: 2 }
+  tags: [value]
+  acceptance:
+  - "Given a simulated fast drag-and-release, when the queue-latest cycle completes, then an off-screen render at the final parameter position produces a non-empty pv.PolyData (CAND-5 — the final position is rendered, not dropped)"
+  - "Given any _render_current call, when it completes, then the status bar displays a measured 'NNN ms' string and a before/after baseline is logged (CAND-12)"
+  - "Given Fermat quartic and Enriques Fig 4 at n=220 vs n=260, when spot-checked off-screen, then no perceptible quality regression (CAND-13)"
+  - "Given both ParametersPanel and ParameterGridPanel, when a slider drags, then a single shared QTimer debounce (80ms default) coalesces events with a release-path bypass (CAND-6)"
+  origin:
+    src: realtime-variety-render-roadmap.md:98
+- id: realtime-variety-render-e2
+  kind: epic
+  title: "Hanson parametric continuous-drag fast-path"
+  summary: "Wire the Calabi-Yau Hanson family's 27-38 ms generation time to a continuous-drag render path: add typical_ms: int = 0 to the Surface dataclass, set it for the 3 Hanson parametric generators, and route fast surfaces through the debounce's direct-fire channel — continuous drag with round-trip ≤80 ms, zero compute optimization required (CAND-8, 'the easiest win in the entire roadmap')."
+  lane: now
+  priority: must
+  rice: { r: 3, i: 3, c: 0.5, e: 1, score: 4.5, rank: 3 }
+  depends_on: [realtime-variety-render-e1]
+  tags: [value]
+  acceptance:
+  - "Given any Hanson-family slider, when dragged live, then a new surface render fires at each tick (no release required) with CAND-12-measured round-trip ≤80 ms"
+  - "Given the Surface dataclass, when inspected, then typical_ms exists with non-zero values on the 3 Hanson generators and 0 on all implicit generators (pure-Python unit test)"
+  - "Given a non-default Hanson parameter, when rendered off-screen, then a non-empty visually-correct pv.PolyData results with AI-7 normals unchanged"
+  origin:
+    src: realtime-variety-render-roadmap.md:122
+- id: realtime-variety-render-e3
+  kind: epic
+  title: "CAND-4 macOS background-thread spike"
+  summary: "Mandatory 1-2 day ENABLER spike: determine whether pyvistaqt #793 (macOS PySide6 >=6.10 hang) affects the dev machine, whether requirements.txt must pin PySide6 <6.10, and whether pv.PolyData-via-QThread signal round-trips are safe on macOS arm64 under VTK #18782 — producing the go/no-go artifact that gates e4 and e5."
+  lane: now
+  priority: must
+  rice: { r: 10, i: 3, c: 0.8, e: 0.5, score: 48.0, rank: 1 }
+  depends_on: [realtime-variety-render-e1]
+  tags: [enabler]
+  acceptance:
+  - "Given the standalone spike script, when it constructs a non-trivial pv.PolyData on a QThread and delivers it via Qt.QueuedConnection, then it runs to completion with no hang or crash on the dev machine"
+  - "Given the spike report, when read, then it documents the PySide6 version, #793 reproduction outcome, pin recommendation, and VTK #18782 ref-retention mitigation status"
+  - "Either e4 is green-lit or the risk is escalated with a documented scope-adjustment recommendation"
+  origin:
+    src: realtime-variety-render-roadmap.md:145
+- id: realtime-variety-render-e4
+  kind: epic
+  title: "Background-thread worker + coarse-preview LOD"
+  summary: "Move surface.generate() off the Qt GUI thread onto a QRunnable/QThread worker (CAND-4) and implement the two-pass coarse-preview LOD pipeline (CAND-3) for implicit surfaces — continuously-updating coarse preview during drag with a persistent AI-15 'Preview' badge and full-resolution snap on release. Executed as e4 (worker, CAND-4) + follow-on milestone realtime-variety-render-e4b (coarse-LOD, CAND-3) per the epic's documented split clause."
+  lane: next
+  priority: should
+  depends_on: [realtime-variety-render-e3]
+  tags: [value]
+  acceptance:
+  - "Given coarse mode at the per-surface coarse_n floor, when Kummer / Dwork / Fermat / Enriques Fig 4 render off-screen, then each produces a non-empty topologically-honest pv.PolyData (Kummer 16 nodes visible)"
+  - "Given the coarse→full-res transition, when the same parameter renders in both modes, then the full-res (n=220) surface is visually complete for all 4 implicit generators"
+  - "Given the AI-15 'Preview' badge, when a coarse render completes, then the badge persists until the full-res mesh is confirmed received by _apply_domain_and_render — not cleared on coarse completion"
+  - "Given the 3 Hanson generators, when rendered at non-default parameters, then they are unaffected (coarse path skips typical_ms > 0 surfaces per AI-6)"
+  origin:
+    src: realtime-variety-render-roadmap.md:168
+- id: realtime-variety-render-e5
+  kind: epic
+  title: "Numba JIT field-evaluation kernel v0"
+  summary: "Replace NumPy-broadcasting field evaluation for the two highest-cost implicit generators (Fermat quartic + Enriques canonical sextic) with @njit(parallel=True) kernels (Numba ≥0.60, macOS arm64 workqueue threading layer) targeting ≥5× field-eval speedup, with per-generator numerical spot-checks and a ≤500ms JIT warm-up strategy. Executed as e5 (v0, 2 generators) + follow-on milestone realtime-variety-render-e5b (CAND-2 v1: all 11 implicit generators)."
+  lane: later
+  priority: should
+  depends_on: [realtime-variety-render-e4]
+  tags: [value]
+  acceptance:
+  - "Given CAND-12 telemetry, when Fermat quartic and Enriques canonical sextic generate before/after Numba, then a measured latency reduction shows (target ≥5× field-eval speedup)"
+  - "Given the Numba kernels, when compared against the NumPy reference at ≥3 parameter points each, then outputs match within floating-point tolerance (transcription-error guard)"
+  - "Given first-call JIT warm-up, when timed, then it stays ≤500 ms; requirements.txt pins numba>=0.60,<0.62 and the workqueue threading layer is explicitly set"
+  origin:
+    src: realtime-variety-render-roadmap.md:192
+- id: realtime-variety-render-e6
+  kind: epic
+  title: "VTK Flying Edges marching-cubes replacement"
+  summary: "Replace skimage.measure.marching_cubes with vtkFlyingEdges3D via pv.ImageData.contour([0.0], method='flying_edges') for all 8 implicit generators — measuring the real Apple-Silicon speedup with CAND-12 telemetry and confirming visual equivalence (Kummer 16-node shading, Enriques sextic curvature) via off-screen PNG comparison. Independent of the e3/e4/e5 arc."
+  lane: next
+  priority: could
+  depends_on: [realtime-variety-render-e1]
+  tags: [value]
+  acceptance:
+  - "Given all 8 implicit generators at defaults, when rendered with Flying Edges off-screen, then each produces non-empty pv.PolyData with no visible shading regression vs the skimage baseline PNGs for Kummer + Enriques sextic"
+  - "Given CAND-12 telemetry, when marching-cubes timing is compared, then a measured Apple-Silicon speedup is documented (replacing the unverified Kitware claim)"
+  - "Given surfaces.py, when read, then skimage marching_cubes is no longer called (or is gated behind a fallback flag for any regressed generator); all 120 tests pass"
+  origin:
+    src: realtime-variety-render-roadmap.md:216
