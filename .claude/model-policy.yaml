@@ -1,0 +1,57 @@
+# .claude/model-policy.yaml -- model + effort policy for algebraic-variety-cross-section
+# Tier DEFINITIONS live in the shared parent file (one place to swap Opus<->Fable
+# or raise effort fleet-wide). This file maps each agent + command-phase to a tier.
+# Edit, then:  python .claude/scripts/sync-model-policy.py
+# CI drift gate: python .claude/scripts/sync-model-policy.py --check
+schema_version: 1
+extends: ../../.claude/model-policy.tiers.yaml
+
+assignments:
+  # agent stem -> tier  (bootstrapped from current frontmatter; reclassify per
+  # MODEL-EFFORT-CROSS-ANALYSIS.md sec.4 -- e.g. *-challenger / synthesize -> deep,
+  # *-querier / *-extractor -> fast)
+  agents:
+    capability-scout-synthesizer: deep_max
+    capability-scout-adversary: deep
+    capability-scout-challenger: deep
+    capability-scout-competitive: standard
+    capability-scout-desktop-platform: standard
+    capability-scout-math-research: standard
+    capability-scout-oss-trends: standard
+    frontend-uplift-challenger: deep
+    frontend-uplift-current-state-critic: standard
+    frontend-uplift-inspiration-scout: standard
+    frontend-uplift-library-scout: standard
+    frontend-uplift-visual-scout: standard
+    milestone-adversary-critic: deep
+    milestone-frontend-ux-critic: heavy
+    milestone-implementer: standard
+    milestone-oss-scout: standard
+    milestone-researcher: standard
+    repository-architect-anchor-updater: standard
+    repository-architect-best-practices-scout: standard
+    repository-architect-current-state-auditor: standard
+    repository-architect-design-adversary: deep
+    repository-architect-dry-run-validator: standard
+    repository-architect-execution-critic: deep
+    repository-architect-implementer: standard
+    repository-architect-parity-verifier: standard
+    repository-architect-refactor-pattern-scout: standard
+    repository-architect-test-suggester: standard
+    roadmap-decomposer: standard
+    roadmap-materializer: standard
+    roadmap-refiner: standard
+    roadmap-sequencer: heavy
+    milestone-frontend-ux: heavy
+    milestone-rectifier: deep
+
+  # command:phase -> tier (drives the generated MODEL-POLICY table in each
+  # command file; only injected where the BEGIN/END markers are present)
+  commands: {}
+
+  # tier applied to any agent file present on disk but absent from `agents:`
+  unmapped_default: standard
+
+# How CLI flags re-map a phase's tier at dispatch (declarative; rendered into
+# the command table's "With flags" column).
+flag_overrides: {}
