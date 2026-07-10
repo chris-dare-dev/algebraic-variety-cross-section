@@ -1,10 +1,21 @@
 # Algebraic Variety Viewer design-system inventory (read this BEFORE proposing changes)
 
-**Purpose:** anchor every proposed UI upgrade to what the app *actually* has today.  Without this, scouts propose dark-mode toggles when the app is light-theme by deliberate choice, or propose tooltip-rich dropdowns when `VARIETY_TOOLTIPS` / `SUBTYPE_TOOLTIPS` already deliver that.
+**Purpose:** anchor every proposed UI upgrade to what the app *actually* has today. Without this,
+scouts propose a dark-mode toggle that already shipped, or tooltip-rich dropdowns that
+`varieties/tooltips.py` already delivers.
 
-Loaded by **every scout at Phase 1 start** and by the **synthesizer at Phase 2 start**.  Cite specific entries here when surfacing a proposal.
+Loaded by **every scout at Phase 1 start** and by the **synthesizer at Phase 2 start**. Cite specific
+entries here when surfacing a proposal.
 
-This file is curated by hand from `CONTEXT.md`, `README.md`, `styles.py`, `app.py`, and the three panel modules.  When those change, update here.  Drift is expected after milestone deliveries — flag in your brief if you find divergence.
+**Verified against the tree on 2026-07-10** (`app.py`, `_qt/styles.py`, `_qt/panels/*`, `varieties/*`,
+`render/worker.py`, `cross_section/clip.py`, `requirements.txt`, `pyproject.toml`). Line numbers drift —
+re-read the source at the Phase 1 read and treat the code, not this file, as authoritative. If you find
+divergence, say so in your brief.
+
+> **Restructure note.** The flat `styles.py` / `view_panel.py` / `parameters_panel.py` /
+> `appearance_panel.py` / `surfaces.py` modules **no longer exist**. They moved to `_qt/` and
+> `varieties/` in the `restructure-feature-subpackages-2026q2-r2` batch (see `MOVES.md`). A proposal
+> citing an old path is citing a file that is not there.
 
 ---
 
@@ -13,165 +24,271 @@ This file is curated by hand from `CONTEXT.md`, `README.md`, `styles.py`, `app.p
 | Layer | What | Why it constrains proposals |
 |---|---|---|
 | GUI framework | PySide6 ≥ 6.6, < 7 (LGPL) | **AI-1**: never propose PyQt6 (GPL surface change) |
-| 3D widget | `pyvistaqt.QtInteractor` ≥ 0.11.4, < 0.12 — VTK render window in `QMainWindow` | **AI-1**: native VTK trackball; do NOT swap for matplotlib mpl_toolkits, Plotly, k3d, Mayavi, or raw VTK |
-| Geometry engine | PyVista ≥ 0.46, < 0.49 + VTK (transitively) | **AI-4 / AI-5 / AI-6**: clip_scalar (NOT clip_box), `scalars=` kwarg required, marching-cubes pipeline for implicit / `_grid_to_polydata` for parametric |
-| Implicit surfacing | scikit-image ≥ 0.22, < 0.27 — `measure.marching_cubes` | Gradient-direction normals are seeded BEFORE Taubin smoothing; `compute_normals()` rederives after smoothing |
+| 3D widget | `pyvistaqt.QtInteractor` ≥ 0.11.4, < 0.12 — VTK render window in `QMainWindow` | **AI-1**: native VTK trackball; do NOT swap for matplotlib, Plotly, k3d, Mayavi, or raw VTK |
+| Geometry engine | PyVista ≥ 0.46, < 0.49 + VTK (transitively) | **AI-4 / AI-5 / AI-6**: `clip_scalar` (NOT `clip_box`), `scalars=` kwarg required |
+| Implicit surfacing | **`vtkFlyingEdges3D`** via `varieties/_marching.py::_marching_cubes_to_polydata` (`grid.contour(method=...)`) | **scikit-image is GONE.** Do not propose `skimage.measure.marching_cubes`. Flying Edges has different vertex ordering than skimage; `_marching.py` documents the difference. *(Until 2026-07-10 the module still carried a vestigial module-level `from skimage import measure` — unused, and declared in neither `requirements.txt` nor `pyproject.toml`. It survived only because a stale `skimage` sat in the local `.venv`; a clean install would have raised `ImportError`. Removed.)* |
+| Field kernels | **numba ≥ 0.65, < 0.66** — `@njit` kernels in `varieties/_kernels.py` | **LANDMINE:** `numba.config.THREADING_LAYER = "workqueue"` MUST appear at the TOP of that module, *before* `from numba import njit`. The setting is process-global and cached at numba import; setting it after is a silent no-op. The default `omp` layer is incompatible with VTK's threading on macOS. |
+| Icons | **qtawesome ≥ 1.4.2, < 2** — `_qt/icons.py` is the single `QIcon` source | **LANDMINE:** qtawesome is **lazy-imported** (a `_qta` sentinel stays `None` until first use) because populating its icon-font cache costs ~150–200 ms at import. A test enforces that `_qt/icons.py` does not import qtawesome at module load. Don't hoist the import. |
 | Numerics | NumPy ≥ 1.26, < 3 | Plain ndarray scalar fields; no JAX, no PyTorch, no CuPy |
-| Test runner | pytest (Qt-free) | **AI-2**: no pytest-qt; tests are pure-NumPy / pure-PyVista / static-math |
-| Python | 3.12 (3.10+ should work) | Type hints use 3.10+ syntax (`X \| Y`); generator functions in `surfaces.py` already use this |
-| Stylesheet | Single `styles.py` module — palette constants + `APP_STYLESHEET` QSS string | All inline `setStyleSheet` calls reference the named constants (`HEADING_STYLE`, `MUTED_TEXT_STYLE`, `VALUE_MONO_STYLE`, `RANGE_LABEL_STYLE`).  Don't reintroduce hex literals at call sites. |
-| Window chrome | `QMainWindow` + 3 `QDockWidget` (View left, Parameters right-top, Appearance right-bottom) + central `QtInteractor` | Docks are movable + floatable (Qt drag-handles).  Window default 1200×800. |
-| Status feedback | `QStatusBar.showMessage(...)`; warnings prefixed with `⚠` via `warnings.catch_warnings(record=True)` | **AI-14**: surface RuntimeWarning soft signals (Dwork conifold), ValueError hard errors (no real zero set) |
-| Re-entrancy | `self._computing` boolean guard in `_render_current` | **AI-9**: any new `processEvents()` call must respect this |
-| Domain clipping | Sphere (Euclidean distance) and cube (Chebyshev) modes; both via `clip_scalar(scalars="_dist", value=r, invert=True)` | **AI-4 / AI-5**: scalar clipping only; `clip_box` is reversed/unreliable |
+| Architecture gates | `import-linter`, `libcst`, `pydeps`, `coverage` | Layer boundaries between `_qt/`, `varieties/`, `render/`, `cross_section/` are lint-enforced. A proposal that has a panel import a variety kernel directly will fail CI. |
+| Test runner | pytest (Qt-free), `pytest.ini` → `testpaths = tests` | **AI-2**: no `pytest-qt`; tests are pure-NumPy / pure-PyVista / static-math |
+| Python | `requires-python = ">=3.12"` | 3.10+ union syntax (`X \| Y`) is used throughout |
+| Stylesheet | **`_qt/styles.py`** (~708 lines) — `PALETTE_LIGHT` + `PALETTE_DARK` dicts (28 tokens each), `VARIETY_DEFAULT_COLOR` / `_DARK`, and a QSS builder | All call-site styling references named constants (`HEADING_STYLE`, `MUTED_TEXT_STYLE`, `VALUE_MONO_STYLE`, `RANGE_LABEL_STYLE`). Don't reintroduce hex literals at call sites. |
+| Window chrome | `QMainWindow` + **menu bar** (`&File`, `Theme`) + 3 `QDockWidget` ("View" left, "Appearance" + "Parameters" right) + central `QtInteractor` | Docks are movable + floatable. Window default 1200×800 (`app.py:115`), restored from `QSettings` (§6). |
+| Rendering | **`QThreadPool` + `QRunnable`** — `render/worker.py::MeshWorker` + `WorkerSignals` | It is **not** a `QThread`. Results return on `finished = Signal(object)` carrying a `MeshResult`, delivered by `QueuedConnection`. |
+| Re-entrancy | `_computing` **+ `_pending_render`** queue-latest guard in `app.py` | **AI-9**: a request arriving mid-render sets `_pending_render` rather than being dropped. Any new `processEvents()` must respect the guard. |
+| Status feedback | `QStatusBar.showMessage(...)`; warnings prefixed `⚠` | **AI-14**: RuntimeWarning → soft signal, ValueError → hard error. A `_render_busy_spinner` widget exists precisely because `showMessage` fires on *every* render event and would obscure a transient busy message. |
+| Domain clipping | `cross_section/clip.py` — sphere (Euclidean) and cube (Chebyshev), both via `clip_scalar(scalars="_domain_dist", invert=True)` | **AI-4 / AI-5**: scalar clipping only; `clip_box` invert semantics are broken on PolyData |
 
-## 2. Color palette (in `styles.py`)
+## 2. Colour palette (in `_qt/styles.py`)
 
-App is **light-themed** today.  The palette is curated for WCAG AA contrast on a `#f0f0f0`-ish background (the Qt default light-mode chrome).  No dark-mode QSS exists.
+**The app launches DARK.** `app.py:293` sets `self._active_theme = "dark"`. The `Theme` menu offers
+**Dark / Light / Follow system** (a `QActionGroup`). Two full palettes exist: `PALETTE_LIGHT` (`:64`)
+and `PALETTE_DARK` (`:242`), 28 tokens each.
 
-| Constant | Value | Purpose | Notes |
+**`BG_VIEWPORT` is `#2f2f2f` in BOTH palettes.** The 3-D viewport never lightens. The *chrome* themes;
+the specimen does not. This is the mechanical basis of the §9 "specimen-first" invariant — a proposal
+that lightens the viewport contradicts the house thesis.
+
+| Token | Light | Dark | Purpose |
 |---|---|---|---|
-| `COLOR_MUTED` | `#5a5a5a` | Muted secondary text — slider descriptions, status-bar default | **AI-12**: 5.4:1 contrast on `#f0f0f0` (AA pass).  Replaces the former `#888` (3.5:1 — AA fail). |
-| `COLOR_VALUE` | `#333333` | Monospace value readouts — slider current value | High contrast; not competing with primary labels |
-| `COLOR_DOCK_HEADER_BG` | `#e8edf2` | Dock title-bar background — subtle blue-gray | Visually distinct from panel body |
-| `COLOR_DOCK_HEADER_BORDER` | `#c5cdd8` | Dock title-bar bottom border | 1px |
-| `COLOR_RESET_BTN_BG` | `#f5e8e8` | Reset-to-defaults button BG | Reads as "secondary / destructive" relative to primary buttons |
-| `COLOR_RESET_BTN_BORDER` | `#d4b4b4` | Reset-to-defaults border | |
-| `COLOR_RESET_BTN_HOVER_BG` | `#f0d0d0` | Reset-to-defaults hover | |
-| (focus ring color in QSS) | `#5b9bd5` | Keyboard focus ring `outline` | Visible on `QAbstractButton:focus`, `QComboBox:focus`, `QSlider:focus` |
+| `BG_VIEWPORT` | `#2f2f2f` | `#2f2f2f` | 3-D viewport — identical in both themes |
+| `BG_PANEL` | `#f0f0f0` | `#252526` | Dock / panel body |
+| `TEXT_MUTED` | `#5a5a5a` | `#a0a0a0` | Muted secondary text |
+| `TEXT_VALUE` | `#333333` | `#e0e0e0` | Monospace value readouts |
+| `FOCUS_RING` | `#3c82c4` | `#5b9bd5` | Keyboard focus outline — **per-theme**, not a single constant |
+| `BORDER_SWATCH` | `#333333` | `#888888` | Colour-swatch border (`_border_for_theme`) |
 
-**AI-13 reminder:** colors flowing into PyVista (`Plotter.add_mesh(color=...)`, `set_plot_theme`) must be 6-digit hex.  Qt stylesheet hex (above) is a separate surface — short hex would also work there but consistency is preferred.
+**Contrast, computed rather than copied** (WCAG 2.1 relative luminance, text on `BG_PANEL`):
 
-**On theming as a convention, not invariant:** the app's "light theme by default" is a CONVENTION, not an invariant — adding a dark mode is on the candidate-surface (§7).  Unlike app-invariants AI-1 through AI-15, there's no rule against alternative palettes; a parallel dark `STYLESHEET_DARK` is fair game.
-
-## 3. Typography (in `styles.py`)
-
-| Class / token | Purpose | Notes |
+| Pair | Ratio | AA |
 |---|---|---|
-| `HEADING_STYLE` | `font-weight: bold; font-size: 13px; padding: 2px 0;` | Panel section headings, group-box alternatives |
-| `LABEL_STYLE` | `font-size: 12px;` | Default slider/checkbox labels |
-| `SMALL_LABEL_STYLE` | `font-size: 11px;` | Small descriptive / help text |
-| `MUTED_TEXT_STYLE` | `color: #5a5a5a; font-size: 10px;` | Subtitles, descriptions |
-| `VALUE_MONO_STYLE` | `font-family: monospace; font-size: 11px; color: #333333;` | Numeric value readouts |
-| `RANGE_LABEL_STYLE` | `font-family: monospace; font-size: 9px; color: #5a5a5a;` | Min/max range markers under sliders |
-| `QStatusBar` (in QSS) | `font-size: 11px; color: #5a5a5a;` | Status bar text |
-| `QGroupBox` (in QSS) | `font-size: 11px; font-weight: bold;` | Group-box titles inside panels |
+| light `TEXT_MUTED` `#5a5a5a` on `#f0f0f0` | **6.05:1** | pass |
+| light `TEXT_VALUE` `#333333` on `#f0f0f0` | **11.09:1** | pass |
+| dark `TEXT_MUTED` `#a0a0a0` on `#252526` | **5.86:1** | pass |
+| dark `TEXT_VALUE` `#e0e0e0` on `#252526` | **11.60:1** | pass |
+| the retired `#888` on `#f0f0f0` | **3.11:1** | **fail** |
 
-There is no math typography stack (no KaTeX, no MathJax — equations live in plain-text tooltips with unicode super/subscripts).  Adding a rendered-math tooltip / overlay is a candidate-surface (§7).
+(An earlier revision of this file quoted 5.4:1 and 3.5:1 for the first and last rows. Both were wrong.)
+
+**Focus ring** is emitted by the QSS builder as `outline: 2px solid {palette["FOCUS_RING"]}` at
+`_qt/styles.py:673 / :679 / :685` — applied to `QAbstractButton:focus`, `QComboBox:focus`,
+`QSlider:focus`. Don't strip it from a custom widget without restoring an equivalent (**AI-12**).
+
+**Per-variety surface colours** (`VARIETY_DEFAULT_COLOR`, `:180`; dark variant `:200`) — a *measured
+identity cue*, the one sanctioned use of chroma:
+
+| Variety | Colour | Contrast on the `#2f2f2f` viewport |
+|---|---|---|
+| K3 surface | `#8e9ed4` periwinkle | 5.09:1 |
+| Enriques surface | `#c4a882` ochre | 5.91:1 |
+| Calabi–Yau 3-fold | `#85b5d0` teal-cobalt | 6.07:1 |
+| Fano 3-fold (ρ=1) | `#8fbe85` sage | 6.29:1 |
+
+All clear 5:1 against the viewport. Colour that carries no meaning — family identity, state,
+provenance — does not ship (§9).
+
+**Legacy flat aliases.** `COLOR_MUTED`, `COLOR_VALUE`, `COLOR_DOCK_HEADER_BG`, `BG_VIEWPORT`, … still
+exist from `_qt/styles.py:336` onward, but they simply alias **`PALETTE_LIGHT`**. They are a
+compatibility shim, not the theme source. Read the palette dicts.
+
+**AI-13 reminder:** colours flowing into PyVista (`add_mesh(color=...)`, `set_plot_theme`) must be
+6-digit hex. PyVista's parser rejects short hex.
+
+## 3. Typography (in `_qt/styles.py`)
+
+| Class / token | Value | Purpose |
+|---|---|---|
+| `HEADING_STYLE` | `font-weight: bold; font-size: 13px; padding: 2px 0;` | Panel section headings |
+| `LABEL_STYLE` | `font-size: 12px;` | Default slider / checkbox labels |
+| `SMALL_LABEL_STYLE` | `font-size: 11px;` | Small descriptive / help text |
+| `MUTED_TEXT_STYLE` | `color: {TEXT_MUTED}; font-size: 10px;` | Subtitles, descriptions |
+| `VALUE_MONO_STYLE` | `font-family: monospace; font-size: 11px; color: {TEXT_VALUE};` | Numeric value readouts |
+| `RANGE_LABEL_STYLE` | `font-family: monospace; font-size: 9px; color: {TEXT_MUTED};` | Min/max range markers under sliders |
+| `QStatusBar` (QSS) | `font-size: 11px;` | Status bar text |
+| `QGroupBox` (QSS) | `font-size: 11px; font-weight: bold;` | Group-box titles |
+
+There is still no math-typography stack (no KaTeX, no MathJax). Equations live in plain-text tooltips
+with unicode super/subscripts. A rendered-math tooltip remains a candidate (§7).
 
 ## 4. Component primitives (current inventory)
 
-### Top control bar (in `app.py`)
-- `Variety:` QComboBox — outer keys of `VARIETIES`; placeholder `— Select —`
-- `Model:`  QComboBox — inner keys; rebuilt when variety changes
-- Both combos carry **rich tooltips** with equations + symmetry + references (from `VARIETY_TOOLTIPS` / `SUBTYPE_TOOLTIPS`)
+### Menu bar (`app.py`)
+- **`&File`** → `Export Mesh…` (`Ctrl+Shift+E`, `app.py:1391–1414`)
+- **`Theme`** → Dark / Light / Follow system (`app.py:1703`, `QActionGroup`). Swapping the theme
+  re-invokes `refresh_icons(theme)` on all three icon-bearing panels.
 
-### Central 3D viewport (in `app.py`)
-- `pyvistaqt.QtInteractor` — VTK trackball rotate / scroll-wheel zoom / Shift-drag pan
-- Tooltip on the widget itself spells out the mouse bindings
+### Top control bar (`app.py`)
+- `Variety:` / `Model:` `QComboBox` — placeholder `— Select —` (`app.py:64`, `_PLACEHOLDER`)
+- Both carry rich tooltips (equations + symmetry + references) from `varieties/tooltips.py`
 
-### View dock (left, in `view_panel.py`)
-- Camera-preset grid: Reset / Front / Top / Side / Isometric (each followed by a forced `render()`)
-- Domain-clip: Off / Sphere / Cube + radius slider; an outline overlay visualizes the clip region
-- Scene aids: bounding box, world-axes triad, grid axes (toggle checkboxes)
-- Screenshot: PNG with chooser dialog
+### Central 3-D viewport (`app.py`)
+- `pyvistaqt.QtInteractor` — VTK trackball rotate / scroll zoom / Shift-drag pan; the widget's own
+  tooltip spells out the mouse bindings. Background is `BG_VIEWPORT` in **both** themes.
 
-### Parameters dock (right top, in `parameters_panel.py`)
-- Dynamically rebuilt every time you switch surfaces — sliders generated from each `Surface.params` `ParamSpec` list
-- Each slider: label, current value (monospace), min/max range markers, suffix unit if any, tooltip with `description`
-- Slider value emits on **release only** (NOT during drag) to keep marching cubes responsive
-- "Reset all to defaults" button — object name `resetDefaultsBtn` — styled distinctly via `styles.py` QSS
-- CY3 banner: when the variety is Calabi–Yau 3-fold, a context label reminds the user that figures are 2D shadows
+### View dock (`_qt/panels/view.py::ViewPanel`)
+- Camera presets: Front / Top / Side / Isometric, each followed by a forced `render()` (**INT-23** —
+  a camera-state change without a follow-up `render()` is the canonical bug)
+- `Reset Camera`
+- Domain clip: Off / Sphere / Cube + radius slider + `Show clip outline`
+- Scene aids: bounding box, world-axes triad, grid axes
+- `Screenshot` (PNG chooser)
+- **`Export STL…`** — print-ready and clip-aware; disabled until a mesh exists
+  (`set_export_stl_enabled`), emits `export_stl_requested` for `MainWindow._on_export_stl_print`
+- Icons are qtawesome, refreshed per theme via `refresh_icons(theme)`
 
-### Appearance dock (right bottom, in `appearance_panel.py`)
-- Surface color: `QColorDialog` swatch
-- Opacity: 0–100% slider
-- Style: solid / wireframe / surface-with-edges (radio or toggle)
-- Lighting: flat / smooth / Phong shading toggles
-- Background: solid color picker, gradient on/off
+### Parameters dock (`_qt/panels/parameters.py::ParametersPanel`)
+- Sliders rebuilt on every surface switch from each `ParamSpec`; label, monospace current value,
+  min/max markers, unit suffix, `description` tooltip
+- Render fires on **`sliderReleased` only**, never `valueChanged` (**INT-2**) — a debounced callback
+  can never shadow the release render
+- `Reset all to defaults` — object name `resetDefaultsBtn`
+- **Generic context-hint banner** — `set_context_hint(text)`. It is *not* CY3-specific: `app.py:575`
+  supplies the Calabi–Yau "2-D shadows, Hanson-1994 tradition" note, `app.py:586` the Fano ρ=1 "real
+  2-D slice of a 6-dimensional variety — novel renderings" note, and `""` hides it for K3/Enriques.
+- **Grid mode toggle** — swaps the slider stack for `ParameterGridPanel`
+  (`_qt/panels/parameter_grid_panel.py`): a `QGraphicsScene` with a `_DraggableDot` plus residual
+  sliders. Its math lives in `_qt/parameter_grid_math.py`; drag-time helpers in `_qt/ui_helpers.py`.
 
-### Status bar (in `app.py`)
-- Default: surface label + vertex count + face count + current parameter values
-- Errors: `ValueError` from generator → message displayed verbatim
-- Warnings: RuntimeWarning extracted and prefixed `⚠` (currently the Dwork conifold soft warning)
+### Appearance dock (`_qt/panels/appearance.py::AppearancePanel`)
+- Surface colour swatch (`QColorDialog`); the swatch border is theme-aware (`_border_for_theme`)
+- Opacity slider; style radios (solid / wireframe / surface-with-edges); lighting toggles; background
 
-### Keyboard shortcuts (in `app.py`)
-- `Ctrl + R` — reset camera (via `QShortcut(QKeySequence...)`)
-- `Ctrl + Shift + S` — screenshot
-- `Ctrl + D` — reset all parameter sliders to defaults
+### Status bar (`app.py`)
+- Default: surface label + vertex / face counts + current parameter values
+- `ValueError` from a generator → displayed verbatim (hard error)
+- `RuntimeWarning` → extracted and prefixed `⚠` (**AI-14**, soft signal)
+- A `_render_busy_spinner` exists because `showMessage` is called on every render event
+
+### Keyboard shortcuts (`app.py`) — four, not three
+- `Ctrl+R` reset camera · `Ctrl+Shift+S` screenshot · `Ctrl+D` reset parameters ·
+  `Ctrl+Shift+E` export mesh
 
 ## 5. Accessibility constraints (non-negotiable)
 
 ### Text contrast (AI-12)
-Every text color must clear WCAG 2.1 AA.  The current `COLOR_MUTED = #5a5a5a` on `#f0f0f0` is 5.4:1 — clean.  Don't reintroduce `#888` or lower-contrast tokens.
+Every text colour clears WCAG 2.1 AA in **both** themes — see the measured table in §2. Never
+reintroduce `#888` (3.11:1) or any token below 4.5:1.
 
 ### Focus visibility (AI-12)
-`APP_STYLESHEET`'s `outline: 2px solid #5b9bd5; outline-offset: 1px;` is applied to `QAbstractButton:focus`, `QComboBox:focus`, `QSlider:focus`.  Don't strip this from custom widgets without restoring an equivalent.
+`outline: 2px solid {palette["FOCUS_RING"]}` on `QAbstractButton:focus`, `QComboBox:focus`,
+`QSlider:focus`. Per-theme (`#3c82c4` light, `#5b9bd5` dark). Restore an equivalent on any custom widget.
 
 ### Slider-release feedback (INT-2)
-The slider-release-only render policy is intentional — real-time render during drag would saturate marching cubes (~0.5s per call).  Don't propose `valueChanged` (every tick) — propose `sliderReleased` (one event).
+Release-only render is intentional — a live render during drag would saturate the marching-cubes
+pipeline. Propose `sliderReleased`, never `valueChanged`.
 
 ### Tooltip discipline
-Every dropdown item carries `Qt.ItemDataRole.ToolTipRole` (set in `app.py` from `VARIETY_TOOLTIPS` / `SUBTYPE_TOOLTIPS`).  Sliders carry `description` text from `ParamSpec`.  Don't add UI affordances without tooltips.
+Dropdown items carry `Qt.ItemDataRole.ToolTipRole` from `varieties/tooltips.py`; sliders carry
+`ParamSpec.description`. Don't add an affordance without a tooltip. Tooltip honesty (**AI-15**) is
+load-bearing: the CY3 / Fano context hints exist so a 2-D slice is never implied to be the variety.
 
-### Keyboard surface
-Currently 3 shortcuts (§4).  Tab order is Qt's default derivation.  Expanding the shortcut surface is a candidate (§7).
+### Keyboard + screen-reader surface — **known debt**
+Four shortcuts (§4). Tab order is Qt's default derivation. **`setAccessibleName` /
+`setAccessibleDescription` are used exactly 0 times in the entire codebase** (verified). Screen-reader
+labelling is real, unpaid a11y debt and belongs in Phase 4's mandatory `a11y-safety-debt` lane — it is
+not a "polish" candidate.
 
-## 6. Patterns that have already been considered and rejected (CONTEXT.md §9 — DON'T re-propose)
+## 6. Patterns already considered and rejected (DON'T re-propose)
 
-| Pattern | Why rejected |
+| Pattern | Status |
 |---|---|
-| State persistence (last surface, slider values, window layout via `QSettings`) | Discussed in CONTEXT.md §9 — explicitly considered, skipped (every launch starts fresh is the current convention).  RECONSIDERABLE if scope is clean. |
-| First-launch auto-render of a default surface | UX agent concluded "presumptuous in a research tool"; opens to `— Select —` placeholder.  RECONSIDERABLE for power-user mode. |
-| Confirmation dialog on Reset to Defaults | Action is non-destructive; the dialog interrupts flow.  Don't re-propose. |
-| `pytest-qt` UI end-to-end tests | **AI-2**: macOS Qt+VTK GL context segfaults under offscreen.  Don't re-propose without a macOS workaround. |
-| Constructing `MainWindow()` under `QT_QPA_PLATFORM=offscreen` | **AI-3**: segfaults during VTK GL context creation.  Hard fail. |
-| 3D mesh export (STL / OBJ / PLY) | One-line addition (`mesh.save("file.stl")`).  Was explicitly noted as a missing feature in §9 — UNDERDEVELOPED candidate, not rejected. |
-| `clip_box(invert=...)` on PolyData | **AI-4**: invert semantics broken; commit `b68456f` worked around this with scalar clipping. |
-| `auto_orient_normals=True` on Hanson cross-sections | **AI-7**: disconnected patches can't be coherently oriented; commit `f58ee05`. |
-| Short hex (`#888`) in colors flowing to PyVista | **AI-13**: PyVista's parser rejects short hex. |
+| First-launch auto-render of a default surface | **Rejected** — "presumptuous in a research tool". Opens to the `— Select —` placeholder. Reconsiderable only for an explicit power-user mode. |
+| Confirmation dialog on Reset to Defaults | **Rejected** — the action is non-destructive; the dialog interrupts flow. |
+| `pytest-qt` UI end-to-end tests | **Rejected — AI-2.** macOS Qt+VTK GL context segfaults under offscreen. |
+| Constructing `MainWindow()` under `QT_QPA_PLATFORM=offscreen` | **Rejected — AI-3.** Hard segfault in VTK GL context creation. |
+| `clip_box(invert=...)` on PolyData | **Rejected — AI-4.** Invert semantics broken; commit `b68456f` worked around it with scalar clipping. |
+| `auto_orient_normals=True` on Hanson cross-sections | **Rejected — AI-7.** Disconnected patches cannot be coherently oriented; commit `f58ee05`. |
+| Short hex (`#888`) in colours flowing to PyVista | **Rejected — AI-13.** PyVista's parser rejects short hex. |
+| `skimage.measure.marching_cubes` | **Removed.** The dependency is gone; implicit surfacing is `vtkFlyingEdges3D` (§1). |
+
+### Shipped since this section was first written — do NOT list these as candidates
+
+| Was | Now |
+|---|---|
+| "State persistence via `QSettings`" | **Shipped, partially.** Persisted keys: `LastSession/variety`, `LastSession/subtype`, the four `LastSession/print*` options, and `Window/geometry` + `Window/state` + `Window/schema_version` (`restoreGeometry` / `restoreState` on launch). **Still NOT persisted: slider values, and the active theme** — see §7. |
+| "Dark-mode toggle" | **Shipped.** Dark is the launch default; `Theme` menu offers Dark / Light / Follow system. |
+| "3D mesh export (STL / OBJ / PLY)" | **Shipped as STL.** `File → Export Mesh…` (`Ctrl+Shift+E`) and the View dock's `Export STL…` (print-ready, clip-aware). The `export/` package (`build_volumes.py`, `printable.py`) backs it, with a print-options dialog (`_qt/dialogs/print_options_dialog.py`). |
+| "Variety-family colour theming" | **Shipped.** `VARIETY_DEFAULT_COLOR` — see the measured table in §2. |
+| "Help menu / no menu bar at all" | **Partially shipped.** A menu bar exists (`&File`, `Theme`). A `Help` / `About` menu with citations does not — still a candidate (§7). |
 
 ## 7. What's UNDERDEVELOPED (candidate surface)
 
-The discover scouts will likely converge on a subset of these — surface them prominently if your scan finds confirming evidence.
+Verified open as of 2026-07-10. The discover scouts will likely converge on a subset — surface them
+prominently if your scan finds confirming evidence.
 
-- **Dark-mode toggle** — current app is light-only; a dark color palette would suit the math-research audience (3Blue1Brown / Quanta-style chrome).  Note: this is a sizable candidate; the entire `styles.py` palette would gain a parallel dark variant.
-- **State persistence via `QSettings`** — last-used surface, slider values, dock layout, color choices.  CONTEXT.md §9 noted as an open opportunity.
-- **3D mesh export (STL / OBJ / PLY)** — `mesh.save("file.stl")` one-liner.  Researchers often want to load surfaces in Blender / Meshmixer / GeoGebra.
-- **Math-typography tooltip / overlay** — equations currently render as plain-text unicode; a rendered KaTeX/MathJax tooltip popover would dramatically lift fidelity.
-- **Empty-clip overlay annotation** — when domain radius is set so small that the surface vanishes, the status bar says so but the canvas is silent.  A VTK text overlay would help.
-- **Variety-family color theming** — every K3 model shares a default surface color, every Enriques another, etc.  Currently they all get the same `#9aa6c8` slate.  Cheap visual cue for the math reader.
-- **First-launch tour / "click any variety" hint** — empty viewport on launch with `— Select —` placeholder; visitors don't always realize the cascading-dropdown UX.
-- **Animated parameter sweep** — slider-driven scrubber that animates a parameter from min → max over N seconds; great for teaching the deformation visually.  Hanson dwell time / Dwork ψ sweep would be the iconic demos.
-- **Side-by-side surface comparison** — two viewports, one model each; useful for K3 ↔ Kummer or Enriques figure family comparison.
-- **HiDPI / Retina scaling polish** — README notes "Run with `QT_AUTO_SCREEN_SCALE_FACTOR=1`" as a workaround for jumpy sliders.  Wrapping this into `app.py`'s `if __name__ == "__main__"` is a polish candidate.
-- **Status-bar warning badge persistence** — current warnings show once and disappear when the next render writes.  A small persistent badge (`⚠ N warnings`) clickable to a transient sheet would help.
-- **Parameter min/max field input** — sliders force discrete steps; some researchers want to type an exact ψ = 1.0001 to probe the conifold.  A spin-box alternative per slider is a UX surface.
-- **Bounding-box / scene-aid color tokens** — currently white-ish on the light background; harder to see than ideal.  Subtle desaturated tokens would help.
-- **Tooltip equation rendering: at minimum, format-preserving** — the existing tooltip text uses unicode subscripts (`n₁`, `n₂`) and Greek (φ, ψ, λ); some platforms render these poorly without an explicit `QToolTip` font CSS override.
-- **Help menu / About dialog with mathematical citations** — currently no menu bar at all; tooltips carry the citations but there's no central reference card.
-- **`prefers-reduced-motion`-style toggle for VTK camera transitions** — VTK doesn't animate by default, but if camera transitions are added (smooth view-preset interpolation), they should be optional.
-- **Per-Variety palette templates in `Appearance`** — saved "K3-default" / "Hanson-iconic" presets you can pick from a combo.
+**a11y-safety-debt lane (mandatory, ranked first — §9 / phase-prioritize):**
+- **`setAccessibleName` on every interactive widget** — currently 0 occurrences codebase-wide.
+- **Explicit tab-order derivation** — Qt's default ordering has never been audited against the
+  dock layout.
+
+**Foundations:**
+- **Theme is not persisted** — `QSettings` stores the last variety, subtype, print options and the
+  window geometry/state, but the active theme resets to `dark` on every launch. Cheap, and it
+  removes a daily papercut for a light-theme user.
+- **Slider values are not persisted** — the parameter state of the last session is lost.
+- **Reduced-motion toggle** — a `QSettings`-backed switch. Note there is currently **no Qt animation
+  anywhere in the codebase** (0 `QPropertyAnimation` / `QVariantAnimation` / `QTimeLine`), so this is
+  a *precondition* for animated camera-preset interpolation, not a fix for existing motion.
+- **Bounding-box / scene-aid colour tokens** — currently light-ish; harder to read against the dark
+  viewport than ideal.
+
+**Workflow:**
+- **Parameter min/max field input** — sliders force discrete steps; typing an exact ψ = 1.0001 to
+  probe the Dwork conifold is not possible today. A spin-box alternative per slider.
+- **Empty-clip overlay annotation** — when the domain radius shrinks the surface to nothing, the
+  status bar says so but the canvas is silent. A VTK text overlay would carry the message.
+- **Status-bar warning-badge persistence** — a `⚠ N warnings` badge that survives the next render's
+  `showMessage`. (Note the `_render_busy_spinner` already exists for the same underlying reason.)
+- **Side-by-side surface comparison** — two viewports, one model each; K3 ↔ Kummer, or the Enriques
+  figure family.
+- **Animated parameter sweep** — scrub one parameter min → max over N seconds. The Hanson dwell time
+  and the Dwork ψ sweep are the iconic demos. Gated on the reduced-motion toggle above.
+
+**Polish / signature:**
+- **Math-typography tooltip or overlay** — equations are plain-text unicode today; a rendered
+  KaTeX/MathJax popover would lift fidelity substantially.
+- **`QToolTip` font override** — the existing tooltips use unicode subscripts (`n₁`, `n₂`) and Greek
+  (φ, ψ, λ); some platforms render these poorly without an explicit font CSS override.
+- **Help / About dialog with mathematical citations** — the tooltips carry the citations; there is no
+  central reference card.
+- **First-launch hint** — the empty viewport + `— Select —` placeholder does not reveal the
+  cascading-dropdown UX. An *honest* empty-state affordance only; a splash is BAN-10/13 (§9).
+- **Per-variety palette presets in Appearance** — saved "K3-default" / "Hanson-iconic" combos.
+- **HiDPI polish** — `app.py` sets `AA_ShareOpenGLContexts` but nothing else; the README's
+  `QT_AUTO_SCREEN_SCALE_FACTOR=1` workaround is still a manual step.
 
 ## 8. How to anchor a proposal to this file
 
 Every candidate in the synthesis catalog must cite ONE of:
 
-- A specific source file:line that's the closest existing implementation (cite `app.py`, `surfaces.py`, `view_panel.py`, `parameters_panel.py`, `appearance_panel.py`, or `styles.py`)
-- A named constant or class from `styles.py` to be applied / extended (`HEADING_STYLE`, `COLOR_MUTED`, …)
-- An app invariant (AI-1 … AI-15 in `app-invariants.md`) that the proposal must honor
-- A pattern in §7 above (the "underdeveloped" list)
-- A specific interaction primitive from `interaction-vocabulary.md` (cite `[INT-N]`)
+- **A specific source `file:line`** that is the closest existing implementation. The real paths are
+  `app.py`, `_qt/styles.py`, `_qt/panels/{view,parameters,appearance,parameter_grid_panel}.py`,
+  `_qt/icons.py`, `_qt/parameter_grid_math.py`, `_qt/dialogs/print_options_dialog.py`,
+  `varieties/{registry,tooltips,k3,enriques,calabi_yau,fano,_kernels,_marching}.py`,
+  `render/worker.py`, `cross_section/clip.py`, `export/`.
+- **A named token from `_qt/styles.py`** to be applied or extended — a `PALETTE_LIGHT` /
+  `PALETTE_DARK` key, `VARIETY_DEFAULT_COLOR`, or a `*_STYLE` constant.
+- **An app invariant** (`AI-1` … `AI-15`, `.claude/references/app-invariants.md`) the proposal honours.
+- **A pattern in §7** (the underdeveloped list) — and say which lane it belongs to.
+- **An interaction primitive** from `interaction-vocabulary.md` (cite `[INT-N]`; the vocabulary runs
+  `INT-1` … `INT-98`).
+- **A BAN token or the §10 rubric** from the synced canon
+  `.claude/references/frontend-design-language.md`, plus the §9 house thesis below.
 
-If none of those apply, the proposal is probably not Algebraic-Variety-Viewer-shaped — push back at synthesis.
+If none of those apply, the proposal is probably not Algebraic-Variety-Viewer-shaped — push back at
+synthesis.
 
 ---
 
 ## §9 — House thesis
 
-> **Status note (2026-07):** §1–§8 above were authored 2026-05 and predate the r3 single-root restructure, the dark-theme launch default, the Fano 3-fold family, the parameter-grid panel, and the QThread render worker (`render/worker.py`).  Treat §1–§8 as an inventory in need of a refresh (real paths are now `app.py`, `_qt/styles.py`, `_qt/panels/*`, `varieties/`).  **§9 is ground-truthed against the current code** and is the load-bearing house-thesis contract per `frontend-design-language.md` §9.
+> **Ground-truthed 2026-07-10.** §1–§8 were re-verified against the tree after the
+> `restructure-feature-subpackages-2026q2-r2` move, the dark-theme launch default, the Fano 3-fold
+> family, the parameter-grid panel, and the `QThreadPool`/`QRunnable` render worker. §9 below is the
+> load-bearing house-thesis contract per `frontend-design-language.md` §9.
 
-**This section fills in `frontend-design-language.md` §9 for this repo.**  The canon is product-neutral and written in web mechanics; this overlay is the one place the Algebraic Variety Viewer's thesis, anti-references, and surface map live — translated to PySide6/Qt (tokens → `_qt/styles.py` `PALETTE_LIGHT`/`PALETTE_DARK` + `.qss`; motion → `QPropertyAnimation` + `[INT-N]`; reduced-motion → a QSettings toggle, not a media query; perf → startup-render + camera frame time; a11y → focus/tab order + `.qss` WCAG-AA contrast).  The `frontend-uplift-art-direction-scout` MUST read this before proposing a thesis or directions.
+**This section fills in `frontend-design-language.md` §9 for this repo.**  The canon is product-neutral and written in web mechanics; this overlay is the one place the Algebraic Variety Viewer's thesis, anti-references, and surface map live — translated to PySide6/Qt (tokens → `_qt/styles.py` `PALETTE_LIGHT`/`PALETTE_DARK` + `.qss`; motion → `QPropertyAnimation` + `[INT-N]` — note **no Qt animation exists in the codebase today**, so a reduced-motion toggle (QSettings, not a media query) is a *precondition* for adding any; perf → startup-render + camera frame time; a11y → focus/tab order + `.qss` WCAG-AA contrast).  The `frontend-uplift-art-direction-scout` MUST read this before proposing a thesis or directions.
 
 ### Visual thesis (one sentence — swap-test-passing)
 
