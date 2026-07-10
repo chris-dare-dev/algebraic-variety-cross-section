@@ -4,9 +4,10 @@
 
 ## Inputs
 
+- `.claude/notes/frontend-uplifts/{ID}/discover/art-direction-scout-brief.md` (**THE FRAME** — read first: visual thesis + 3 divergent directions + BAN-1..15 list + surface map)
 - `.claude/notes/frontend-uplifts/{ID}/discover/visual-scout-brief.md`
-- `.claude/notes/frontend-uplifts/{ID}/discover/library-scout-brief.md`
-- `.claude/notes/frontend-uplifts/{ID}/discover/inspiration-scout-brief.md`
+- `.claude/notes/frontend-uplifts/{ID}/discover/library-scout-brief.md` (standard/deep only)
+- `.claude/notes/frontend-uplifts/{ID}/discover/inspiration-scout-brief.md` (standard/deep only)
 - `.claude/notes/frontend-uplifts/{ID}/discover/current-state-critic-brief.md`
 - `.claude/notes/frontend-uplifts/{ID}/renders/*.png` (visual evidence — off-screen renders)
 
@@ -16,11 +17,12 @@
 
 ## Synthesis protocol
 
-1. **Read every brief end-to-end first.**  Hold all 4 in working memory.
+0. **Adopt the design frame FIRST (Step 2a.5).**  Read `art-direction-scout-brief.md` and reproduce its frame — visual thesis, the 3 divergent directions, the active BAN-1..15 list, the surface map — as **Section 0 of the synthesis**.  Every candidate is then placed relative to that frame: `[DIRECTION-DEFINING]` (executes the chosen direction), compatible, or `[polish]`.  A frameless catalog is not acceptable — if the art-direction scout returned `frame_degraded` or was absent, build a PROVISIONAL frame from `frontend-design-language.md` §8 direction seeds + this repo's `design-system.md` §9 house thesis, and say so.  This app is S-2 (tool) throughout, so directions live within the §6 premium-instrument language (no spectacle) — the Qt translation of the canon (tokens → `_qt/styles.py` `PALETTE_*`/`.qss`; motion → `[INT-N]` / `QPropertyAnimation`).
+1. **Read every brief end-to-end.**  Hold all of them in working memory (5 in standard/deep, 3 in lean).
 2. **Look at the renders.**  The visual scout's PNGs are evidence; the synthesizer references them in candidate entries by path.  `Read` each PNG to confirm what the brief described matches what the image shows.
 3. **Build a candidate inventory.**  Every distinct modernization opportunity proposed across the 4 briefs becomes a candidate row (`UPL-1`, `UPL-2`, …).
 4. **Deduplicate.**  Triangulation is the strongest signal.  When two briefs surface the same upgrade (e.g., library-scout cites `qtawesome` adoption + visual-scout cites "no icon affordances on toolbar buttons"), merge into ONE candidate with both evidence sources.
-5. **Cross-link interaction vocabulary.**  Every candidate that involves interaction / animation / panel-layout cites a `[INT-N]` primitive from `references/frontend-uplift/interaction-vocabulary.md`.  This is what makes the catalog comparable.
+5. **Cross-link interaction vocabulary + name the motion job.**  Every candidate that involves interaction / animation / panel-layout cites a `[INT-N]` primitive from `references/frontend-uplift/interaction-vocabulary.md` (this repo's motion-vocabulary analogue).  This is what makes the catalog comparable.  **Motion-jobs test (no quota):** any candidate that ADDS motion must name the job it serves — orientation / causality / feedback / continuity.  No job, no motion; native Qt facility (`[INT-*]`) first, a new engine (`QPropertyAnimation` / `QGraphicsOpacityEffect`) only when a named job needs one, with reduced-motion honoured via a QSettings toggle.  Motion for its own sake (entry fades, gratuitous stagger) is itself a finding, not a candidate.
 6. **Categorize** with this fixed taxonomy:
    - **Interaction** — slider behavior, button semantics, dock affordances, keyboard shortcuts, drag-and-drop
    - **Camera / viewport** — VTK trackball, view presets, camera transitions, domain-clip UX
@@ -67,6 +69,7 @@
 
 ## Synthesis sections
 
+0. **Adopted design frame** (OPEN with this) — the art-direction scout's visual thesis + 3 divergent directions + BAN-1..15 list + surface map, reproduced verbatim (or the provisional frame + a note if the scout was absent/degraded).  Name the ONE recommended direction and why.  Every later candidate references this frame.
 1. **Executive summary** — 4–6 sentences: how many candidates, dominant categories, top theme, top tension across briefs.
 2. **Triangulation strength** — count candidates by evidence-source count: "N candidates have 3+ brief sources (strong); N have 2; N have 1 (weak — flag for challenger scrutiny)".
 3. **Foundational candidates** — surface FIRST: candidates other candidates depend on.  Canonical example for this app: "centralize all string-rendering of equations into a `LATEX_PREVIEW` helper" — once landed, both the rendered-math tooltip and the Help-menu citation card become unlocked.  Synthesis MUST flag foundational candidates explicitly so Phase 4 sequences them correctly.

@@ -164,3 +164,56 @@ Every candidate in the synthesis catalog must cite ONE of:
 - A specific interaction primitive from `interaction-vocabulary.md` (cite `[INT-N]`)
 
 If none of those apply, the proposal is probably not Algebraic-Variety-Viewer-shaped — push back at synthesis.
+
+---
+
+## §9 — House thesis
+
+> **Status note (2026-07):** §1–§8 above were authored 2026-05 and predate the r3 single-root restructure, the dark-theme launch default, the Fano 3-fold family, the parameter-grid panel, and the QThread render worker (`render/worker.py`).  Treat §1–§8 as an inventory in need of a refresh (real paths are now `app.py`, `_qt/styles.py`, `_qt/panels/*`, `varieties/`).  **§9 is ground-truthed against the current code** and is the load-bearing house-thesis contract per `frontend-design-language.md` §9.
+
+**This section fills in `frontend-design-language.md` §9 for this repo.**  The canon is product-neutral and written in web mechanics; this overlay is the one place the Algebraic Variety Viewer's thesis, anti-references, and surface map live — translated to PySide6/Qt (tokens → `_qt/styles.py` `PALETTE_LIGHT`/`PALETTE_DARK` + `.qss`; motion → `QPropertyAnimation` + `[INT-N]`; reduced-motion → a QSettings toggle, not a media query; perf → startup-render + camera frame time; a11y → focus/tab order + `.qss` WCAG-AA contrast).  The `frontend-uplift-art-direction-scout` MUST read this before proposing a thesis or directions.
+
+### Visual thesis (one sentence — swap-test-passing)
+
+> **The Algebraic Variety Viewer is a darkroom for algebraic geometry: the cross-section is the luminous specimen, the Qt chrome is the recessive instrument around it, and every colour, contrast, and readout is a measured, sourced claim about the mathematics — never decoration.**
+
+*Swap-test:* substitute a general-purpose 3-D viewer (ParaView, Blender, a generic mesh tool) and the sentence collapses — none of them makes a "measured, sourced claim about the mathematics," and none is anchored to *algebraic geometry* as its subject.  It holds specifically for this app, so it is a thesis, not a category description.
+
+**Invariants the thesis protects** (these are the binding part — NOT a page silhouette or style recipe; a run may satisfy them through any `frontend-design-language.md` §8 direction seed or a genuinely new one, but cloning a specific shell is BAN-15):
+
+1. **Specimen-first.**  The rendered surface, in the dark `#2f2f2f` viewport (`_qt/styles.py:BG_VIEWPORT`), is always the brightest, most saturated thing on screen.  Chrome stays achromatic and recessive; no panel, accent, or icon competes with the geometry.  Dark is the launch default *because* the viewport is always dark — the chrome frames the specimen, it is not a mood.
+2. **Honest instrumentation** (AI-14, AI-15).  The app never implies a render is more than a cross-section or a projected shadow.  The Calabi–Yau "this is a 2-D shadow, not the 6-D variety" banner (`[INT-42]`), the vertex/face counts, the `⚠` warning prefix (`[INT-70]`), and the math-cited tooltips (`[INT-7]`) are load-bearing, not optional dressing.
+3. **Measured, not styled** (AI-12, AI-13).  Every colour and contrast is numerically justified in BOTH themes (`_qt/styles.py` carries per-token WCAG ratios).  Colour that carries no meaning — variety-family identity, state, provenance — does not ship.  The four per-variety surface colours (K3 periwinkle `#8e9ed4`, Enriques ochre `#c4a882`, CY3 teal-cobalt `#85b5d0`, Fano sage `#8fbe85`; ≥24° hue-separated, each ≥5:1 on the viewport) are a *measured identity cue* — the exception that proves the rule, not licence for decorative colour.
+4. **Calm at repeat-use.**  This is a long-session research instrument.  Motion is functional feedback only — busy-cursor (`[INT-3]`), status (`[INT-4]`), slider-release render (`[INT-2]`), camera-fire-and-render (`[INT-23]`) — never spectacle, never motion for its own sake.  There is no marketing surface to animate.
+5. **Keyboard-and-contrast reachable** (AI-11, AI-12).  Every control is tab-reachable with a visible focus ring in both themes; qualified Qt enums throughout; WCAG AA text.  Accessibility is debt that ships first (the Phase 4 `a11y-safety-debt` lane), never a candidate to rank away.
+
+### Named anti-references (what this app must never become)
+
+The canon's anti-reference is the web "generic AI dashboard" (navy + neon).  Its *native Qt* analogues — the plausible failure modes for THIS app — each mapped to the BAN token it exemplifies:
+
+| Anti-reference (Qt-native) | What it looks like | BAN-N |
+|---|---|---|
+| **The neon sci-fi HUD viewer** | Glowing cyan/green wireframes, gradient-filled or glassmorphic docks, accent-glow borders "energising" the dark theme, an accent-coloured icon chip on every button. | BAN-1, BAN-3, BAN-8 |
+| **The ParaView property-wall** | Every control at equal weight in an undifferentiated grey scroll of collapsible trees — no focal element, no lede, the viewport no longer the subject; uniform medium density everywhere. | BAN-5, BAN-14 |
+| **The rainbow-colormap chrome** | A jet/rainbow colormap or a different saturated hue applied to every widget so the palette becomes decoration; the `⚠`/error semantic colours diluted by decorative colour elsewhere. | BAN-6, BAN-11 |
+| **The template "welcome" launcher** | A first-run splash — "Welcome to Algebraic Variety Viewer," quick-action tiles, a KPI-style stat row — replacing the honest `— Select —` empty state. | BAN-10, BAN-13 |
+| **Status-bar badge soup** | Coloured status pills scattered across the status bar / panels instead of one honest line (label + vertex/face counts + `⚠`). | BAN-7 |
+| **Borrowed-shell syndrome** | Recreating the canon's own *web* house look (ink + violet wash + Space Grotesk + numbered eyebrows), or another repo's dashboard shell, as this native Qt app's identity. | BAN-15 |
+
+*Concrete "never again" baseline:* the app's own pre-2026q2 chrome — the former `#888` muted text (AA-failing at ~3.5:1), the flat undifferentiated single-`#9aa6c8`-slate-on-every-variety look, and the un-themed light-only palette — is kept as the baseline this thesis steers away from.
+
+### Surface map (every view is S-2 / tool)
+
+There is **no S-1 or S-1m surface** in this app: no marketing, landing, hero, login, or onboarding exists.  The whole product is a native Qt tool.  This is why experiential motion is INERT here and the `frontend-uplift-experiential-scout` is not dispatched by default (`frontend-design-language.md` §3 / motion-vocabulary §0).
+
+| Surface | Class | Direction / discipline |
+|---|---|---|
+| Startup / empty state (`— Select —` + empty dark viewport, `app.py:_PLACEHOLDER`) | **S-2** | The single first-impression moment (closest analogue to S-1m, but governed by S-2 discipline).  An *honest* empty-state affordance — a quiet hint to pick a variety — is defensible; a spectacle splash is BAN-10/13 and BLOCKED. |
+| Central 3-D viewport (`_qt/panels/view.py` → `QtInteractor`) | **S-2** | The work surface and the sole focal element.  Specimen-first.  VTK trackball; any camera-preset transition is optional + reduced-motion-gated (QSettings), and every camera state change ends in `render()` (`[INT-23]`). |
+| View dock (camera presets, domain clip, scene aids, screenshot, mesh export) | **S-2** | Recessive instrument panel; authored density; achromatic chrome. |
+| Parameters dock (dynamic sliders, reset-to-defaults, CY3 banner) | **S-2** | Instrument panel; tabular-mono readouts; slider-release render (`[INT-2]`). |
+| Parameter-grid panel (`_qt/panels/parameter_grid_panel.py`, `QGraphicsScene` draggable dot) | **S-2** | The one bespoke direct-manipulation canvas; the same measured-token discipline applies (drawn with `GRID_*` palette tokens). |
+| Appearance dock (surface/background colour, opacity, style toggles, shading) | **S-2** | Instrument panel; colour choices route through the measured `PALETTE_*` tokens (6-digit hex, AI-13). |
+| Status bar + menu bar (Theme menu: Light / Dark / Follow system) | **S-2** | One honest status line; recessive chrome; theme-aware via the `.qss` role cascade. |
+
+**Chosen default direction:** a `frontend-design-language.md` §8 **D-A "Precision Instrument"** core — quiet dark material, hairline structure, mono data voice, near-zero decoration, recognizability from typographic discipline and the measured per-variety identity colours — is the standing default for every S-2 surface here.  There are no threshold/marketing surfaces, so D-C/experiential craft has nowhere to land.  A run may argue a different direction from the frame, but never by importing spectacle onto the tool surface (BAN-12).

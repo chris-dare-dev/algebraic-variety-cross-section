@@ -25,9 +25,10 @@ Read these first (much of your 15-minute budget — context is the deliverable):
 - ./view_panel.py (~420 LOC — view presets + camera + domain clip + screenshot)
 - ./styles.py (~140 LOC — centralized stylesheet constants)
 - ./tests/ (skim file inventory — note Qt-free constraint per AI-2)
-- ./.claude/references/frontend-uplift/design-system.md
+- ./.claude/references/frontend-uplift/design-system.md (esp. **§9 house thesis** — the app's visual thesis + named anti-references; measure the current UI against it)
 - ./.claude/references/frontend-uplift/interaction-vocabulary.md
 - ./.claude/references/app-invariants.md
+- (optional, for anti-template vocabulary) ./.claude/references/frontend-design-language.md §5 BAN-1..15 — you are wave 1; the art-direction scout (wave 2) reads YOUR brief as evidence for its §10 cookie-cutter score, so when you observe an undirected/template tell in code, name it with the BAN-N token (translated to Qt: e.g. a neon-HUD dark restyle = BAN-1; equal-weight "property-wall" panels with no focal element = BAN-5; per-widget rainbow color as decoration = BAN-11).  This is optional framing — do NOT let it turn your calibrated critique into cliché-hunting.
 
 Then look at the app's GUI through the lens of "what would a 2026 scientific-viz desktop-app reviewer / engineer-user expect that this app doesn't ship?"
 

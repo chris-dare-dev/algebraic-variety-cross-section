@@ -26,12 +26,12 @@ The challenger uses the 4-tier rubric mapped to the standard format for state-fi
 
 | Challenger tier | Maps to standard severity | Meaning |
 |---|---|---|
-| **BLOCKER** | CRITICAL | Must be dropped or fundamentally redesigned.  Examples: app-invariant violation (AI-1 proposing Mayavi / Plotly / matplotlib-3D, AI-2 pytest-qt-style UI tests, AI-3 MainWindow under offscreen, AI-4 clip_box on PolyData, AI-7 Hanson `consistent_normals=True`), GPL-3.0 library that can't be vendored cleanly with PySide6 LGPL stack, segfault-prone proposal. |
-| **MAJOR** | HIGH | Shippable but with significant cost the synthesis didn't surface.  Examples: 50MB+ wheel for a small affordance; macOS Qt+VTK offscreen surface not addressed for a new render path; AI-12 contrast regression with no remediation plan; AI-9 re-entrancy guard missed on a new `processEvents()` call; UX regression on first-launch (`— Select —` placeholder removed without alt UX). |
+| **BLOCKER** | CRITICAL | Must be dropped or fundamentally redesigned.  Examples: app-invariant violation (AI-1 proposing Mayavi / Plotly / matplotlib-3D, AI-2 pytest-qt-style UI tests, AI-3 MainWindow under offscreen, AI-4 clip_box on PolyData, AI-7 Hanson `consistent_normals=True`), GPL-3.0 library that can't be vendored cleanly with PySide6 LGPL stack, segfault-prone proposal, **Axis-11 distinctiveness failure (a frameless synthesis, or a projected surface scoring 6+ on the §10 rubric — e.g. a neon sci-fi-HUD restyle, BAN-1/8)**. |
+| **MAJOR** | HIGH | Shippable but with significant cost the synthesis didn't surface.  Examples: 50MB+ wheel for a small affordance; macOS Qt+VTK offscreen surface not addressed for a new render path; AI-12 contrast regression with no remediation plan; AI-9 re-entrancy guard missed on a new `processEvents()` call; UX regression on first-launch (`— Select —` placeholder removed without alt UX); **an Axis-11 projected §10 score of 3–5 (template-leaning)**. |
 | **MINOR** | MEDIUM | Light scope adjustment.  Examples: dock-header color drift, missing `aria`-equivalent label on a button, slider-step coercion edge case, AI-11 Qt-enum-shorthand drift in new code. |
 | **NONE** | LOW (clean) | Candidate survives.  Aim for 30–60% of candidates rating NONE — that's calibrated. |
 
-## The 10-axis FRONTEND-CHALLENGER checklist
+## The 11-axis FRONTEND-CHALLENGER checklist
 
 Every candidate gets evaluated against:
 
@@ -44,7 +44,8 @@ Every candidate gets evaluated against:
 7. **Cross-platform (macOS / Linux / Windows)** — the user develops on macOS Apple Silicon; the README claims Linux + Windows work but aren't routinely verified.  Heavy GL-dep candidates need a Linux/Windows fallback note.
 8. **Effort honesty** — t-shirt size matches the single-developer / small-team cadence in CONTEXT.md §6's 5-phase pipeline (S=1-3d, M=4-10d, L=>10d).
 9. **Anti-pattern check** — explicitly check candidate against `interaction-vocabulary.md` §8 (INT-NO-1 … INT-NO-13).
-10. **Sequencing dependencies** — DAG between candidates (e.g., per-variety palette tokens depend on the `styles.py` refactor that introduces palette templates first).
+10. **Sequencing dependencies** — DAG between candidates (e.g., per-variety palette tokens depend on the `_qt/styles.py` refactor that introduces palette templates first).
+11. **Distinctiveness / anti-template** — the anti-cookie-cutter axis (`frontend-design-language.md` §5 BAN-1..15 + §10 rubric).  Score the candidate's PROJECTED end-state against the 13 §10 tells, translated to this native Qt app (neon "sci-fi HUD" dark restyle = BAN-1/8; accent-icon-chip-on-every-button = BAN-3; equal-weight "ParaView property-wall" with no focal element = BAN-5/14; rainbow-colormap-as-decoration / diluted ⚠ semantic color = BAN-6/11; "Welcome" splash + quick-action tiles over the honest `— Select —` = BAN-10/13; parallax/scroll-zoom/WebGL spectacle on this S-2 surface = BAN-12; cloning the canon's own WEB house look or another repo's dashboard shell = BAN-15).  Apply the §11 four questions; a candidate that cannot answer Q4 ("recognizably NOT a template assembly?") is polish, not design (exempt only for pure a11y/token/mechanical fixes).  A **frameless synthesis** (Phase 2 did not open with an adopted frame) or a projected §10 score of **6+** is a **run-level BLOCKER**; **3–5** is **MAJOR**.  The challenger Reads `.claude/references/frontend-design-language.md` directly for this axis.
 
 ## After receiving the challenge
 
