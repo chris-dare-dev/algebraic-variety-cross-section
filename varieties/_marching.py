@@ -17,7 +17,6 @@ from collections.abc import Sequence
 
 import numpy as np
 import pyvista as pv
-from skimage import measure
 
 
 def _marching_cubes_to_polydata(
