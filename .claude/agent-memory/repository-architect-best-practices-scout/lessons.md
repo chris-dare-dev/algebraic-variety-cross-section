@@ -59,7 +59,6 @@
 
 ## Lesson from restructure-feature-subpackages-2026q2-r2 (2026-05-23)
 
-### New 2026 patterns observed
 
 - **ETH Zurich study (arxiv 2602.11988v1) confirms context files add cost without proportional
   benefit.** LLM-generated files: -2-3% success, +23% cost. Human-curated: +4% success, +19%
@@ -89,7 +88,6 @@
 - **ETH Zurich AGENTS.md study** is a new primary source that changes the per-subpackage
   CLAUDE.md recommendation from LOW to "only if genuinely non-obvious constraints exist."
 
-### AVC-specific lessons (do not generalize)
 
 - **r1 closed items 2, 3, 6, 7, 8, 21, 22, 25, 28** — evaluator score went from 14/28 to
   21/28 PASS. r2 targets items 17 (surfaces.py LOC) and 24 (framework adapter isolation).
@@ -118,7 +116,6 @@
 
 ## Lesson from restructure-single-root-2026q2-r3 (2026-05-24)
 
-### New 2026 patterns observed
 
 - **Protocol + frozen dataclass is now CONSENSUS for registry polymorphism.**
   Multiple 2025-2026 sources agree: use Protocol at the interface boundary,
@@ -143,7 +140,6 @@
   Spyder uses flat layout with bootstrap.py at root. AVC is closer to Spyder.
   Fetched via gh API 2026-05-24.
 
-### AVC-specific lessons (do not generalize)
 
 - **parameter_grid.py is ALREADY pure math** — confirmed by reading the file.
   It has no PySide6 or pyvista imports. Docstring explicitly says "Qt-free."
